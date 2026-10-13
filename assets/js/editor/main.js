@@ -138,6 +138,17 @@ const canvas = new fabric.Canvas("design-canvas", {
 });
 ed.canvas = canvas;
 
+// Sombras y brillos de la tela ENCIMA del diseño (y debajo de los controles de
+// selección): la estampa toma los pliegues como en la prenda real.
+const shadeEl = document.createElement("div");
+shadeEl.className = "ed-fabric ed-fabric--shade";
+shadeEl.setAttribute("aria-hidden", "true");
+const lightEl = document.createElement("div");
+lightEl.className = "ed-fabric ed-fabric--light";
+lightEl.setAttribute("aria-hidden", "true");
+canvas.wrapperEl.insertBefore(shadeEl, canvas.upperCanvasEl);
+canvas.wrapperEl.insertBefore(lightEl, canvas.upperCanvasEl);
+
 /* ======================= Layout responsive ======================= */
 const stageWrap = $("[data-stage-wrap]");
 const stage = $("[data-stage]");
@@ -163,7 +174,9 @@ function layout() {
 new ResizeObserver(() => requestAnimationFrame(layout)).observe(stageWrap);
 
 function renderMockup() {
-  mockupEl.innerHTML = garmentSvg(product.type, ed.face, color().hex);
+  mockupEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "base" });
+  shadeEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "shade" });
+  lightEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "light" });
 }
 
 function renderGuides() {

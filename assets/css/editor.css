@@ -870,3 +870,20 @@ input[type="color"].ink-picker {
   color: var(--c-ink-3);
   font-family: var(--ff-mono);
 }
+
+/* Sombras y brillos de la tela por encima del diseño (debajo de los controles) */
+.ed-fabric {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ed-fabric > svg {
+  width: 100%;
+  height: 100%;
+}
+.ed-fabric--shade {
+  mix-blend-mode: multiply;
+}
+.ed-fabric--light {
+  mix-blend-mode: screen;
+}

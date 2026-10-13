@@ -85,14 +85,22 @@ export async function renderPreview({ productType, colorHex, face, objects, scal
     ctx.fillStyle = background;
     ctx.fillRect(0, 0, W, H);
   }
-  const { img, url } = await loadSvgImage(garmentSvg(productType, face, colorHex), W, H);
-  ctx.drawImage(img, 0, 0, W, H);
-  URL.revokeObjectURL(url);
+  const draw = async (layer, op = "source-over") => {
+    const { img, url } = await loadSvgImage(garmentSvg(productType, face, colorHex, { layer }), W, H);
+    ctx.globalCompositeOperation = op;
+    ctx.drawImage(img, 0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over";
+    URL.revokeObjectURL(url);
+  };
+  await draw("base");
   if (objects.length) {
     const sc = await staticCanvasFor(objects, { width: W, height: H, viewportTransform: [scale, 0, 0, scale, 0, 0] });
     ctx.drawImage(sc.lowerCanvasEl, 0, 0);
     sc.dispose();
   }
+  // Sombras y brillos de la tela encima del diseño, igual que en el editor.
+  await draw("shade", "multiply");
+  await draw("light", "screen");
   return canvasToBlob(out, type, quality);
 }
 
