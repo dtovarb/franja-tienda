@@ -65,8 +65,6 @@ const NAV = [
   { href: "catalogo.html?diseñar=1", label: "Diseñar", key: "design" },
 ];
 
-const stripeMark = '<span class="stripe-mark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>';
-
 export function renderHeader(active) {
   const el = document.getElementById("site-header");
   if (!el) return;
@@ -74,7 +72,7 @@ export function renderHeader(active) {
   el.innerHTML = `
     <div class="demo-bar"><strong>Prototipo</strong> · productos y precios de demostración · no se procesan pagos</div>
     <div class="container site-header__inner">
-      <a class="logo" href="index.html" aria-label="FRANJA, ir al inicio">${stripeMark}FRANJA<small>Estudio de prendas</small></a>
+      <a class="logo" href="index.html" aria-label="nevrado, ir al inicio"><img src="assets/img/nevrado-logo.svg" alt="nevrado" width="128" height="30"><small>taller de prendas</small></a>
       <nav class="nav" id="main-nav" aria-label="Principal">
         ${NAV.map((n) => `<a href="${n.href}" ${n.key === active ? 'aria-current="page"' : ""}>${n.label}</a>`).join("")}
       </nav>
@@ -120,8 +118,8 @@ export function renderFooter() {
     <div class="stripes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
     <div class="container footer-grid">
       <div>
-        <p class="footer-brand">FRANJA</p>
-        <p class="muted" style="color:#b7b7b7;margin-top:12px;max-width:34ch">Prendas que imprimimos y terminamos en nuestro taller. Vos traés la idea.</p>
+        <p class="footer-brand"><img src="assets/img/nevrado-logo-fondo-oscuro.svg" alt="nevrado" width="320" height="75"></p>
+        <p class="muted" style="color:#b7b7b7;margin-top:12px;max-width:34ch">Ropa para chicas que aman chicas, impresa y terminada en nuestro taller. Vos traés la idea.</p>
       </div>
       <div>
         <h2>Tienda</h2>
@@ -142,14 +140,14 @@ export function renderFooter() {
       <div>
         <h2>Contacto (ejemplo)</h2>
         <ul role="list">
-          <li><a href="mailto:hola@franja.example">hola@franja.example</a></li>
+          <li><a href="mailto:hola@nevrado.example">hola@nevrado.example</a></li>
           <li>+54 11 0000-0000</li>
           <li>Lun a vie · 10 a 18 h</li>
         </ul>
       </div>
     </div>
     <div class="container footer-legal">
-      <span>© ${new Date().getFullYear()} FRANJA — prototipo de demostración.</span>
+      <span>© ${new Date().getFullYear()} nevrado · prototipo de demostración.</span>
       <span>Datos de contacto, productos y precios ficticios.</span>
     </div>`;
 }

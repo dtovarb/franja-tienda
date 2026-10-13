@@ -13,7 +13,7 @@ const product = getProduct(p.get("id"));
 if (!product) {
   root.innerHTML = `<div class="empty"><h1 class="display h1">Prenda no encontrada</h1><p class="muted">El enlace puede estar incompleto.</p><a class="btn btn--primary" href="catalogo.html">Ver catálogo</a></div>`;
 } else {
-  document.title = `${product.name} — FRANJA`;
+  document.title = `${product.name} · nevrado`;
   const def = defaultVariant(product);
   const state = {
     colorId: product.colors.includes(p.get("color")) ? p.get("color") : def.colorId,
@@ -121,7 +121,7 @@ if (!product) {
       svg = svg.replace(
         "</svg>",
         `<rect class="print-guide" x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}"/>
-         <text x="${a.x}" y="${a.y - 12}" font-family="Space Mono" font-size="22" fill="#A50062">ÁREA ${spec.widthCm}×${spec.heightCm} CM</text></svg>`
+         <text x="${a.x}" y="${a.y - 12}" font-family="Space Mono" font-size="22" fill="#7D3A5E">ÁREA ${spec.widthCm}×${spec.heightCm} CM</text></svg>`
       );
     }
     stage.innerHTML = svg;

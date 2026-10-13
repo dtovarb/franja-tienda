@@ -6,7 +6,7 @@
  * Nada de esto llega a un servidor. Los datos viven solo en este navegador
  * y en este dispositivo, y se pierden si se borran los datos del sitio.
  */
-const PREFIX = "franja.";
+const PREFIX = "nevrado.";
 
 export class StorageError extends Error {}
 

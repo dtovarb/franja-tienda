@@ -1,33 +1,43 @@
 /* ============================================================
-   FRANJA — tokens de diseño
-   Paleta de marca basada en las cinco franjas de referencia.
+   nevrado: tokens de diseño (paleta Arcilla)
+   Cinco tonos en el orden de la bandera lésbica:
+   terracota, durazno, blanco, rosa polvo, ciruela.
    Los colores de marca NO se usan como colores de prenda:
    los colores de indumentaria viven en assets/js/data/catalog.js
    ============================================================ */
 :root {
   /* Paleta de marca */
-  --c-red: #d52d00;        /* naranja rojizo: acentos de alto impacto */
-  --c-orange: #ff9a56;     /* naranja cálido: detalles secundarios, indicadores */
-  --c-white: #ffffff;      /* fondo principal */
-  --c-pink: #d362a4;       /* rosa: acentos editoriales, etiquetas */
-  --c-magenta: #a50062;    /* magenta oscuro: CTA y estados activos */
+  --c-terracota: #a0533a;   /* acentos fuertes (5.2:1 sobre hueso) */
+  --c-durazno: #f2bc98;     /* etiquetas y fondos de bloque, nunca texto */
+  --c-blanco: #ffffff;
+  --c-rosa: #d9a3bc;        /* rosa polvo: etiquetas y fondos, nunca texto */
+  --c-ciruela: #7d3a5e;     /* logo, CTA, estados activos, foco (7.5:1) */
+
+  /* Alias que usa el resto del CSS */
+  --c-red: var(--c-terracota);
+  --c-orange: var(--c-durazno);
+  --c-white: var(--c-blanco);
+  --c-pink: var(--c-rosa);
+  --c-magenta: var(--c-ciruela);
 
   /* Derivados funcionales */
-  --c-magenta-hover: #87004f;
-  --c-magenta-press: #6c003f;
-  --c-magenta-tint: #f8e6f0;
-  --c-orange-tint: #fff1e7;
-  --c-red-tint: #fbe9e3;
+  --c-magenta-hover: #66304d;
+  --c-magenta-press: #52263e;
+  --c-magenta-tint: #f3e7ed;
+  --c-orange-tint: #fcefe6;
+  --c-red-tint: #f6ebe6;
+  --c-pink-tint: #f7ecf1;
 
-  /* Neutros */
-  --c-ink: #121212;        /* texto principal */
-  --c-ink-2: #3b3b3b;      /* texto secundario */
-  --c-ink-3: #6b6b6b;      /* texto terciario (>= 4.5:1 sobre blanco) */
-  --c-line: #e3e3e3;
-  --c-line-strong: #121212;
-  --c-surface: #ffffff;
-  --c-surface-2: #f5f5f3;  /* superficies neutras para prendas */
-  --c-surface-3: #ececea;
+  /* Neutros cálidos */
+  --c-bg: #faf7f2;          /* fondo principal: blanco hueso */
+  --c-ink: #1e1a1c;         /* texto principal */
+  --c-ink-2: #4a4346;       /* texto secundario */
+  --c-ink-3: #6e6669;       /* texto terciario (>= 4.5:1 sobre hueso) */
+  --c-line: #e4e0dc;
+  --c-line-strong: #1e1a1c;
+  --c-surface: #ffffff;     /* tarjetas sobre el hueso */
+  --c-surface-2: #f3efe9;   /* superficies neutras para prendas */
+  --c-surface-3: #e9e4dd;
 
   /* Estados */
   --c-success: #1d7a46;
@@ -36,13 +46,14 @@
   --c-warning-tint: #fff4e0;
   --c-danger: #b3261e;
   --c-danger-tint: #fbe8e7;
-  --c-focus: #a50062;
+  --c-focus: #7d3a5e;
 
   /* Tipografía */
   --ff-display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
   --ff-ui: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
   --ff-mono: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --fs-stretch-display: 72%;
+  --fs-stretch-display: 80%;
+  --fw-display: 850;
 
   --fs-xs: 0.75rem;
   --fs-sm: 0.875rem;

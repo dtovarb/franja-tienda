@@ -11,7 +11,7 @@ import { getProduct } from "../data/catalog.js";
 import { computePrice } from "./pricing.js";
 
 const KEY = "cart.v1";
-const EVT = "franja:cart";
+const EVT = "nevrado:cart";
 
 export function getCart() {
   return readJSON(KEY, { items: [] });
@@ -24,7 +24,7 @@ function save(cart) {
 
 export function onCartChange(fn) {
   window.addEventListener(EVT, (e) => fn(e.detail));
-  window.addEventListener("storage", (e) => e.key === "franja." + KEY && fn(getCart()));
+  window.addEventListener("storage", (e) => e.key === "nevrado." + KEY && fn(getCart()));
 }
 
 export function cartCount() {

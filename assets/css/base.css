@@ -16,7 +16,7 @@ body {
   font-size: var(--fs-md);
   line-height: 1.5;
   color: var(--c-ink);
-  background: var(--c-white);
+  background: var(--c-bg);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
@@ -98,10 +98,9 @@ button {
 .display {
   font-family: var(--ff-display);
   font-stretch: var(--fs-stretch-display);
-  font-weight: 900;
-  text-transform: uppercase;
-  line-height: 0.88;
-  letter-spacing: -0.01em;
+  font-weight: var(--fw-display);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
 }
 .h1 {
   font-size: var(--fs-3xl);
@@ -115,7 +114,6 @@ button {
   font-weight: 800;
   font-size: var(--fs-xl);
   line-height: 1.1;
-  text-transform: uppercase;
 }
 .eyebrow,
 .mono {
@@ -145,6 +143,7 @@ button {
 .stripes > span:nth-child(1) { background: var(--c-red); }
 .stripes > span:nth-child(2) { background: var(--c-orange); }
 .stripes > span:nth-child(3) { background: var(--c-white); box-shadow: inset 0 1px 0 var(--c-line), inset 0 -1px 0 var(--c-line); }
+.site-footer .stripes > span:nth-child(3) { box-shadow: none; }
 .stripes > span:nth-child(4) { background: var(--c-pink); }
 .stripes > span:nth-child(5) { background: var(--c-magenta); }
 
@@ -505,23 +504,23 @@ fieldset {
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   text-decoration: none;
-  font-family: var(--ff-display);
-  font-stretch: 70%;
-  font-weight: 900;
-  font-size: 1.75rem;
-  letter-spacing: 0.01em;
   line-height: 1;
+}
+.logo img {
+  height: 30px;
+  width: auto;
 }
 .logo small {
   font-family: var(--ff-mono);
   font-size: 0.625rem;
   font-weight: 400;
   letter-spacing: 0.08em;
+  text-transform: lowercase;
   color: var(--c-ink-3);
   align-self: flex-end;
-  margin-bottom: 3px;
+  margin-bottom: 1px;
 }
 .nav {
   display: flex;
@@ -672,12 +671,9 @@ fieldset {
   display: grid;
   gap: var(--sp-2);
 }
-.footer-brand {
-  font-family: var(--ff-display);
-  font-stretch: 65%;
-  font-weight: 900;
-  font-size: clamp(3rem, 8vw, 6rem);
-  line-height: 0.85;
+.footer-brand img {
+  width: clamp(180px, 26vw, 320px);
+  height: auto;
 }
 .footer-legal {
   display: flex;

@@ -87,7 +87,7 @@ export const printedFaces = () => product.faces.filter((f) => (f === ed.face ? e
 export const price = () => computePrice(product, ed.variant, { printedFaces: printedFaces() });
 
 /* ======================= Fabric ======================= */
-const BRAND = "#A50062";
+const BRAND = "#7D3A5E";
 // Precisión del JSON: por defecto Fabric redondea a 2 decimales (p. ej. una
 // escala 0.0896 pasaría a 0.09), lo que altera el tamaño impreso.
 fabric.Object.NUM_FRACTION_DIGITS = 6;

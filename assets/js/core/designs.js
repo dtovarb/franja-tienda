@@ -9,7 +9,7 @@ import { readJSON, writeJSON } from "./storage.js";
 import { uid } from "./format.js";
 
 const KEY = "designs.v1";
-export const DESIGN_SCHEMA = "franja.design/v1";
+export const DESIGN_SCHEMA = "nevrado.design/v1";
 
 const all = () => readJSON(KEY, {});
 

@@ -163,7 +163,7 @@ export async function buildDesignDocument({ designId, product, variant, faces, p
     schema: DESIGN_SCHEMA,
     designId,
     exportedAt: new Date().toISOString(),
-    generator: "FRANJA prototipo (navegador)",
+    generator: "nevrado prototipo (navegador)",
     note: "Las imágenes se referencian por assetId (SHA-256 del original). Los binarios van en /originals.",
     product: { id: product.id, sku: product.sku, name: product.name, type: product.type },
     variant: { colorId: color.id, colorName: color.name, colorHex: color.hex, sizeId: variant.sizeId, qty: variant.qty },
@@ -198,7 +198,7 @@ export async function buildZip({ doc, previews, prints }) {
   files.push({
     name: "LEEME.txt",
     data: [
-      "FRANJA — paquete de diseño (prototipo)",
+      "nevrado: paquete de diseño (prototipo)",
       "",
       "diseno.json        Diseño editable (JSON de Fabric.js por cara + referencias a originales).",
       "originals/         Archivos tal como los subió el cliente (sin modificar). Verificables por SHA-256.",

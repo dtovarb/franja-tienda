@@ -28,7 +28,7 @@ try {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIX = join(HERE, "fixtures");
 const SHOTS = join(HERE, "screenshots");
-const DL = join(tmpdir(), "franja-e2e-downloads");
+const DL = join(tmpdir(), "nevrado-e2e-downloads");
 const BASE = process.argv[2] || "http://localhost:8080";
 rmSync(DL, { recursive: true, force: true });
 mkdirSync(DL, { recursive: true });
@@ -205,7 +205,7 @@ console.log("\nEscritorio 1440×900");
     await page.selectOption("#p-font", "Space Grotesk");
     await page.click('[data-p="bold"]');
     await page.fill("#p-fontSize", "90");
-    await page.click('[data-p="fill"][data-v="#a50062"]');
+    await page.click('[data-p="fill"][data-v="#7d3a5e"]');
     await page.click('[data-p="align"][data-v="left"]');
     await page.waitForTimeout(450);
     o = await objs(page);
@@ -213,7 +213,7 @@ console.log("\nEscritorio 1440×900");
     assert(tx.text === "FRANJA\nCREW", `text=${tx.text}`);
     assert(tx.fontFamily === "Space Grotesk" && tx.fontWeight === "bold", `${tx.fontFamily} ${tx.fontWeight}`);
     assert(Math.round(tx.fontSize * tx.sy) === 90, `size=${tx.fontSize * tx.sy}`);
-    assert(tx.fill === "#a50062" && tx.textAlign === "left", `${tx.fill} ${tx.textAlign}`);
+    assert(tx.fill === "#7d3a5e" && tx.textAlign === "left", `${tx.fill} ${tx.textAlign}`);
     return "Space Grotesk bold 90pt magenta, alineado a la izquierda";
   });
 
@@ -426,7 +426,7 @@ console.log("\nEscritorio 1440×900");
   await t("Exportación", "Diseño editable JSON con referencias a originales", async () => {
     const d = await download(page, '[data-dl="json"]');
     const j = JSON.parse(d.buf.toString());
-    assert(j.schema === "franja.design/v1", j.schema);
+    assert(j.schema === "nevrado.design/v1", j.schema);
     assert(Object.keys(j.faces).join() === "front,back", Object.keys(j.faces).join());
     const imgs = Object.values(j.faces).flatMap((f) => f.fabric.objects.filter((o) => o.type === "image"));
     assert(imgs.every((o) => o.src === `asset:${o.assetId}` && j.assets.some((a) => a.id === o.assetId)), "refs");

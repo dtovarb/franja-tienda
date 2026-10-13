@@ -1,4 +1,4 @@
-# FRANJA — prototipo de tienda de ropa personalizada
+# nevrado: prototipo de tienda de ropa personalizada
 
 Prototipo funcional de una tienda streetwear con editor de prendas (Fabric.js), carrito en el navegador y exportación de archivos para producción. **Sin backend**: todo corre en el navegador y los datos quedan solo en ese navegador.
 

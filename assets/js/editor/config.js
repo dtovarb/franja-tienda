@@ -15,10 +15,10 @@ export const FONTS = [
 export const INKS = [
   { name: "Negro", hex: "#121212" },
   { name: "Blanco", hex: "#ffffff" },
-  { name: "Naranja rojizo", hex: "#d52d00" },
-  { name: "Naranja cálido", hex: "#ff9a56" },
-  { name: "Rosa", hex: "#d362a4" },
-  { name: "Magenta", hex: "#a50062" },
+  { name: "Terracota", hex: "#a0533a" },
+  { name: "Durazno", hex: "#f2bc98" },
+  { name: "Rosa polvo", hex: "#d9a3bc" },
+  { name: "Ciruela", hex: "#7d3a5e" },
   { name: "Amarillo", hex: "#f2c200" },
   { name: "Azul", hex: "#1d4ed8" },
 ];

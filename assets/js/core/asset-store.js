@@ -9,7 +9,7 @@
  * En producción este módulo se reemplaza por subida a almacenamiento privado
  * (S3/GCS/R2) mediante URLs firmadas emitidas por el backend.
  */
-const DB_NAME = "franja-assets";
+const DB_NAME = "nevrado-assets";
 const STORE = "assets";
 let dbPromise = null;
 const urlCache = new Map();

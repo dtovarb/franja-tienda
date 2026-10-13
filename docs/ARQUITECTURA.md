@@ -20,7 +20,7 @@
 | Elemento | En el prototipo | En producción |
 |---|---|---|
 | **Archivo original** | IndexedDB, Blob sin modificar + SHA-256 | Bucket privado (S3/GCS/R2), clave por hash, URL firmada de corta duración |
-| **Diseño editable** | `franja.design/v1`: JSON de Fabric por cara + metadatos de área física + lista de assets | Tabla `designs` (JSONB) versionada |
+| **Diseño editable** | `nevrado.design/v1`: JSON de Fabric por cara + metadatos de área física + lista de assets | Tabla `designs` (JSONB) versionada |
 | **Vista previa** | PNG 1200×1440 generado en el navegador | Generado en el servidor al confirmar (no confiar en el del cliente) y guardado con el pedido |
 | **Archivo de impresión** | PNG transparente del área (o recortado al contenido), 150/200/300 DPI, con chunk `pHYs` | Render en servidor (p. ej. node-canvas/Fabric en Node o Skia) desde el JSON + originales, por técnica |
 
@@ -28,7 +28,7 @@ Esquema del JSON editable (resumido):
 
 ```json
 {
-  "schema": "franja.design/v1",
+  "schema": "nevrado.design/v1",
   "product": { "id": "remera-clasica", "sku": "DEMO-TEE-01", "type": "tee" },
   "variant": { "colorId": "negro", "sizeId": "L", "qty": 2 },
   "faces": {
@@ -37,7 +37,7 @@ Esquema del JSON editable (resumido):
       "physical": { "widthCm": 30.2, "heightCm": 40.3, "cmPerUnit": 0.09 },
       "fabric": { "version": "5.3.0", "objects": [
         { "type": "image", "src": "asset:9f2c…", "assetId": "9f2c…", "srcWidth": 3000, "left": 500, "top": 474, "scaleX": 0.0896, "…": "…" },
-        { "type": "i-text", "text": "FRANJA", "fontFamily": "Archivo Black", "…": "…" }
+        { "type": "i-text", "text": "nevrado", "fontFamily": "Archivo Black", "…": "…" }
       ] }
     }
   },
@@ -49,9 +49,9 @@ Esquema del JSON editable (resumido):
 
 | Dato | Dónde | Limitación |
 |---|---|---|
-| Carrito (`franja.cart.v1`) | localStorage | ~5 MB, solo este navegador, se borra con los datos del sitio |
-| Diseños (`franja.designs.v1`) | localStorage | Ídem. Autoguardado de borradores cada cambio |
-| Originales | IndexedDB `franja-assets` | Cuota del navegador; no hay limpieza automática de originales huérfanos |
+| Carrito (`nevrado.cart.v1`) | localStorage | ~5 MB, solo este navegador, se borra con los datos del sitio |
+| Diseños (`nevrado.designs.v1`) | localStorage | Ídem. Autoguardado de borradores cada cambio |
+| Originales | IndexedDB `nevrado-assets` | Cuota del navegador; no hay limpieza automática de originales huérfanos |
 
 Ninguna pantalla presenta esto como guardado en un servidor: la interfaz dice «guardado en este navegador».
 

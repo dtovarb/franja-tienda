@@ -1,13 +1,13 @@
-# FRANJA: resumen de entrega del prototipo
+# nevrado: resumen de entrega del prototipo
 
 Tienda streetwear con editor de prendas, hecha desde cero con HTML, CSS, JavaScript vanilla y Fabric.js 5.3.0. Funciona en local con cualquier servidor estático (ver [README](README.md)). No tiene backend. Todo lo que se guarda queda en el navegador y la interfaz lo aclara cada vez que lo menciona.
 
 ## 1. Funciones implementadas
 
 ### Marca e interfaz
-- La marca es **FRANJA, estudio de prendas**. Las cinco franjas de la referencia funcionan como firma de marca: aparecen en el logo, en el subrayado del hero, en el borde del editor, en el footer y en el favicon.
-- La paleta se definió como variables CSS en `assets/css/tokens.css`. El blanco se usa de fondo y el magenta oscuro para los CTA y los estados activos. Los naranjas y el rosa quedan como acentos, y el texto va en casi negro. Los colores de la paleta nunca se usan como colores de prenda: el catálogo tiene sus propios colores de indumentaria.
-- Tipografías: los titulares usan **Archivo** variable condensada al 72 % en peso 900, y la interfaz usa **Space Grotesk**. Space Mono se reserva para etiquetas editoriales. Para las estampas hay 7 fuentes: Archivo Black, Anton, Bebas Neue, Archivo, Space Grotesk, Space Mono y Permanent Marker.
+- La marca es **nevrado**, ropa para chicas que aman chicas. El logo (en minúsculas, con la tirita de cinco franjas de la bandera lésbica) y el favicon salen del kit de `/mnt/project-files/nevrado-marca/`. Las cinco franjas siguen como firma: subrayado del hero, borde del editor y footer.
+- La paleta se definió como variables CSS en `assets/css/tokens.css`. Paleta Arcilla: fondo blanco hueso, ciruela para los CTA, el logo y los estados activos, terracota para acentos, y durazno y rosa polvo solo como fondos y etiquetas. El texto va en tinta cálida casi negra. Los colores de la paleta nunca se usan como colores de prenda: el catálogo tiene sus propios colores de indumentaria.
+- Tipografías: los titulares usan **Archivo** variable al 80 % de ancho en peso 850, en minúsculas o tipo oración, y la interfaz usa **Space Grotesk**. Space Mono se reserva para etiquetas editoriales. Para las estampas hay 7 fuentes: Archivo Black, Anton, Bebas Neue, Archivo, Space Grotesk, Space Mono y Permanent Marker.
 - Las páginas son Inicio, Catálogo con filtros por tipo, Producto, Editor y Carrito. Hay una banda permanente que avisa que el sitio es un prototipo con datos de demostración. No hay testimonios, ventas ni estadísticas inventadas.
 - No había fotos disponibles, así que dibujé **mockups vectoriales originales** de cuatro prendas: remera clásica, remera oversize, buzo canguro y tote bag, cada una con frente y espalda, sombreado y costuras. También hice tres gráficas propias. Todas están marcadas como contenido de demostración.
 
@@ -54,7 +54,7 @@ Después muestra el resumen de producto, color, talle, cantidad, caras y precio 
 | Archivo | Detalle |
 |---|---|
 | Original | Los mismos bytes que se subieron, guardados en IndexedDB con su SHA-256 |
-| Diseño editable | JSON `franja.design/v1`: JSON de Fabric por cara, con el área física y las imágenes como `asset:<sha256>`. No lleva binarios adentro |
+| Diseño editable | JSON `nevrado.design/v1`: JSON de Fabric por cara, con el área física y las imágenes como `asset:<sha256>`. No lleva binarios adentro |
 | Vista previa | PNG de 1200 × 1440 de la prenda con el diseño |
 | Impresión | PNG con fondo transparente, sin prenda, guías ni controles. A 150, 200 o 300 DPI, del área completa o recortado al contenido, con el DPI declarado en el archivo (chunk `pHYs`) |
 | Paquete ZIP | Todo lo anterior junto, más un LEEME |
@@ -145,7 +145,7 @@ Corrí `tests/e2e.mjs` con Playwright y Chromium en el contenedor: **37 de 37 pr
 2. **Backend y base de datos:** Node con Fastify o NestJS, o Django, sobre PostgreSQL. El modelo y los endpoints están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 3. **Almacenamiento de archivos:** S3, R2 o GCS privado, con subida directa por URL firmada, verificación de hash y validación en el servidor. `asset-store.js` se reemplaza por ese cliente sin tocar el editor.
 4. **Conectar el frontend a la API:** `catalog.js`, `designs.js` y `cart.js` pasan a usar `fetch`, y la estructura de los datos se mantiene.
-5. **Render del lado del servidor** de la vista previa y la impresión a partir del JSON `franja.design/v1` y los originales.
+5. **Render del lado del servidor** de la vista previa y la impresión a partir del JSON `nevrado.design/v1` y los originales.
 6. **Checkout y pagos** con creación de la orden idempotente y confirmación por webhook.
 7. **Panel de administración** de catálogo, pedidos y producción.
 8. **Fotografía real** de las prendas y mockups fotográficos para el editor, reemplazando los SVG de demostración.
