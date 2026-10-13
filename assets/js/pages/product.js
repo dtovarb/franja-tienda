@@ -1,6 +1,8 @@
 import { initPage, icon } from "../core/ui.js";
 import { getProduct, getColor, stockLabel, validateVariant, defaultVariant } from "../data/catalog.js";
-import { garmentSvg, getPrintSpec, faceLabel } from "../data/garments.js";
+import { garmentSvg, garmentPhoto, getPrintSpec, faceLabel } from "../data/garments.js";
+import { listReviews, reviewSummary } from "../data/reviews.js";
+import { reviewsBlock } from "./components.js";
 import { computePrice, PRICING_RULES } from "../core/pricing.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
 import { getStoreDesign, isAvailableFor, storeDesignImageUrl, designArt } from "../core/store-designs.js";
@@ -38,7 +40,7 @@ if (!product) {
           </div>
           <label style="display:inline-flex;gap:8px;align-items:center;font-size:var(--fs-sm)"><input type="checkbox" data-guides checked> Mostrar área de impresión</label>
         </div>
-        <p class="mono muted">Mockup vectorial de demostración. El color en pantalla es aproximado.</p>
+        <p class="mono muted" data-stage-note></p>
       </div>
 
       <form class="pdp__info" data-form novalidate>
@@ -121,7 +123,19 @@ if (!product) {
           <dt>Archivos</dt><dd>JPG, PNG o SVG · hasta 25 MB, o un <a href="disenos.html">diseño de la tienda</a></dd>
         </dl>
       </form>
-    </div>`;
+    </div>
+    <section class="section reviews" id="opiniones" aria-labelledby="rv-title">
+      <div class="section-head">
+        <div>
+          <span class="section-head__num">Opiniones</span>
+          <h2 id="rv-title" class="display h1">Qué dicen de esta prenda</h2>
+        </div>
+      </div>
+      ${(() => {
+        const list = listReviews({ productId: product.id });
+        return reviewsBlock(list, reviewSummary(list));
+      })()}
+    </section>`;
 
   const stage = root.querySelector("[data-stage]");
   const form = root.querySelector("[data-form]");
@@ -131,7 +145,7 @@ if (!product) {
     const col = getColor(state.colorId);
     const spec = getPrintSpec(product.type, state.face);
     const art = design && state.face === product.faces[0] ? designArt(designUrl) : "";
-    let svg = garmentSvg(product.type, state.face, col.hex, { art, title: `${product.name} ${col.name}, ${faceLabel(state.face)}` });
+    let svg = garmentSvg(product.type, state.face, col.hex, { art, colorId: col.id, title: `${product.name} ${col.name}, ${faceLabel(state.face)}` });
     if (state.guides) {
       const a = spec.area;
       // Se inserta antes del ÚLTIMO </svg>: el arte usa un <svg> anidado.
@@ -140,6 +154,9 @@ if (!product) {
          <text x="${a.x}" y="${a.y - 12}" font-family="Space Mono" font-size="22" fill="#7D3A5E">ÁREA ${spec.widthCm}×${spec.heightCm} CM</text></svg>`;
     }
     stage.innerHTML = svg;
+    root.querySelector("[data-stage-note]").textContent = garmentPhoto(product.type, state.face, col.id)
+      ? "Foto de referencia de la prenda. El color en pantalla es aproximado."
+      : `${faceLabel(state.face)} ilustrada: todavía no hay foto de esta vista. El color en pantalla es aproximado.`;
   }
 
   function sync() {

@@ -10,6 +10,7 @@ export function productMockup(product, colorId, face = "front", { withArt = true
   return garmentSvg(product.type, face, color.hex, {
     art,
     className,
+    colorId: color.id,
     title: `${product.name} color ${color.name}, mockup de demostración`,
   });
 }
@@ -61,4 +62,51 @@ export function productCard(product, { index = 0 } = {}) {
       <a class="btn btn--primary btn--block" href="${href}">Personalizar ${icon("arrowRight")}</a>
     </div>
   </article>`;
+}
+
+/* ---------------- Opiniones ---------------- */
+
+const stars = (n) =>
+  `<span class="stars" role="img" aria-label="${n} de 5 estrellas">${[1, 2, 3, 4, 5]
+    .map((i) => `<span class="stars__s${i <= n ? " is-on" : ""}" aria-hidden="true">★</span>`)
+    .join("")}</span>`;
+
+const reviewDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+
+/**
+ * Bloque de opiniones: resumen + lista. `products` (opcional) agrega el
+ * nombre de la prenda en cada opinión (para la portada).
+ */
+export function reviewsBlock(list, summary, { products = null, emptyText = "Todavía no hay opiniones de esta prenda." } = {}) {
+  const note = `<p class="reviews__note"><span class="tag tag--demo">Ejemplo</span> Opiniones simuladas para mostrar cómo se va a ver esta sección. Las reales aparecen acá cuando lleguen las primeras compras.</p>`;
+  if (!list.length) return `${note}<p class="muted">${emptyText}</p>`;
+  const bars = summary.distribution
+    .map((d) => `<li><span class="mono">${d.stars}★</span><span class="reviews__bar"><i style="width:${summary.count ? (d.count / summary.count) * 100 : 0}%"></i></span><span class="mono muted">${d.count}</span></li>`)
+    .join("");
+  const items = list
+    .map((x) => {
+      const prod = products?.find((p) => p.id === x.productId);
+      const color = getColor(x.colorId);
+      const meta = [prod?.name, color?.name, x.size !== "Único" ? `talle ${x.size}` : null].filter(Boolean).map(escapeHtml).join(" · ");
+      return `
+      <li class="review" data-review="${x.id}">
+        <div class="review__head">${stars(x.rating)}<span class="mono muted">${reviewDate(x.date)}</span></div>
+        <h3 class="review__title">${escapeHtml(x.title)}</h3>
+        <p>${escapeHtml(x.body)}</p>
+        <p class="review__meta"><b>${escapeHtml(x.author)}</b> · ${escapeHtml(x.city)}${meta ? ` · <span class="muted">${meta}</span>` : ""}</p>
+        <span class="tag tag--demo review__tag">Opinión de ejemplo</span>
+      </li>`;
+    })
+    .join("");
+  return `
+    ${note}
+    <div class="reviews__grid">
+      <div class="reviews__summary">
+        <p class="reviews__avg display">${summary.average.toLocaleString("es-AR", { minimumFractionDigits: 1 })}</p>
+        ${stars(Math.round(summary.average))}
+        <p class="muted">${summary.count} ${summary.count === 1 ? "opinión" : "opiniones"} de ejemplo</p>
+        <ul class="reviews__bars" role="list">${bars}</ul>
+      </div>
+      <ul class="reviews__list" role="list">${items}</ul>
+    </div>`;
 }

@@ -16,15 +16,25 @@ import { readJSON, writeJSON, removeKey } from "../core/storage.js";
 
 export const CURRENCY = { code: "ARS", locale: "es-AR" };
 
+// Los tonos salen de las fotos de cada prenda (mediana de la tela en el pecho),
+// así la muestra de color coincide con lo que se ve.
 export const GARMENT_COLORS = {
-  blanco: { id: "blanco", name: "Blanco", hex: "#f4f4f1" },
+  blanco: { id: "blanco", name: "Blanco", hex: "#eceae7" },
   negro: { id: "negro", name: "Negro", hex: "#171717" },
+  grafito: { id: "grafito", name: "Grafito", hex: "#4c4f54" },
   melange: { id: "melange", name: "Gris melange", hex: "#a3a3a1" },
-  arena: { id: "arena", name: "Arena", hex: "#d9c9a6" },
-  marino: { id: "marino", name: "Azul marino", hex: "#1f2a44" },
+  arena: { id: "arena", name: "Arena", hex: "#ceb797" },
+  marino: { id: "marino", name: "Azul marino", hex: "#202636" },
   militar: { id: "militar", name: "Verde militar", hex: "#4a5229" },
-  bordo: { id: "bordo", name: "Bordó", hex: "#5c1a28" },
-  crudo: { id: "crudo", name: "Crudo", hex: "#ece4d2" },
+  bordo: { id: "bordo", name: "Bordó", hex: "#630d27" },
+  rojo: { id: "rojo", name: "Rojo", hex: "#9d1222" },
+  rosa: { id: "rosa", name: "Rosa", hex: "#dfb9b6" },
+  marron: { id: "marron", name: "Marrón", hex: "#5d3526" },
+  crudo: { id: "crudo", name: "Crudo", hex: "#ddcebc" },
+  naranja: { id: "naranja", name: "Naranja lavado", hex: "#b34726" },
+  verde: { id: "verde", name: "Verde lavado", hex: "#41533c" },
+  azul: { id: "azul", name: "Azul lavado", hex: "#5f8fce" },
+  celeste: { id: "celeste", name: "Celeste lavado", hex: "#b0c3d0" },
 };
 
 /** stock: "ok" | "low" | "out" (disponibilidad de ejemplo) */
@@ -45,7 +55,7 @@ export const SEED_PRODUCTS = [
     description:
       "La base de todo. Cuello redondo con ribete, costuras reforzadas en hombros y una caída que funciona sola o debajo de un buzo.",
     basePrice: 18900,
-    colors: ["blanco", "negro", "melange", "arena", "marino"],
+    colors: ["blanco", "negro", "arena", "grafito"],
     sizes: [size("S"), size("M"), size("L"), size("XL", 0, "low"), size("XXL", 1500)],
     faces: ["front", "back"],
     includedFaces: 1,
@@ -62,7 +72,7 @@ export const SEED_PRODUCTS = [
     description:
       "Corte amplio y cuerpo recto. Más superficie de estampa en la espalda para piezas grandes.",
     basePrice: 23500,
-    colors: ["negro", "blanco", "militar", "arena", "bordo"],
+    colors: ["negro", "blanco", "arena", "grafito"],
     sizes: [size("S"), size("M"), size("L", 0, "low"), size("XL"), size("XXL", 2000, "out")],
     faces: ["front", "back"],
     includedFaces: 1,
@@ -79,13 +89,30 @@ export const SEED_PRODUCTS = [
     description:
       "Bolsillo canguro, puños y cintura con rib. Estampa frontal sobre el bolsillo y espalda completa.",
     basePrice: 42900,
-    colors: ["negro", "melange", "marino", "bordo"],
+    colors: ["negro", "blanco"],
     sizes: [size("S"), size("M"), size("L"), size("XL"), size("XXL", 2500, "low")],
     faces: ["front", "back"],
     includedFaces: 1,
     featured: true,
     demoArt: "hecho",
     badge: "Abrigo",
+  },
+  {
+    id: "buzo-cuello-redondo",
+    sku: "DEMO-CRW-01",
+    type: "crewneck",
+    name: "Buzo cuello redondo",
+    tagline: "Frisa 300 g, cuello, puños y cintura con rib.",
+    description:
+      "El buzo de todos los días, sin capucha. Frente liso para una estampa grande en el pecho y espalda completa.",
+    basePrice: 34900,
+    colors: ["negro", "blanco", "marino", "bordo", "rojo", "rosa", "marron"],
+    sizes: [size("S"), size("M"), size("L"), size("XL"), size("XXL", 2500)],
+    faces: ["front", "back"],
+    includedFaces: 1,
+    featured: true,
+    demoArt: "sol",
+    badge: "Nuevo",
   },
   {
     id: "buzo-capucha",
@@ -109,11 +136,11 @@ export const SEED_PRODUCTS = [
     sku: "DEMO-CAP-01",
     type: "cap",
     name: "Gorra",
-    tagline: "Seis paneles, frente estructurado, regulable.",
+    tagline: "Seis paneles, gabardina lavada, regulable.",
     description:
-      "Gabardina de algodón con visera curva y cierre regulable atrás. Estampa en el frente, hasta 11 × 7 cm.",
+      "Gabardina de algodón con lavado gastado, visera curva y cierre regulable atrás. Estampa en el frente, hasta 11 × 7 cm.",
     basePrice: 14900,
-    colors: ["negro", "crudo", "marino", "bordo", "arena"],
+    colors: ["naranja", "verde", "azul", "celeste"],
     sizes: [size("Único")],
     faces: ["front"],
     includedFaces: 1,

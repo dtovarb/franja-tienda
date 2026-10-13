@@ -63,6 +63,7 @@ const NAV = [
   { href: "catalogo.html", label: "Prendas", key: "catalog" },
   { href: "disenos.html", label: "Diseños", key: "designs" },
   { href: "index.html#como-funciona", label: "Cómo funciona", key: "how" },
+  { href: "preguntas.html", label: "Preguntas", key: "faq" },
   { href: "catalogo.html?diseñar=1", label: "Diseñar", key: "design" },
 ];
 
@@ -138,6 +139,8 @@ export function renderFooter() {
           <li><a href="index.html#como-funciona">Cómo funciona</a></li>
           <li><a href="index.html#archivos">Archivos e impresión</a></li>
           <li><a href="index.html#taller">El taller</a></li>
+          <li><a href="preguntas.html">Preguntas frecuentes</a></li>
+          <li><a href="index.html#opiniones">Opiniones</a></li>
         </ul>
       </div>
       <div>

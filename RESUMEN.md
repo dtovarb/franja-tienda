@@ -73,9 +73,16 @@ La resolución de exportación no depende de la pantalla, porque se renderiza de
 - **Panel de la tienda** (`admin.html`): alta, edición, publicación/ocultamiento y baja de diseños (el archivo pasa por la misma validación que las subidas de clientas); edición de productos (nombre, precio, textos, visibilidad, destacado, colores, recargo y stock por talle) y alta de productos nuevos sobre un tipo de prenda; lista de pedidos de prueba con cambio de estado.
 - **Límite importante:** el panel no tiene login y guarda en el navegador. La página lo dice. Para la tienda real necesita cuentas con rol de dueña y la API de administración del plan de backend.
 
+### Fotos, preguntas frecuentes y opiniones (13/10/2026)
+- **Fotos de prenda** en el frente de 23 combinaciones (remera, oversize, buzo canguro, buzo cuello redondo, gorra y tote). Se recortaron, se taparon etiquetas y marcas de agua de terceros y se alinearon al área de impresión; la estampa toma los pliegues de la foto con mapas de luz. La espalda y el buzo con capucha siguen ilustrados. Los colores del catálogo se ajustaron a las fotos.
+- **Buzo cuello redondo** nuevo (7 colores, frente de 30,6 × 39,6 cm).
+- **Preguntas frecuentes** (`preguntas.html`): 16 preguntas en 4 temas, con la tabla de medidas máximas calculada de las áreas reales. Plazos, envíos, pagos y cambios están marcados «A definir».
+- **Opiniones de ejemplo** en el inicio y en cada prenda, con promedio y reparto por estrellas, siempre rotuladas como simuladas. La estructura (`nevrado.review/v1`) es la que va a usar la API.
+- **Antes de publicar:** las fotos son de referencia y de terceros; hay que reemplazarlas por fotos propias (`tools/preparar-fotos.py`).
+
 ## 2. Pruebas realizadas y resultados
 
-Corrí `tests/e2e.mjs` con Playwright y Chromium en el contenedor: **44 de 44 pruebas OK** (incluye las del catálogo nuevo, diseños de la tienda y panel) y sin errores en la consola. El detalle está en `tests/results.json` y las capturas en `tests/screenshots/`.
+Corrí `tests/e2e.mjs` con Playwright y Chromium en el contenedor: **49 de 49 pruebas OK** (incluye catálogo, diseños de la tienda, panel, fotos de prendas, preguntas frecuentes y opiniones) y sin errores en la consola. El detalle está en `tests/results.json` y las capturas en `tests/screenshots/`.
 
 **Escritorio (1440×900)**
 - Inicio, catálogo y filtros.
@@ -129,7 +136,7 @@ Corrí `tests/e2e.mjs` con Playwright y Chromium en el contenedor: **44 de 44 pr
 ## 3. Limitaciones conocidas
 - **La persistencia es local.** El carrito y los diseños van en localStorage (unos 5 MB) y los originales en IndexedDB. No se sincronizan entre dispositivos y se pierden si se borran los datos del sitio. Los originales que quedan sin usar no se limpian solos.
 - **Las medidas físicas son del talle M.** El área de impresión no cambia según el talle: si se escala por talle o se usa un área fija es una decisión del taller.
-- **Los mockups son vectoriales y el color es aproximado.** No hay fotos reales ni simulación de textura o pliegues.
+- **Las fotos son de referencia, de frente y de terceros.** Hay que reemplazarlas por fotos propias antes de publicar. La espalda y el buzo con capucha son ilustraciones; el color en pantalla es aproximado.
 - No hay recorte ni máscara de imágenes, ni efectos como contorno, sombra o texto en curva.
 - La exportación de impresión es solo PNG. No genera PDF ni separación de colores, y CMYK no se maneja en el navegador.
 - Los SVG se rasterizan al exportar a la resolución elegida, así que el vector original no se transforma a otro formato. El original sí se conserva y se puede descargar.

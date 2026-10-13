@@ -28,7 +28,7 @@ async function render() {
       return `
       <article class="dcard" data-design-card="${d.id}" style="--i:${i}">
         <div class="dcard__media">
-          ${show ? garmentSvg(show.type, "front", col.hex, { art: designArt(urls[i]), className: "dcard__svg", title: `${d.name} en ${show.name} ${col.name}` }) : ""}
+          ${show ? garmentSvg(show.type, "front", col.hex, { art: designArt(urls[i]), colorId: col.id, className: "dcard__svg", title: `${d.name} en ${show.name} ${col.name}` }) : ""}
           <span class="tag tag--demo">Demo</span>
         </div>
         <div class="dcard__body">

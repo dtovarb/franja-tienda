@@ -5,7 +5,7 @@
  * es independiente de la del editor.
  */
 /* global fabric */
-import { STAGE, garmentSvg, getPrintSpec, faceLabel } from "../data/garments.js";
+import { STAGE, garmentSvg, garmentPhoto, getPrintSpec, faceLabel } from "../data/garments.js";
 import { getColor } from "../data/catalog.js";
 import { getTechnique } from "../core/pricing.js";
 import { getAssets } from "../core/asset-store.js";
@@ -18,6 +18,15 @@ const canvasToBlob = (canvas, type = "image/png", q) =>
   new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("El navegador no pudo generar la imagen (¿demasiado grande?)."))), type, q)
   );
+
+function loadBitmap(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`No se pudo cargar ${src}`));
+    img.src = src;
+  });
+}
 
 function loadSvgImage(svgString, w, h) {
   const withSize = svgString.replace("<svg ", `<svg width="${w}" height="${h}" `);
@@ -74,7 +83,7 @@ export function resolutionReport(productType, faces) {
 
 /* ---------------- Vista previa ---------------- */
 
-export async function renderPreview({ productType, colorHex, face, objects, scale = 1.2, background = "#f5f5f3", type = "image/png", quality }) {
+export async function renderPreview({ productType, colorHex, colorId = null, face, objects, scale = 1.2, background = "#f5f5f3", type = "image/png", quality }) {
   const W = Math.round(STAGE.width * scale);
   const H = Math.round(STAGE.height * scale);
   const out = document.createElement("canvas");
@@ -85,12 +94,16 @@ export async function renderPreview({ productType, colorHex, face, objects, scal
     ctx.fillStyle = background;
     ctx.fillRect(0, 0, W, H);
   }
+  const photo = garmentPhoto(productType, face, colorId);
   const draw = async (layer, op = "source-over") => {
-    const { img, url } = await loadSvgImage(garmentSvg(productType, face, colorHex, { layer }), W, H);
+    // Las fotos se dibujan directo: una <image> dentro de un SVG cargado como imagen no se descarga.
+    const { img, url } = photo
+      ? { img: await loadBitmap(photo[layer]), url: null }
+      : await loadSvgImage(garmentSvg(productType, face, colorHex, { layer }), W, H);
     ctx.globalCompositeOperation = op;
     ctx.drawImage(img, 0, 0, W, H);
     ctx.globalCompositeOperation = "source-over";
-    URL.revokeObjectURL(url);
+    if (url) URL.revokeObjectURL(url);
   };
   await draw("base");
   if (objects.length) {

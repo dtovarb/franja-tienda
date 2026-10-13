@@ -249,7 +249,7 @@ function productRow(p) {
   <li class="admin-product" data-product-row="${p.id}">
     <details>
       <summary>
-        <span class="admin-product__thumb">${garmentSvg(p.type, "front", getColor(p.colors[0])?.hex || "#f4f4f1", { title: p.name })}</span>
+        <span class="admin-product__thumb">${garmentSvg(p.type, "front", getColor(p.colors[0])?.hex || "#f4f4f1", { title: p.name, colorId: p.colors[0] })}</span>
         <span class="admin-row__main">
           <b>${escapeHtml(p.name)}</b>
           <span class="hint">${escapeHtml(garmentName)} · ${p.sku} · ${formatPrice(p.basePrice)}</span>

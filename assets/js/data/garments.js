@@ -239,6 +239,34 @@ function drawHoodie(face, color, uid, { pocket = true } = {}) {
   return frame({ uid, color, body: HOODIE_BODY, inner, details, folds, highlights, extraUnder: front ? hoodBack : "" });
 }
 
+function drawCrewneck(face, color, uid) {
+  // Buzo de frisa cuello redondo: mismo cuerpo que el buzo, sin capucha.
+  const front = face === "front";
+  const inner = front
+    ? `<path d="M380 200 C420 168 580 168 620 200 C590 262 410 262 380 200 Z" fill="{c}"/>
+       <path d="M380 200 C420 168 580 168 620 200 C590 262 410 262 380 200 Z" fill="#000" opacity=".3"/>
+       <path d="M376 198 C410 276 590 276 624 198" fill="none" stroke="{edge}" stroke-width="24" opacity=".3"/>
+       <path d="M376 198 C410 276 590 276 624 198" fill="none" stroke="{c}" stroke-width="20"/>`
+    : `<path d="M376 198 C420 226 580 226 624 198" fill="none" stroke="{c}" stroke-width="20"/>
+       <path d="M376 198 C420 226 580 226 624 198" fill="none" stroke="{edge}" stroke-width="2"/>`;
+  const details = `
+    <path d="M${front ? "384 214 C416 282 584 282 616 214" : "384 212 C420 236 580 236 616 212"}"/>
+    <path d="M240 226 C250 320 245 400 236 470"/><path d="M760 226 C750 320 755 400 764 470"/>
+    <path d="M110 960 L212 972"/><path d="M890 960 L788 972"/>
+    <path d="M232 1082 C400 1094 600 1094 768 1082"/>`;
+  const folds = `
+    <path d="M140 420 C150 600 150 800 150 1000 L120 1000 C125 800 130 600 140 420 Z"/>
+    <path d="M860 420 C850 600 850 800 850 1000 L880 1000 C875 800 870 600 860 420 Z"/>
+    <path d="M300 560 C320 700 300 820 310 1080 L280 1080 C278 820 290 700 300 560 Z"/>
+    <path d="M700 580 C690 720 712 860 700 1080 L728 1080 C736 860 716 720 700 580 Z"/>
+    <path d="M232 1040 C400 1056 600 1056 768 1040 L770 1100 C600 1116 400 1116 230 1100 Z" opacity=".55"/>`;
+  const highlights = `
+    <path d="M170 440 C178 620 178 800 176 990 L160 990 C162 800 162 620 170 440 Z"/>
+    <path d="M830 440 C822 620 822 800 824 990 L840 990 C838 800 838 620 830 440 Z"/>
+    <path d="M330 580 C345 720 330 840 338 1070 L322 1070 C316 840 330 720 330 580 Z"/>`;
+  return frame({ uid, color, body: HOODIE_BODY, inner, details, folds, highlights });
+}
+
 function drawTote(face, color, uid) {
   const handles = `
     <path d="M330 344 C330 120 450 110 452 344" fill="none" stroke="${color}" stroke-width="34"/>
@@ -311,6 +339,16 @@ export const GARMENTS = {
       back: { printArea: { x: 320, y: 450, w: 360, h: 470 } },
     },
   },
+  crewneck: {
+    id: "crewneck",
+    name: "Buzo cuello redondo",
+    cmPerUnit: 0.09,
+    draw: drawCrewneck,
+    faces: {
+      front: { printArea: { x: 330, y: 330, w: 340, h: 440 } },
+      back: { printArea: { x: 320, y: 300, w: 360, h: 470 } },
+    },
+  },
   hoodieplain: {
     id: "hoodieplain",
     name: "Buzo con capucha",
@@ -342,6 +380,40 @@ export const GARMENTS = {
   },
 };
 
+/* ---------------- Fotos de prenda ---------------- */
+
+/**
+ * Prendas con foto: `${tipo}-${color}`. Cada foto está normalizada al
+ * escenario lógico 1000 × 1200 (tools/preparar-fotos.py), así el área
+ * imprimible cae sobre el pecho sin cambiar coordenadas ni medidas.
+ * Junto a cada foto hay dos mapas de luz sacados de la misma foto
+ * (-sombra.png para multiplicar, -brillo.png para trama) que se aplican
+ * sólo sobre el área imprimible: la estampa toma los pliegues reales.
+ * Las fotos son de frente; la espalda sigue siendo la ilustración.
+ */
+const PHOTO_DIR = "assets/img/prendas/";
+const PHOTOS = new Set([
+  "tee-blanco", "tee-negro", "tee-arena", "tee-grafito",
+  "oversize-blanco", "oversize-negro", "oversize-arena", "oversize-grafito",
+  "crewneck-marino", "crewneck-blanco", "crewneck-bordo", "crewneck-marron",
+  "crewneck-rosa", "crewneck-negro", "crewneck-rojo",
+  "hoodie-blanco", "hoodie-negro",
+  "tote-crudo", "tote-negro",
+  "cap-naranja", "cap-verde", "cap-azul", "cap-celeste",
+]);
+
+/** URLs de la foto y sus mapas de luz, o null si esa prenda/color/cara no tiene foto. */
+export function garmentPhoto(type, face, colorId) {
+  const key = `${type}-${colorId}`;
+  if (face !== "front" || !colorId || !PHOTOS.has(key)) return null;
+  return { base: `${PHOTO_DIR}${key}.jpg`, shade: `${PHOTO_DIR}${key}-sombra.png`, light: `${PHOTO_DIR}${key}-brillo.png` };
+}
+
+function photoLayers(photo) {
+  const img = (href) => `<image href="${href}" x="0" y="0" width="${STAGE.width}" height="${STAGE.height}" preserveAspectRatio="none"/>`;
+  return { defs: "", base: img(photo.base), shade: img(photo.shade), light: img(photo.light) };
+}
+
 export function faceLabel(face) {
   return FACE_LABELS[face] || face;
 }
@@ -370,14 +442,16 @@ export function getPrintSpec(type, face) {
  * SVG (string) de una prenda en un color, sin guías.
  * layer: "full" (tela + arte + sombras y brillos encima), "base" (solo tela),
  * "shade" o "light" (solo esa capa de luz, para superponer en otro lado).
+ * colorId: si la prenda tiene foto en ese color, se usa la foto.
  */
-export function garmentSvg(type, face, colorHex, { art = "", className = "", title = "", layer = "full" } = {}) {
+export function garmentSvg(type, face, colorHex, { art = "", className = "", title = "", layer = "full", colorId = null } = {}) {
   const g = getGarment(type);
-  const uid = nextUid();
-  const L = g.draw(face, colorHex, uid);
+  const photo = garmentPhoto(type, face, colorId);
+  const L = photo ? photoLayers(photo) : g.draw(face, colorHex, nextUid());
   const artLayer = art ? artInArea(art, g.faces[face].printArea) : "";
   const label = title || `${g.name} — ${faceLabel(face)}`;
-  const open = `<svg class="${className}" viewBox="0 0 ${STAGE.width} ${STAGE.height}" xmlns="http://www.w3.org/2000/svg"`;
+  const fit = photo ? ` data-photo preserveAspectRatio="xMidYMid slice"` : "";
+  const open = `<svg class="${className}" viewBox="0 0 ${STAGE.width} ${STAGE.height}"${fit} xmlns="http://www.w3.org/2000/svg"`;
   if (layer === "shade" || layer === "light") return `${open} aria-hidden="true">${L.defs}${L[layer]}</svg>`;
   const body =
     layer === "base"

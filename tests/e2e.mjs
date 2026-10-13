@@ -119,12 +119,12 @@ console.log("\nEscritorio 1440×900");
     await page.goto(`${BASE}/index.html`, { waitUntil: "networkidle" });
     assert(await page.locator(".hero__title").isVisible(), "sin hero");
     const n = await page.locator("[data-featured] .pcard").count();
-    assert(n === 3, `destacados: ${n}`);
+    assert(n === 4, `destacados: ${n}`);
     assert(await page.locator(".site-footer").isVisible(), "sin footer");
     assert((await page.locator("[data-cart-count]").textContent()) === "0", "carrito no vacío");
     assert((await overflowX(page)) <= 0, "desborde horizontal");
     await page.screenshot({ path: join(SHOTS, "desktop-inicio.png"), fullPage: true });
-    return "3 destacados, sin desborde";
+    return "4 destacados, sin desborde";
   });
 
   await t("Tienda", "Catálogo lista prendas y filtra por tipo", async () => {
@@ -133,7 +133,7 @@ console.log("\nEscritorio 1440×900");
     const all = await page.locator("[data-grid] .pcard").count();
     await page.click('[data-filter="hoodie"]');
     const hood = await page.locator("[data-grid] .pcard").count();
-    assert(all === 6 && hood === 1, `todo=${all} buzo=${hood}`);
+    assert(all === 7 && hood === 1, `todo=${all} buzo=${hood}`);
     await page.click('[data-filter="all"]');
     await page.screenshot({ path: join(SHOTS, "desktop-catalogo.png"), fullPage: true });
     return `${all} tarjetas; filtro buzo=${hood}`;
@@ -548,7 +548,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     assert(await page.locator('.pcard:has-text("Gorra")').count(), "falta gorra");
     await page.goto(`${BASE}/producto.html?id=gorra`);
     assert((await page.locator("[data-face]").count()) === 1, "la gorra debería tener una sola cara");
-    await page.goto(`${BASE}/editor.html?product=gorra&color=negro&size=Único&qty=1`);
+    await page.goto(`${BASE}/editor.html?product=gorra&color=azul&size=Único&qty=1`);
     await editorReady(page);
     const area = await page.evaluate(() => {
       const s = window.__editor.ed.product;
@@ -562,7 +562,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     await page.goto(`${BASE}/editor.html?product=buzo-capucha&color=arena&size=M&qty=1`);
     await editorReady(page);
     await page.screenshot({ path: join(SHOTS, "desktop-editor-buzo-sin-bolsillo.png") });
-    return "6 prendas; gorra con 1 cara; editor de gorra y buzo";
+    return "7 prendas; gorra con 1 cara; editor de gorra y buzo";
   });
 
   await t("Diseños", "Elegir un diseño listo y una prenda lo lleva al editor con su precio", async () => {
@@ -610,7 +610,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     await page.waitForFunction(() => window.__editor.canvas.getObjects().length === 2, null, { timeout: 8000 });
     const unit = await page.evaluate(() => window.__editor.price().unit);
     assert(unit === 18900 + 3500, `precio ${unit}`);
-    await page.goto(`${BASE}/editor.html?product=gorra&color=negro&size=Único&qty=1`);
+    await page.goto(`${BASE}/editor.html?product=gorra&color=azul&size=Único&qty=1`);
     await editorReady(page);
     await page.waitForSelector("[data-store-design]");
     assert(!(await page.locator('[data-store-design="sd-ramito"]').count()), "ramito no es para gorra");
@@ -666,7 +666,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     assert(await page.locator('[data-size="S"]').isDisabled(), "talle S debería estar sin stock");
     await page.goto(`${BASE}/catalogo.html`);
     await page.waitForSelector("[data-grid] .pcard");
-    assert((await page.locator("[data-grid] .pcard").count()) === 5, "la gorra oculta sigue en el catálogo");
+    assert((await page.locator("[data-grid] .pcard").count()) === 6, "la gorra oculta sigue en el catálogo");
     return "precio $20.000, talle S sin stock, gorra oculta";
   });
 
@@ -689,6 +689,100 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     await page.goto(`${BASE}/producto.html?id=remera-clasica`);
     assert(priceNum(await page.textContent("[data-unit]")) === 18900, "no se restableció el precio");
     return "pedido con diseño de la tienda → en producción → restablecido";
+  });
+
+  await t("Fotos", "Las prendas con foto usan la foto y sus mapas de luz; la espalda queda ilustrada", async () => {
+    await page.goto(`${BASE}/producto.html?id=buzo-cuello-redondo&color=rojo`);
+    await page.waitForSelector("[data-stage] svg");
+    const front = await page.evaluate(() => {
+      const svg = document.querySelector("[data-stage] svg");
+      return { photo: svg.hasAttribute("data-photo"), hrefs: [...svg.querySelectorAll("image")].map((i) => i.getAttribute("href")) };
+    });
+    assert(front.photo, "el frente no usa foto");
+    assert(front.hrefs.includes("assets/img/prendas/crewneck-rojo.jpg") && front.hrefs.some((h) => h.endsWith("crewneck-rojo-sombra.png")), front.hrefs.join(","));
+    assert(/foto de referencia/i.test(await page.textContent("[data-stage-note]")), "nota de foto");
+    await page.click('[data-face="back"]');
+    assert(!(await page.locator("[data-stage] svg[data-photo]").count()), "la espalda no tiene foto");
+    assert(/ilustrada/i.test(await page.textContent("[data-stage-note]")), "nota de espalda");
+    // Todas las fotos y mapas existen y cargan
+    const missing = await page.evaluate(async () => {
+      const { PRODUCTS } = await import("./assets/js/data/catalog.js");
+      const { garmentPhoto } = await import("./assets/js/data/garments.js");
+      const urls = [];
+      PRODUCTS.forEach((p) => p.colors.forEach((c) => {
+        const ph = garmentPhoto(p.type, "front", c);
+        if (ph) urls.push(ph.base, ph.shade, ph.light);
+      }));
+      const bad = [];
+      for (const u of urls) if (!(await fetch(u)).ok) bad.push(u);
+      return { n: urls.length, bad };
+    });
+    assert(missing.n === 69 && !missing.bad.length, `fotos ${missing.n}, faltan ${missing.bad.join(",")}`);
+    await page.screenshot({ path: join(SHOTS, "desktop-producto-foto.png") });
+    return `${missing.n / 3} prendas con foto (frente); espalda ilustrada`;
+  });
+
+  await t("Fotos", "Vista previa final dibuja la foto, la estampa y las luces de la tela", async () => {
+    await page.goto(`${BASE}/editor.html?product=remera-clasica&color=negro&size=M&qty=1`);
+    await editorReady(page);
+    await page.click('[data-store-design="sd-sol"]');
+    await page.waitForFunction(() => window.__editor.canvas.getObjects().length === 1, null, { timeout: 8000 });
+    assert(await page.locator(".ed-mockup svg[data-photo]").count(), "el editor no usa la foto");
+    const px = await page.evaluate(async () => {
+      const { renderPreview } = await import("./assets/js/editor/export.js");
+      const ed = window.__editor;
+      const o = ed.canvas.getObjects()[0].getBoundingRect(true, true);
+      const blob = await renderPreview({ productType: "tee", colorHex: "#171717", colorId: "negro", face: "front", objects: ed.ed.faces.front, scale: 0.5 });
+      const bmp = await createImageBitmap(blob);
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      const x = c.getContext("2d");
+      x.drawImage(bmp, 0, 0);
+      const at = (lx, ly) => [...x.getImageData(Math.round(lx * 0.5), Math.round(ly * 0.5), 1, 1).data].slice(0, 3);
+      return { corner: at(10, 10), chest: at(o.left + o.width / 2, o.top + o.height * 0.3) };
+    });
+    // Esquina = fondo gris de la foto (no el #f5f5f3 del dibujo); pecho = estampa (no la tela negra)
+    assert(px.corner.every((v) => v > 110 && v < 170), `esquina ${px.corner}`);
+    assert(Math.max(...px.chest) > 90, `pecho sin estampa ${px.chest}`);
+    return `esquina ${px.corner} · pecho ${px.chest}`;
+  });
+
+  await t("Ayuda", "Preguntas frecuentes: temas, acordeón y medidas reales por prenda", async () => {
+    await page.goto(`${BASE}/index.html`);
+    await page.click('#main-nav a:has-text("Preguntas")');
+    await page.waitForSelector("[data-faq]");
+    assert((await page.locator(".faq__group").count()) === 4, "grupos");
+    const n = await page.locator("[data-faq]").count();
+    assert(n >= 15, `preguntas ${n}`);
+    const q = page.locator("[data-faq]").first();
+    assert(!(await q.getAttribute("open")), "debería empezar cerrada");
+    await q.locator("summary").click();
+    assert((await q.getAttribute("open")) !== null, "no abre");
+    const rows = await page.locator("[data-print-sizes] tbody tr").count();
+    assert(rows === 7, `tabla ${rows}`);
+    assert((await page.textContent("[data-print-sizes]")).includes("30,2 × 40,3") || (await page.textContent("[data-print-sizes]")).includes("30.2 × 40.3"), "medida de la remera");
+    assert((await page.textContent("[data-extra-face]")).includes("4.500"), "precio cara extra");
+    await page.goto(`${BASE}/preguntas.html#envios`);
+    assert((await page.locator("#envios details[open]").count()) === 1, "el enlace al tema no abre la primera pregunta");
+    await page.screenshot({ path: join(SHOTS, "desktop-preguntas.png"), fullPage: true });
+    return `${n} preguntas en 4 temas; tabla de ${rows} prendas`;
+  });
+
+  await t("Ayuda", "Opiniones de ejemplo en inicio y producto, siempre marcadas como ejemplo", async () => {
+    await page.goto(`${BASE}/index.html#opiniones`);
+    await page.waitForSelector("[data-review]");
+    assert((await page.locator("#opiniones [data-review]").count()) === 3, "inicio muestra 3");
+    assert(/simuladas/i.test(await page.textContent("#opiniones .reviews__note")), "falta aviso de ejemplo");
+    assert((await page.textContent("#opiniones .reviews__summary")).includes("10 opiniones de ejemplo"), "resumen");
+    await page.goto(`${BASE}/producto.html?id=remera-oversize`);
+    await page.waitForSelector("#opiniones [data-review]");
+    const cards = page.locator("#opiniones [data-review]");
+    assert((await cards.count()) === 2, `oversize ${await cards.count()}`);
+    for (let i = 0; i < 2; i++) assert((await cards.nth(i).textContent()).includes("Opinión de ejemplo"), "una opinión sin etiqueta");
+    assert((await page.textContent("#opiniones .reviews__avg")).trim() === "4,5", "promedio");
+    // Ninguna página publica opiniones simuladas como datos estructurados
+    assert(!(await page.locator('script[type="application/ld+json"]').count()), "no debe haber JSON-LD");
+    await page.screenshot({ path: join(SHOTS, "desktop-opiniones.png"), fullPage: true });
+    return "inicio 3 · oversize 2 (4,5)";
   });
 
   await ctx.close();
@@ -714,6 +808,18 @@ console.log("\nMóvil 390×844 (táctil)");
     return "disenos.html, admin.html";
   });
 
+  await t("Móvil", "Preguntas frecuentes y opiniones sin desborde", async () => {
+    for (const u of ["preguntas.html", "producto.html?id=gorra", "index.html#opiniones"]) {
+      await page.goto(`${BASE}/${u}`, { waitUntil: "networkidle" });
+      const ov = await overflowX(page);
+      assert(ov <= 0, `${u} desborde ${ov}`);
+    }
+    await page.goto(`${BASE}/preguntas.html`, { waitUntil: "networkidle" });
+    await page.tap("[data-faq] summary");
+    await page.screenshot({ path: join(SHOTS, "movil-preguntas.png"), fullPage: true });
+    return "preguntas, producto, inicio";
+  });
+
   await t("Móvil", "Inicio y catálogo sin desborde horizontal; menú abre", async () => {
     await page.goto(`${BASE}/index.html`, { waitUntil: "networkidle" });
     assert((await overflowX(page)) <= 0, `desborde ${await overflowX(page)}`);
@@ -729,7 +835,7 @@ console.log("\nMóvil 390×844 (táctil)");
 
   await t("Móvil", "Producto: selección táctil y paso al editor", async () => {
     await page.goto(`${BASE}/producto.html?id=buzo-canguro`);
-    await page.tap('[data-color="bordo"]');
+    await page.tap('[data-color="blanco"]');
     await page.tap('[data-size="M"]');
     assert((await overflowX(page)) <= 0, "desborde");
     await page.screenshot({ path: join(SHOTS, "movil-producto.png"), fullPage: true });
@@ -802,7 +908,7 @@ console.log("\nTablet 820×1180");
   watch(page, "tablet");
   await t("Tablet", "Páginas y editor sin desborde", async () => {
     const res = [];
-    for (const u of ["index.html", "catalogo.html", "disenos.html", "admin.html", "producto.html?id=gorra&diseno=sd-lunas", "carrito.html", "editor.html?product=remera-oversize&color=militar&size=L&qty=1"]) {
+    for (const u of ["index.html", "catalogo.html", "disenos.html", "admin.html", "producto.html?id=gorra&diseno=sd-lunas", "carrito.html", "editor.html?product=remera-oversize&color=grafito&size=L&qty=1"]) {
       await page.goto(`${BASE}/${u}`, { waitUntil: "networkidle" });
       if (u.startsWith("editor")) await editorReady(page);
       const ov = await overflowX(page);

@@ -174,9 +174,9 @@ function layout() {
 new ResizeObserver(() => requestAnimationFrame(layout)).observe(stageWrap);
 
 function renderMockup() {
-  mockupEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "base" });
-  shadeEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "shade" });
-  lightEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "light" });
+  mockupEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "base", colorId: color().id });
+  shadeEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "shade", colorId: color().id });
+  lightEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "light", colorId: color().id });
 }
 
 function renderGuides() {

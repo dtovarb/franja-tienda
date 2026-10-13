@@ -1,6 +1,7 @@
 import { initPage, icon } from "../core/ui.js";
 import { activeProducts, getProduct } from "../data/catalog.js";
-import { productCard, productMockup } from "./components.js";
+import { productCard, productMockup, reviewsBlock } from "./components.js";
+import { listReviews, reviewSummary } from "../data/reviews.js";
 
 initPage("home");
 
@@ -14,7 +15,7 @@ const hoodie = getProduct("buzo-canguro");
 visual.insertAdjacentHTML(
   "afterbegin",
   productMockup(ovr, "negro", "front", { className: "hero__garment" }) +
-    productMockup(hoodie, "melange", "front", { className: "hero__garment hero__garment--2" })
+    productMockup(hoodie, "blanco", "front", { className: "hero__garment hero__garment--2" })
 );
 
 // Marquee
@@ -32,7 +33,7 @@ const tee = getProduct("remera-clasica");
 const tote = getProduct("tote-bag");
 document.querySelector("[data-editorial]").innerHTML = `
   <figure class="ed-card ed-card--a">
-    ${productMockup(hoodie, "bordo", "back")}
+    ${productMockup(hoodie, "negro", "back")}
     <figcaption><span class="tag tag--ink">Buzo canguro · espalda</span><span class="tag tag--demo" style="background:#fff">Demo</span></figcaption>
   </figure>
   <figure class="ed-card ed-card--b">
@@ -47,3 +48,7 @@ document.querySelector("[data-editorial]").innerHTML = `
     <span class="tag tag--pink">Manifiesto</span>
     <p class="display">Una prenda con tu firma vale más que cualquier logo prestado.</p>
   </div>`;
+
+// Opiniones (de ejemplo): resumen de todas y las más recientes
+const allReviews = listReviews();
+document.querySelector("[data-reviews]").innerHTML = reviewsBlock(allReviews.slice(0, 3), reviewSummary(allReviews), { products: activeProducts() });

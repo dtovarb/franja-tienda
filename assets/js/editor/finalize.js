@@ -104,7 +104,7 @@ export async function openFinalize({ ed, product, price, printedFaces, setFace, 
     step("preview", "run");
     const col = getColor(ed.variant.colorId);
     for (const f of faces) {
-      out.previews[f] = await renderPreview({ productType: product.type, colorHex: col.hex, face: f, objects: ed.faces[f] });
+      out.previews[f] = await renderPreview({ productType: product.type, colorHex: col.hex, colorId: col.id, face: f, objects: ed.faces[f] });
       out.previewUrls[f] = URL.createObjectURL(out.previews[f]);
     }
     step("preview", "ok", faces.map((f) => `${faceLabel(f)} ${formatBytes(out.previews[f].size)}`).join(" · "));
@@ -294,6 +294,7 @@ export async function openFinalize({ ed, product, price, printedFaces, setFace, 
       const thumbBlob = await renderPreview({
         productType: product.type,
         colorHex: getColor(ed.variant.colorId).hex,
+        colorId: ed.variant.colorId,
         face: thumbFace,
         objects: ed.faces[thumbFace],
         scale: 0.3,
