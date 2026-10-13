@@ -1,4 +1,4 @@
-import { getColor, stockLabel } from "../data/catalog.js";
+import { getColor, getProduct, stockLabel } from "../data/catalog.js";
 import { garmentSvg, luminance } from "../data/garments.js";
 import { demoArt } from "../data/art.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
@@ -31,8 +31,8 @@ export function productCard(product, { index = 0 } = {}) {
   const av = availability(product);
   const href = `producto.html?id=${encodeURIComponent(product.id)}`;
   return `
-  <article class="pcard" style="--i:${index}">
-    <a class="pcard__media" href="${href}" aria-label="Ver ${escapeHtml(product.name)}">
+  <article class="pcard" style="--i:${index}" data-card="${product.id}">
+    <a class="pcard__media" href="${href}" aria-label="Ver ${escapeHtml(product.name)}" data-card-link>
       ${productMockup(product, product.colors[0], "front", { className: "pcard__svg" })}
       <div class="pcard__tags">
         ${product.badge ? `<span class="tag tag--red">${escapeHtml(product.badge)}</span>` : ""}
@@ -42,27 +42,44 @@ export function productCard(product, { index = 0 } = {}) {
     </a>
     <div class="pcard__body">
       <div class="pcard__row">
-        <h3 class="pcard__name"><a href="${href}">${escapeHtml(product.name)}</a></h3>
+        <h3 class="pcard__name"><a href="${href}" data-card-link>${escapeHtml(product.name)}</a></h3>
         <p class="price pcard__price">${formatPrice(product.basePrice)}</p>
       </div>
       <p class="pcard__tagline muted">${escapeHtml(product.tagline)}</p>
       <div class="pcard__meta">
-        <div class="pcard__colors" aria-label="Colores disponibles">
+        <div class="pcard__colors" role="group" aria-label="Color de ${escapeHtml(product.name)}">
           ${product.colors
-            .map((c) => {
+            .map((c, i) => {
               const col = getColor(c);
-              return `<span class="swatch swatch--sm" style="--sw:${col.hex}" title="${col.name}"></span>`;
+              return `<button type="button" class="swatch swatch--sm" data-card-color="${c}" style="--sw:${col.hex}" title="${col.name}" aria-label="${col.name}" aria-pressed="${i === 0}"></button>`;
             })
             .join("")}
-          <span class="sr-only">${product.colors.map((c) => getColor(c).name).join(", ")}</span>
         </div>
         <span class="mono">Talles ${sizeRange(product)}</span>
       </div>
       <p class="pcard__stock pcard__stock--${av.cls}"><span class="dot" aria-hidden="true"></span>${av.label} <span class="muted">(ejemplo)</span></p>
-      <a class="btn btn--primary btn--block" href="${href}">Personalizar ${icon("arrowRight")}</a>
+      <a class="btn btn--primary btn--block" href="${href}" data-card-link>Personalizar ${icon("arrowRight")}</a>
     </div>
   </article>`;
 }
+
+/* Tocar un color en una tarjeta cambia la prenda y lleva ese color a la ficha. */
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-card-color]");
+  if (!b) return;
+  const card = b.closest("[data-card]");
+  const product = card && getProduct(card.dataset.card);
+  if (!product) return;
+  const colorId = b.dataset.cardColor;
+  const media = card.querySelector(".pcard__media");
+  media.querySelector(".pcard__svg").outerHTML = productMockup(product, colorId, "front", { className: "pcard__svg" });
+  card.querySelectorAll("[data-card-color]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  card.querySelectorAll("[data-card-link]").forEach((a) => {
+    const url = new URL(a.getAttribute("href"), location.href);
+    url.searchParams.set("color", colorId);
+    a.setAttribute("href", `producto.html${url.search}`);
+  });
+});
 
 /* ---------------- Opiniones ---------------- */
 

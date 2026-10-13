@@ -58,9 +58,9 @@ export const DEMO_REVIEWS = [
   r("rv-09", "remera-clasica", "Vale N.", "Neuquén", 4, "Buena base para regalar",
     "Hice dos con la misma foto para un cumpleaños. La remera es cómoda; me hubiese gustado tener más colores para elegir.",
     "S", "grafito", "2026-10-05"),
-  r("rv-10", "buzo-capucha", "Pili C.", "Tucumán", 5, "Frente libre, como quería",
-    "Quería un buzo sin bolsillo para poner un diseño grande y es justo eso. La capucha es amplia y forrada.",
-    "XL", "negro", "2026-09-19"),
+  r("rv-10", "buzo-canguro", "Pili C.", "Tucumán", 5, "La capucha es enorme",
+    "Capucha amplia y forrada, bolsillo cómodo y la estampa del pecho quedó bien arriba del bolsillo. Lo pedí en blanco y se mantiene blanco.",
+    "XL", "blanco", "2026-09-19"),
 ];
 
 /** Opiniones (de una prenda o todas), de la más nueva a la más vieja. */

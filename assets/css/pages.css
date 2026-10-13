@@ -281,6 +281,7 @@
 }
 .pcard__meta {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: var(--sp-2);
@@ -288,7 +289,24 @@
 }
 .pcard__colors {
   display: flex;
-  gap: 5px;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px;
+}
+.pcard__colors .swatch--sm {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+}
+.pcard__colors .swatch--sm::after {
+  display: block;
+  inset: -4px;
+}
+/* área táctil más grande sin agrandar el círculo */
+.pcard__colors .swatch--sm::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
 }
 .pcard__stock {
   font-size: var(--fs-xs);

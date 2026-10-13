@@ -349,16 +349,6 @@ export const GARMENTS = {
       back: { printArea: { x: 320, y: 300, w: 360, h: 470 } },
     },
   },
-  hoodieplain: {
-    id: "hoodieplain",
-    name: "Buzo con capucha",
-    cmPerUnit: 0.09,
-    draw: (face, color, uid) => drawHoodie(face, color, uid, { pocket: false }),
-    faces: {
-      front: { printArea: { x: 330, y: 480, w: 340, h: 440 } },
-      back: { printArea: { x: 320, y: 450, w: 360, h: 470 } },
-    },
-  },
   cap: {
     id: "cap",
     name: "Gorra",

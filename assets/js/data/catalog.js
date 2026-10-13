@@ -13,6 +13,7 @@
  */
 
 import { readJSON, writeJSON, removeKey } from "../core/storage.js";
+import { GARMENTS } from "./garments.js";
 
 export const CURRENCY = { code: "ARS", locale: "es-AR" };
 
@@ -115,23 +116,6 @@ export const SEED_PRODUCTS = [
     badge: "Nuevo",
   },
   {
-    id: "buzo-capucha",
-    sku: "DEMO-HDP-01",
-    type: "hoodieplain",
-    name: "Buzo con capucha",
-    tagline: "Frisa 300 g, frente liso sin bolsillo.",
-    description:
-      "El mismo buzo abrigado, sin bolsillo canguro: el frente queda libre para una estampa grande. Capucha forrada, puños y cintura con rib.",
-    basePrice: 39900,
-    colors: ["negro", "melange", "arena", "bordo"],
-    sizes: [size("S"), size("M"), size("L"), size("XL"), size("XXL", 2500)],
-    faces: ["front", "back"],
-    includedFaces: 1,
-    featured: false,
-    demoArt: "sol",
-    badge: "Nuevo",
-  },
-  {
     id: "gorra",
     sku: "DEMO-CAP-01",
     type: "cap",
@@ -169,7 +153,9 @@ export const SEED_PRODUCTS = [
 const KEY = "catalog.v1";
 
 /** Catálogo vigente: el editado en el panel (si existe) o la semilla. */
-export const PRODUCTS = readJSON(KEY, null) || structuredClone(SEED_PRODUCTS);
+// Se descartan productos de tipos de prenda que ya no existen (p. ej. un
+// catálogo guardado antes de sacar el buzo con capucha).
+export const PRODUCTS = (readJSON(KEY, null) || structuredClone(SEED_PRODUCTS)).filter((p) => GARMENTS[p.type]);
 
 /** Productos visibles en la tienda (los ocultos siguen valiendo para el carrito). */
 export function activeProducts() {

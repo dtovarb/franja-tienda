@@ -33,7 +33,7 @@ export const SEED_STORE_DESIGNS = [
   seed("sd-sol", "Sol de cinco franjas", "Un sol partido en cinco tonos. Va bien grande en la espalda.", 3500, "sol-cinco-franjas.svg"),
   seed("sd-lunas", "Dos lunas", "Dos lunas espalda con espalda. Chica en el pecho o en la gorra.", 3000, "dos-lunas.svg"),
   seed("sd-ramito", "Ramito", "Tres tulipanes atados con una cinta.", 4000, "ramito.svg", {
-    productIds: ["remera-clasica", "remera-oversize", "buzo-canguro", "buzo-capucha", "tote-bag"],
+    productIds: ["remera-clasica", "remera-oversize", "buzo-canguro", "buzo-cuello-redondo", "tote-bag"],
   }),
   seed("sd-ola", "Ola", "Cinco franjas en movimiento.", 3000, "ola.svg"),
   seed("sd-logo", "nevrado", "El logo de la casa. Sin costo de diseño.", 0, "nevrado-logo.svg"),

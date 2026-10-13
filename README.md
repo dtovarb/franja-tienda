@@ -44,7 +44,7 @@ Recorre el flujo completo en escritorio (1440×900), móvil táctil (390×844) y
 
 ## Fotos de prendas
 
-El frente de remeras, remeras oversize, buzo canguro, buzo cuello redondo, gorra y tote usa fotos (`assets/img/prendas/`). La espalda y el buzo con capucha sin bolsillo siguen ilustrados porque no hay foto.
+El frente de remeras, remeras oversize, buzo canguro, buzo cuello redondo, gorra y tote usa fotos (`assets/img/prendas/`). La espalda sigue ilustrada porque no hay foto.
 
 **Las fotos actuales son de referencia y de terceros: hay que reemplazarlas por fotos propias antes de publicar la tienda.** Para cambiar una foto:
 

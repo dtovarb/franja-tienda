@@ -133,7 +133,7 @@ console.log("\nEscritorio 1440×900");
     const all = await page.locator("[data-grid] .pcard").count();
     await page.click('[data-filter="hoodie"]');
     const hood = await page.locator("[data-grid] .pcard").count();
-    assert(all === 7 && hood === 1, `todo=${all} buzo=${hood}`);
+    assert(all === 6 && hood === 1, `todo=${all} buzo=${hood}`);
     await page.click('[data-filter="all"]');
     await page.screenshot({ path: join(SHOTS, "desktop-catalogo.png"), fullPage: true });
     return `${all} tarjetas; filtro buzo=${hood}`;
@@ -541,10 +541,11 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
   /* ---------------- Catálogo nuevo, diseños de la tienda y panel ---------------- */
   const priceNum = (txt) => Number(String(txt).replace(/[^\d]/g, ""));
 
-  await t("Catálogo", "Buzo sin bolsillo y gorra: ficha y editor con su área", async () => {
+  await t("Catálogo", "Buzo cuello redondo y gorra: ficha y editor con su área; sin buzo con capucha", async () => {
     await page.goto(`${BASE}/catalogo.html`);
     await page.waitForSelector("[data-grid] .pcard");
-    assert(await page.locator('.pcard:has-text("Buzo con capucha")').count(), "falta buzo con capucha");
+    assert(!(await page.locator('.pcard:has-text("Buzo con capucha")').count()), "el buzo con capucha debería haberse quitado");
+    assert(await page.locator('.pcard:has-text("Buzo cuello redondo")').count(), "falta buzo cuello redondo");
     assert(await page.locator('.pcard:has-text("Gorra")').count(), "falta gorra");
     await page.goto(`${BASE}/producto.html?id=gorra`);
     assert((await page.locator("[data-face]").count()) === 1, "la gorra debería tener una sola cara");
@@ -559,10 +560,58 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     await page.waitForTimeout(200);
     const o = (await objs(page))[0];
     assert(o && !o.out, "el texto quedó fuera del área de la gorra");
-    await page.goto(`${BASE}/editor.html?product=buzo-capucha&color=arena&size=M&qty=1`);
+    await page.goto(`${BASE}/editor.html?product=buzo-cuello-redondo&color=bordo&size=M&qty=1`);
     await editorReady(page);
-    await page.screenshot({ path: join(SHOTS, "desktop-editor-buzo-sin-bolsillo.png") });
-    return "7 prendas; gorra con 1 cara; editor de gorra y buzo";
+    assert((await page.evaluate(() => window.__editor.ed.product.type)) === "crewneck", "tipo");
+    await page.screenshot({ path: join(SHOTS, "desktop-editor-buzo-cuello-redondo.png") });
+    return "6 prendas; gorra con 1 cara; editor de gorra y buzo";
+  });
+
+  await t("Catálogo", "Tocar un color en cualquier tarjeta cambia la prenda y lo lleva a la ficha", async () => {
+    await page.goto(`${BASE}/catalogo.html`);
+    await page.waitForSelector("[data-grid] .pcard");
+    const ids = await page.$$eval("[data-card]", (els) => els.map((e) => e.dataset.card));
+    let checked = 0;
+    for (const id of ids) {
+      const card = page.locator(`[data-card="${id}"]`);
+      const colors = await card.locator("[data-card-color]").evaluateAll((els) => els.map((e) => e.dataset.cardColor));
+      for (const c of colors) {
+        const before = await card.locator(".pcard__svg").evaluate((s) => s.outerHTML);
+        await card.locator(`[data-card-color="${c}"]`).click();
+        const after = await card.locator(".pcard__svg").evaluate((s) => s.outerHTML);
+        if (c !== colors[0]) assert(after !== before, `${id} ${c}: la prenda no cambió`);
+        assert((await card.locator(`[data-card-color="${c}"]`).getAttribute("aria-pressed")) === "true", `${id} ${c}: no queda marcado`);
+        assert((await card.locator(".pcard__media").getAttribute("href")).includes(`color=${c}`), `${id} ${c}: el enlace no lleva el color`);
+        checked++;
+      }
+    }
+    // El color elegido llega a la ficha
+    const card = page.locator('[data-card="buzo-cuello-redondo"]');
+    await card.locator('[data-card-color="rosa"]').click();
+    await card.locator(".pcard__media").click();
+    await page.waitForSelector("[data-stage] svg");
+    assert((await page.textContent("[data-color-name]")) === "Rosa", "la ficha no abrió en rosa");
+    return `${ids.length} prendas, ${checked} colores`;
+  });
+
+  await t("Catálogo", "En la ficha de cada prenda, cada color cambia la imagen", async () => {
+    const { ids } = await page.evaluate(async () => ({ ids: (await import("./assets/js/data/catalog.js")).PRODUCTS.map((p) => p.id) }));
+    let n = 0;
+    for (const id of ids) {
+      await page.goto(`${BASE}/producto.html?id=${id}`);
+      await page.waitForSelector("[data-stage] svg");
+      const colors = await page.$$eval("[data-color]", (els) => els.map((e) => e.dataset.color));
+      const seen = new Set();
+      for (const c of colors) {
+        await page.click(`[data-color="${c}"]`);
+        const svg = await page.locator("[data-stage] svg").evaluate((s) => s.outerHTML.replace(/id="[^"]*"|url\(#[^)]*\)|g[a-z0-9]{3,}/g, ""));
+        assert(!seen.has(svg), `${id}: ${c} se ve igual que otro color`);
+        seen.add(svg);
+        assert((await page.getAttribute(`[data-color="${c}"]`, "aria-checked")) === "true", `${id} ${c} no marcado`);
+        n++;
+      }
+    }
+    return `${ids.length} prendas, ${n} colores distintos`;
   });
 
   await t("Diseños", "Elegir un diseño listo y una prenda lo lleva al editor con su precio", async () => {
@@ -666,7 +715,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     assert(await page.locator('[data-size="S"]').isDisabled(), "talle S debería estar sin stock");
     await page.goto(`${BASE}/catalogo.html`);
     await page.waitForSelector("[data-grid] .pcard");
-    assert((await page.locator("[data-grid] .pcard").count()) === 6, "la gorra oculta sigue en el catálogo");
+    assert((await page.locator("[data-grid] .pcard").count()) === 5, "la gorra oculta sigue en el catálogo");
     return "precio $20.000, talle S sin stock, gorra oculta";
   });
 
@@ -758,7 +807,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     await q.locator("summary").click();
     assert((await q.getAttribute("open")) !== null, "no abre");
     const rows = await page.locator("[data-print-sizes] tbody tr").count();
-    assert(rows === 7, `tabla ${rows}`);
+    assert(rows === 6, `tabla ${rows}`);
     assert((await page.textContent("[data-print-sizes]")).includes("30,2 × 40,3") || (await page.textContent("[data-print-sizes]")).includes("30.2 × 40.3"), "medida de la remera");
     assert((await page.textContent("[data-extra-face]")).includes("4.500"), "precio cara extra");
     await page.goto(`${BASE}/preguntas.html#envios`);
