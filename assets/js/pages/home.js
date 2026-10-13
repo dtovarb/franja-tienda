@@ -1,5 +1,5 @@
 import { initPage, icon } from "../core/ui.js";
-import { PRODUCTS, getProduct } from "../data/catalog.js";
+import { activeProducts, getProduct } from "../data/catalog.js";
 import { productCard, productMockup } from "./components.js";
 
 initPage("home");
@@ -18,12 +18,12 @@ visual.insertAdjacentHTML(
 );
 
 // Marquee
-const words = ["Remeras", "Buzos", "Totes", "Estampado en taller propio", "Diseño frente y espalda", "Archivos a 300 DPI"];
+const words = ["Remeras", "Buzos", "Gorras", "Totes", "Estampado en taller propio", "Diseño frente y espalda", "Archivos a 300 DPI"];
 const run = words.map((w) => `<span>${w}<i>✦</i></span>`).join("");
 document.querySelector("[data-marquee]").innerHTML = run + run;
 
 // Destacados
-document.querySelector("[data-featured]").innerHTML = PRODUCTS.filter((p) => p.featured)
+document.querySelector("[data-featured]").innerHTML = activeProducts().filter((p) => p.featured)
   .map((p, i) => productCard(p, { index: i }))
   .join("");
 

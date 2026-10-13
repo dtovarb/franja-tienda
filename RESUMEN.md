@@ -67,9 +67,15 @@ La resolución de exportación no depende de la pantalla, porque se renderiza de
 - El precio siempre se recalcula desde el catálogo.
 - «Continuar (demo)» termina en una confirmación que dice explícitamente que **no se creó ningún pedido ni se cobró nada**, y muestra el JSON que la tienda real le mandaría a la API.
 
+### Catálogo ampliado, diseños de la tienda y panel (13/10/2026)
+- Dos prendas nuevas: **Buzo con capucha** (sin bolsillo, frente libre de 30,6 × 39,6 cm) y **Gorra** (una sola cara, frente de 11,2 × 7,6 cm), con sus mockups y áreas de impresión.
+- **Diseños listos** (`disenos.html`): cinco diseños de la casa. La clienta elige diseño y prenda; la ficha muestra el precio con el diseño y el editor lo abre ya ubicado, como imagen editable. También se agregan desde el editor («Diseños nevrado»). Cada diseño se cobra una vez por prenda aunque se use varias veces, y el cargo aparece en el desglose, el carrito y el pedido.
+- **Panel de la tienda** (`admin.html`): alta, edición, publicación/ocultamiento y baja de diseños (el archivo pasa por la misma validación que las subidas de clientas); edición de productos (nombre, precio, textos, visibilidad, destacado, colores, recargo y stock por talle) y alta de productos nuevos sobre un tipo de prenda; lista de pedidos de prueba con cambio de estado.
+- **Límite importante:** el panel no tiene login y guarda en el navegador. La página lo dice. Para la tienda real necesita cuentas con rol de dueña y la API de administración del plan de backend.
+
 ## 2. Pruebas realizadas y resultados
 
-Corrí `tests/e2e.mjs` con Playwright y Chromium en el contenedor: **37 de 37 pruebas OK**, en dos corridas seguidas y sin errores en la consola. El detalle está en `tests/results.json` y las capturas en `tests/screenshots/`.
+Corrí `tests/e2e.mjs` con Playwright y Chromium en el contenedor: **44 de 44 pruebas OK** (incluye las del catálogo nuevo, diseños de la tienda y panel) y sin errores en la consola. El detalle está en `tests/results.json` y las capturas en `tests/screenshots/`.
 
 **Escritorio (1440×900)**
 - Inicio, catálogo y filtros.
@@ -132,7 +138,7 @@ Corrí `tests/e2e.mjs` con Playwright y Chromium en el contenedor: **37 de 37 pr
 
 ## 4. Funciones que necesitan backend
 - Cuentas de usuario (registro e inicio de sesión) y carritos persistentes entre dispositivos.
-- Catálogo administrable: productos, tipos de prenda, colores, talles, variantes, stock, precios y técnicas.
+- Catálogo administrable con persistencia real: hoy el panel demo edita productos y diseños solo en el navegador; falta guardarlo en la base y protegerlo con login de dueña.
 - Almacenamiento seguro de archivos en un bucket privado con URLs firmadas que vencen, y validación de archivos repetida en el servidor.
 - Diseños versionados y asociados a cada pedido.
 - Pedidos reales con varios artículos personalizados, recálculo de precio y stock, y pagos (Mercado Pago o Stripe) con webhooks.

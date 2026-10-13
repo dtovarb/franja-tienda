@@ -133,7 +133,7 @@ console.log("\nEscritorio 1440×900");
     const all = await page.locator("[data-grid] .pcard").count();
     await page.click('[data-filter="hoodie"]');
     const hood = await page.locator("[data-grid] .pcard").count();
-    assert(all === 4 && hood === 1, `todo=${all} buzo=${hood}`);
+    assert(all === 6 && hood === 1, `todo=${all} buzo=${hood}`);
     await page.click('[data-filter="all"]');
     await page.screenshot({ path: join(SHOTS, "desktop-catalogo.png"), fullPage: true });
     return `${all} tarjetas; filtro buzo=${hood}`;
@@ -510,7 +510,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
   await t("Carrito", "Flujo de demostración termina sin simular pago", async () => {
     await page.click("[data-checkout]");
     const txt = await page.textContent(".confirm-panel");
-    assert(/No se creó ningún pedido/.test(txt) && /POST \/api\/orders/.test(txt), txt.slice(0, 120));
+    assert(/No se creó ningún pedido real/.test(txt) && /pedido de prueba n.º/.test(txt) && /POST \/api\/orders/.test(txt), txt.slice(0, 120));
     await page.screenshot({ path: join(SHOTS, "desktop-confirmacion-demo.png"), fullPage: true });
     return "confirmación de demo con payload que iría a la API";
   });
@@ -538,6 +538,159 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     return "vaciar + deshacer";
   });
 
+  /* ---------------- Catálogo nuevo, diseños de la tienda y panel ---------------- */
+  const priceNum = (txt) => Number(String(txt).replace(/[^\d]/g, ""));
+
+  await t("Catálogo", "Buzo sin bolsillo y gorra: ficha y editor con su área", async () => {
+    await page.goto(`${BASE}/catalogo.html`);
+    await page.waitForSelector("[data-grid] .pcard");
+    assert(await page.locator('.pcard:has-text("Buzo con capucha")').count(), "falta buzo con capucha");
+    assert(await page.locator('.pcard:has-text("Gorra")').count(), "falta gorra");
+    await page.goto(`${BASE}/producto.html?id=gorra`);
+    assert((await page.locator("[data-face]").count()) === 1, "la gorra debería tener una sola cara");
+    await page.goto(`${BASE}/editor.html?product=gorra&color=negro&size=Único&qty=1`);
+    await editorReady(page);
+    const area = await page.evaluate(() => {
+      const s = window.__editor.ed.product;
+      return s.type;
+    });
+    assert(area === "cap", area);
+    await page.click('[data-empty] [data-action="add-text"]');
+    await page.waitForTimeout(200);
+    const o = (await objs(page))[0];
+    assert(o && !o.out, "el texto quedó fuera del área de la gorra");
+    await page.goto(`${BASE}/editor.html?product=buzo-capucha&color=arena&size=M&qty=1`);
+    await editorReady(page);
+    await page.screenshot({ path: join(SHOTS, "desktop-editor-buzo-sin-bolsillo.png") });
+    return "6 prendas; gorra con 1 cara; editor de gorra y buzo";
+  });
+
+  await t("Diseños", "Elegir un diseño listo y una prenda lo lleva al editor con su precio", async () => {
+    await page.goto(`${BASE}/disenos.html`);
+    await page.waitForSelector("[data-design-card]");
+    const n = await page.locator("[data-design-card]").count();
+    assert(n === 5, `diseños publicados: ${n}`);
+    assert((await overflowX(page)) <= 0, "desborde");
+    await page.screenshot({ path: join(SHOTS, "desktop-disenos.png"), fullPage: true });
+    await page.click('[data-design-card="sd-lunas"] a:has-text("Gorra")');
+    await page.waitForSelector("[data-chosen-design]");
+    const unit = priceNum(await page.textContent("[data-unit]"));
+    assert(unit === 14900 + 3000, `precio ficha ${unit}`);
+    await page.click("[data-form] button[type=submit]");
+    await page.waitForURL(/editor\.html.*storeDesign=sd-lunas/);
+    await editorReady(page);
+    await page.waitForFunction(() => window.__editor.canvas.getObjects().length === 1, null, { timeout: 8000 });
+    const info = await page.evaluate(() => {
+      const o = window.__editor.canvas.getObjects()[0];
+      return { sd: o.storeDesignId, asset: o.assetId, out: !!o.outOfArea, unit: window.__editor.price().unit };
+    });
+    assert(info.sd === "sd-lunas" && info.asset && !info.out, JSON.stringify(info));
+    assert(info.unit === 17900, `precio editor ${info.unit}`);
+    assert(priceNum(await page.textContent("[data-unit-price]")) === 17900, "precio en barra");
+    await page.screenshot({ path: join(SHOTS, "desktop-editor-diseno-tienda.png") });
+    await page.click('[data-action="finalize"]');
+    await page.waitForSelector("[data-add-cart]", { timeout: 30000 });
+    if (await page.locator("[data-ack]").count()) await page.check("[data-ack]");
+    await page.click("[data-add-cart]");
+    await page.waitForURL(/carrito\.html/);
+    await page.waitForSelector(".cart-item");
+    const row = await page.textContent(".cart-item:last-child");
+    assert(/Diseño «Dos lunas»/.test(row) && /17\.900/.test(row), row.slice(0, 200));
+    return "ficha $17.900 → editor con el diseño ubicado → carrito con el cargo del diseño";
+  });
+
+  await t("Diseños", "Agregar un diseño de la tienda desde el editor (se cobra una vez)", async () => {
+    await page.goto(`${BASE}/editor.html?product=remera-clasica&color=blanco&size=M&qty=1`);
+    await editorReady(page);
+    await page.waitForSelector('[data-store-design="sd-sol"]');
+    assert(await page.locator('[data-store-design="sd-ramito"]').count(), "ramito debería estar en remera");
+    await page.click('[data-store-design="sd-sol"]');
+    await page.waitForFunction(() => window.__editor.canvas.getObjects().length === 1, null, { timeout: 8000 });
+    await page.click('[data-store-design="sd-sol"]');
+    await page.waitForFunction(() => window.__editor.canvas.getObjects().length === 2, null, { timeout: 8000 });
+    const unit = await page.evaluate(() => window.__editor.price().unit);
+    assert(unit === 18900 + 3500, `precio ${unit}`);
+    await page.goto(`${BASE}/editor.html?product=gorra&color=negro&size=Único&qty=1`);
+    await editorReady(page);
+    await page.waitForSelector("[data-store-design]");
+    assert(!(await page.locator('[data-store-design="sd-ramito"]').count()), "ramito no es para gorra");
+    return "dos copias del sol = un solo cargo; filtro por prenda";
+  });
+
+  await t("Panel", "Crear un diseño con archivo y publicarlo/ocultarlo en la tienda", async () => {
+    await page.goto(`${BASE}/admin.html`);
+    await page.waitForSelector("[data-design-row]");
+    assert(/no tiene usuario ni contraseña/i.test(await page.textContent(".admin-warning")), "falta el aviso");
+    await page.click("[data-new-design]");
+    await page.click("[data-design-form] button[type=submit]");
+    const errs = await page.textContent("[data-design-errors]");
+    assert(/nombre/.test(errs) && /archivo/.test(errs), errs);
+    await page.fill("#d-name", "Prueba del panel");
+    await page.fill("#d-price", "2500");
+    await page.setInputFiles("#d-file", fixture("malicioso.svg"));
+    await page.click("[data-design-form] button[type=submit]");
+    await page.waitForFunction(() => document.querySelector("[data-design-errors]").textContent.length > 0);
+    await page.setInputFiles("#d-file", fixture("logo.svg"));
+    await page.click("[data-design-form] button[type=submit]");
+    await page.waitForSelector('[data-design-row]:has-text("Prueba del panel")');
+    await page.screenshot({ path: join(SHOTS, "desktop-panel-disenos.png"), fullPage: true });
+    await page.goto(`${BASE}/disenos.html`);
+    await page.waitForSelector('[data-design-card]:has-text("Prueba del panel")');
+    assert((await page.locator("[data-design-card]").count()) === 6, "no apareció en la tienda");
+    await page.click('[data-design-card]:has-text("Prueba del panel") a:has-text("Remera Clásica")');
+    await page.click("[data-form] button[type=submit]");
+    await editorReady(page);
+    await page.waitForFunction(() => window.__editor.canvas.getObjects().length === 1, null, { timeout: 8000 });
+    const unit = await page.evaluate(() => window.__editor.price().unit);
+    assert(unit === 18900 + 2500, `precio ${unit}`);
+    await page.goto(`${BASE}/admin.html`);
+    await page.click('[data-design-row]:has-text("Prueba del panel") [data-toggle-design]');
+    await page.goto(`${BASE}/disenos.html`);
+    await page.waitForSelector("[data-design-card]");
+    assert((await page.locator("[data-design-card]").count()) === 5, "sigue visible después de ocultarlo");
+    return "validación, SVG peligroso rechazado, alta → tienda → editor ($21.400), ocultar";
+  });
+
+  await t("Panel", "Editar precio, stock y visibilidad de un producto se refleja en la tienda", async () => {
+    await page.goto(`${BASE}/admin.html#productos`);
+    const row = '[data-product-row="remera-clasica"]';
+    await page.click(`${row} summary`);
+    await page.fill(`${row} [name=basePrice]`, "20000");
+    await page.selectOption(`${row} [name=stock-0]`, "out");
+    await page.click(`${row} button[type=submit]`);
+    await page.click('[data-product-row="gorra"] summary');
+    await page.uncheck('[data-product-row="gorra"] [name=active]');
+    await page.click('[data-product-row="gorra"] button[type=submit]');
+    await page.goto(`${BASE}/producto.html?id=remera-clasica`);
+    assert(priceNum(await page.textContent("[data-unit]")) === 20000, "precio no actualizado");
+    assert(await page.locator('[data-size="S"]').isDisabled(), "talle S debería estar sin stock");
+    await page.goto(`${BASE}/catalogo.html`);
+    await page.waitForSelector("[data-grid] .pcard");
+    assert((await page.locator("[data-grid] .pcard").count()) === 5, "la gorra oculta sigue en el catálogo");
+    return "precio $20.000, talle S sin stock, gorra oculta";
+  });
+
+  await t("Panel", "Pedidos de prueba: se listan, cambian de estado y se restablece todo", async () => {
+    await page.goto(`${BASE}/carrito.html`);
+    await page.waitForSelector(".cart-item");
+    await page.click("[data-checkout]");
+    await page.waitForSelector(".confirm-panel");
+    await page.goto(`${BASE}/admin.html#pedidos`);
+    await page.waitForSelector("[data-order-row]");
+    const first = page.locator("[data-order-row]").first();
+    assert(/Gorra/.test(await first.textContent()) && /Dos lunas/.test(await first.textContent()), "el pedido no muestra la gorra con el diseño");
+    await first.locator("[data-order-status]").selectOption("produccion");
+    await page.reload();
+    assert((await page.locator("[data-order-row] [data-order-status]").first().inputValue()) === "produccion", "estado no persistió");
+    await page.screenshot({ path: join(SHOTS, "desktop-panel-pedidos.png"), fullPage: true });
+    await page.click("[data-reset]");
+    await page.click("dialog [data-confirm]");
+    await page.waitForSelector("[data-panel=pedidos] .empty");
+    await page.goto(`${BASE}/producto.html?id=remera-clasica`);
+    assert(priceNum(await page.textContent("[data-unit]")) === 18900, "no se restableció el precio");
+    return "pedido con diseño de la tienda → en producción → restablecido";
+  });
+
   await ctx.close();
 }
 
@@ -547,6 +700,19 @@ console.log("\nMóvil 390×844 (táctil)");
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, acceptDownloads: true });
   const page = await ctx.newPage();
   watch(page, "mobile");
+
+  await t("Móvil", "Diseños y panel sin desborde horizontal", async () => {
+    for (const u of ["disenos.html", "admin.html", "admin.html#productos"]) {
+      await page.goto(`${BASE}/${u}`, { waitUntil: "networkidle" });
+      const ov = await overflowX(page);
+      assert(ov <= 0, `${u} desborde ${ov}`);
+    }
+    await page.goto(`${BASE}/disenos.html`, { waitUntil: "networkidle" });
+    await page.screenshot({ path: join(SHOTS, "movil-disenos.png"), fullPage: true });
+    await page.goto(`${BASE}/admin.html`, { waitUntil: "networkidle" });
+    await page.screenshot({ path: join(SHOTS, "movil-panel.png"), fullPage: true });
+    return "disenos.html, admin.html";
+  });
 
   await t("Móvil", "Inicio y catálogo sin desborde horizontal; menú abre", async () => {
     await page.goto(`${BASE}/index.html`, { waitUntil: "networkidle" });
@@ -636,7 +802,7 @@ console.log("\nTablet 820×1180");
   watch(page, "tablet");
   await t("Tablet", "Páginas y editor sin desborde", async () => {
     const res = [];
-    for (const u of ["index.html", "catalogo.html", "producto.html?id=remera-oversize", "carrito.html", "editor.html?product=remera-oversize&color=militar&size=L&qty=1"]) {
+    for (const u of ["index.html", "catalogo.html", "disenos.html", "admin.html", "producto.html?id=gorra&diseno=sd-lunas", "carrito.html", "editor.html?product=remera-oversize&color=militar&size=L&qty=1"]) {
       await page.goto(`${BASE}/${u}`, { waitUntil: "networkidle" });
       if (u.startsWith("editor")) await editorReady(page);
       const ov = await overflowX(page);

@@ -25,7 +25,7 @@ const STEPS = [
   ["cart", "Preparar datos para el carrito"],
 ];
 
-export async function openFinalize({ ed, product, price, printedFaces, setFace }) {
+export async function openFinalize({ ed, product, price, printedFaces, setFace, usedStoreDesigns = () => [] }) {
   const dlg = document.querySelector("[data-finalize]");
   const faces = printedFaces();
   const facesJson = Object.fromEntries(faces.map((f) => [f, ed.faces[f]]));
@@ -312,6 +312,7 @@ export async function openFinalize({ ed, product, price, printedFaces, setFace }
         faces: Object.fromEntries(Object.entries(ed.faces).map(([f, objs]) => [f, { objects: objs }])),
         status: "final",
         finalizedAt: new Date().toISOString(),
+        storeDesignIds: usedStoreDesigns(),
       });
       const existing = ed.cartItemId ? getItem(ed.cartItemId) : null;
       const item = upsertItem({
@@ -322,6 +323,7 @@ export async function openFinalize({ ed, product, price, printedFaces, setFace }
         qty: ed.variant.qty,
         printedFaces: faces,
         designId: doc.id,
+        storeDesignIds: usedStoreDesigns(),
         assetIds: out.doc.assets.map((a) => a.id),
         thumbnail,
       });

@@ -42,6 +42,10 @@ const HOODIE_BODY =
 
 const TOTE_BODY = "M180 340 L820 340 L836 1130 L164 1130 Z";
 
+const CAP_CROWN = "M196 790 C190 500 320 330 500 326 C680 330 810 500 804 790 Z";
+const CAP_BRIM =
+  "M150 792 C320 742 680 742 850 792 C866 846 822 900 752 924 C600 878 400 878 248 924 C178 900 134 846 150 792 Z";
+
 /* ---------------- Utilidades de color ---------------- */
 
 export function luminance(hex) {
@@ -140,7 +144,7 @@ function drawOversize(face, color, uid) {
   return frame({ uid, color, body, inner, details, folds });
 }
 
-function drawHoodie(face, color, uid) {
+function drawHoodie(face, color, uid, { pocket = true } = {}) {
   const front = face === "front";
   const hoodBack = `<path d="M340 238 C320 120 400 52 500 52 C600 52 680 120 660 238 C600 210 400 210 340 238 Z" fill="${color}" stroke="rgba(0,0,0,.3)" stroke-width="2"/>`;
   const inner = front
@@ -151,9 +155,12 @@ function drawHoodie(face, color, uid) {
        <path d="M538 262 L544 430" stroke="{c}" stroke-width="9" stroke-linecap="round"/>
        <path d="M462 262 L456 430 M538 262 L544 430" stroke="#000" stroke-opacity=".22" stroke-width="9" stroke-linecap="round"/>
        <rect x="449" y="426" width="14" height="30" rx="4" fill="#d9d9d9" stroke="#555"/>
-       <rect x="537" y="426" width="14" height="30" rx="4" fill="#d9d9d9" stroke="#555"/>
-       <path d="M318 770 L682 770 L740 1030 L260 1030 Z" fill="{c}" stroke="{edge}" stroke-width="2"/>
+       <rect x="537" y="426" width="14" height="30" rx="4" fill="#d9d9d9" stroke="#555"/>${
+         pocket
+           ? `<path d="M318 770 L682 770 L740 1030 L260 1030 Z" fill="{c}" stroke="{edge}" stroke-width="2"/>
        <path d="M318 770 L682 770 L740 1030 L260 1030 Z" fill="#000" opacity=".06"/>`
+           : ""
+       }`
     : `<path d="M342 240 C320 330 380 420 500 430 C620 420 680 330 658 240 C600 214 400 214 342 240 Z" fill="{c}" stroke="{edge}" stroke-width="2"/>
        <path d="M500 250 L500 428" stroke="{edge}" stroke-width="2" opacity=".6"/>
        <path d="M350 250 C370 360 430 418 500 428" fill="none" stroke="#000" stroke-opacity=".12" stroke-width="18"/>`;
@@ -161,7 +168,7 @@ function drawHoodie(face, color, uid) {
     ? `<path d="M240 226 C250 320 245 400 236 470"/><path d="M760 226 C750 320 755 400 764 470"/>
        <path d="M110 960 L212 972"/><path d="M890 960 L788 972"/>
        <path d="M232 1082 C400 1094 600 1094 768 1082"/>
-       <path d="M330 782 L670 782 M282 1018 L718 1018"/>`
+       ${pocket ? `<path d="M330 782 L670 782 M282 1018 L718 1018"/>` : ""}`
     : `<path d="M240 226 C250 320 245 400 236 470"/><path d="M760 226 C750 320 755 400 764 470"/>
        <path d="M110 960 L212 972"/><path d="M890 960 L788 972"/>
        <path d="M232 1082 C400 1094 600 1094 768 1082"/>`;
@@ -181,6 +188,26 @@ function drawTote(face, color, uid) {
   const details = `<path d="M184 372 L816 372"/><path d="M330 344 L330 420 M452 344 L452 420 M548 344 L548 420 M670 344 L670 420"/>`;
   const folds = `<path d="M240 340 C250 600 230 900 240 1130 L210 1130 C205 900 225 600 240 340 Z"/>`;
   return frame({ uid, color, body: TOTE_BODY, details, folds, extraUnder: handles });
+}
+
+function drawCap(face, color, uid) {
+  // Vista frontal: copa de seis paneles y visera. Una sola cara estampable.
+  const body = `${CAP_CROWN} ${CAP_BRIM}`;
+  const inner = `
+    <path d="${CAP_BRIM}" fill="#000" opacity=".22"/>
+    <path d="M150 792 C320 742 680 742 850 792" fill="none" stroke="{edge}" stroke-width="3"/>
+    <path d="M252 912 C400 868 600 868 748 912" fill="none" stroke="#000" stroke-opacity=".18" stroke-width="10"/>
+    <circle cx="500" cy="330" r="20" fill="{c}" stroke="{edge}" stroke-width="2"/>
+    <circle cx="500" cy="330" r="20" fill="#000" opacity=".12"/>
+    <circle cx="300" cy="520" r="7" fill="#000" opacity=".35"/>
+    <circle cx="700" cy="520" r="7" fill="#000" opacity=".35"/>`;
+  const details = `
+    <path d="M500 350 C420 380 330 520 300 780"/><path d="M500 350 C580 380 670 520 700 780"/>
+    <path d="M206 772 C330 742 670 742 794 772"/>
+    <path d="M168 806 C330 760 670 760 832 806"/>
+    <path d="M186 840 C330 800 670 800 814 840"/>`;
+  const folds = `<path d="M250 600 C260 680 250 740 240 790 L214 790 C222 740 236 680 250 600 Z"/>`;
+  return frame({ uid, color, body, inner, details, folds });
 }
 
 /* ---------------- Catálogo de tipos ---------------- */
@@ -214,6 +241,25 @@ export const GARMENTS = {
     faces: {
       front: { printArea: { x: 350, y: 470, w: 300, h: 280 } },
       back: { printArea: { x: 320, y: 450, w: 360, h: 470 } },
+    },
+  },
+  hoodieplain: {
+    id: "hoodieplain",
+    name: "Buzo con capucha",
+    cmPerUnit: 0.09,
+    draw: (face, color, uid) => drawHoodie(face, color, uid, { pocket: false }),
+    faces: {
+      front: { printArea: { x: 330, y: 480, w: 340, h: 440 } },
+      back: { printArea: { x: 320, y: 450, w: 360, h: 470 } },
+    },
+  },
+  cap: {
+    id: "cap",
+    name: "Gorra",
+    cmPerUnit: 0.04,
+    draw: drawCap,
+    faces: {
+      front: { printArea: { x: 360, y: 500, w: 280, h: 190 } },
     },
   },
   tote: {

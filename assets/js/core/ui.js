@@ -61,6 +61,7 @@ function injectSprite() {
 const NAV = [
   { href: "index.html", label: "Inicio", key: "home" },
   { href: "catalogo.html", label: "Prendas", key: "catalog" },
+  { href: "disenos.html", label: "Diseños", key: "designs" },
   { href: "index.html#como-funciona", label: "Cómo funciona", key: "how" },
   { href: "catalogo.html?diseñar=1", label: "Diseñar", key: "design" },
 ];
@@ -126,7 +127,9 @@ export function renderFooter() {
         <ul role="list">
           <li><a href="catalogo.html">Prendas</a></li>
           <li><a href="catalogo.html?diseñar=1">Diseñar una prenda</a></li>
+          <li><a href="disenos.html">Diseños listos</a></li>
           <li><a href="carrito.html">Carrito</a></li>
+          <li><a href="admin.html">Panel de la tienda (demo)</a></li>
         </ul>
       </div>
       <div>

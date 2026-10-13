@@ -38,24 +38,29 @@ node tests/e2e.mjs http://localhost:8080
 
 Recorre el flujo completo en escritorio (1440×900), móvil táctil (390×844) y tablet (820×1180). Resultados en `tests/results.json` y capturas en `tests/screenshots/`.
 
+## Panel de la tienda (demo)
+
+`admin.html` (enlace en el pie: «Panel de la tienda (demo)») administra diseños de la tienda, productos (precio, visibilidad, destacados, colores, recargos y stock por talle) y los pedidos de prueba del checkout. **No tiene login y guarda todo en el navegador**: es para probar el circuito, no para usar con la tienda publicada. «Restablecer datos de demostración» vuelve al estado inicial.
+
 ## Estructura
 
 ```
-index.html  catalogo.html  producto.html  editor.html  carrito.html
+index.html  catalogo.html  producto.html  disenos.html  editor.html  carrito.html  admin.html
 assets/
-  css/   tokens.css (variables de marca)  fonts.css  base.css  pages.css  editor.css
+  css/   tokens.css (variables de marca)  fonts.css  base.css  pages.css  editor.css  admin.css
   js/
     data/     catalog.js (productos demo, colores de prenda, talles, stock)
               garments.js (mockups SVG y áreas imprimibles por tipo de prenda)
               art.js (gráficas de demostración)
     core/     cart.js  designs.js  pricing.js  storage.js  asset-store.js  ui.js  format.js
-    pages/    home.js  catalog.js  product.js  cart.js  components.js
+              store-designs.js (diseños de la tienda)  orders.js (pedidos de prueba)
+    pages/    home.js  catalog.js  product.js  designs.js  cart.js  admin.js  components.js
     editor/   main.js (estado, canvas, caras, historial, atajos)
               props.js  layers.js  product-panel.js (paneles)
               upload.js (validación de archivos)  serialize.js (JSON editable)
               export.js (vista previa, impresión, JSON, ZIP)  zip.js (ZIP, PNG DPI)
               finalize.js (flujo «Finalizar diseño»)  history.js  config.js
-  fonts/  img/
+  designs/ (SVG de los diseños de la tienda)  fonts/  img/
 vendor/fabric/
 tests/    e2e.mjs  make-fixtures.py  fixtures/  screenshots/
 docs/     ARQUITECTURA.md

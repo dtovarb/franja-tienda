@@ -21,6 +21,8 @@ import { createProps } from "./props.js";
 import { createLayers } from "./layers.js";
 import { renderProductPanel } from "./product-panel.js";
 import { openFinalize } from "./finalize.js";
+import { listStoreDesigns, getStoreDesign, isAvailableFor, storeDesignImageUrl } from "../core/store-designs.js";
+import { getAsset, assetDisplayUrl } from "../core/asset-store.js";
 
 injectSprite();
 
@@ -84,7 +86,17 @@ for (const f of product.faces) if (!Array.isArray(ed.faces[f])) ed.faces[f] = []
 export const spec = (face = ed.face) => getPrintSpec(product.type, face);
 export const color = () => getColor(ed.variant.colorId);
 export const printedFaces = () => product.faces.filter((f) => (f === ed.face ? ed.canvas.getObjects().length : ed.faces[f].length) > 0);
-export const price = () => computePrice(product, ed.variant, { printedFaces: printedFaces() });
+/** Ids de los diseños de la tienda presentes en cualquier cara (cada uno se cobra una vez). */
+export const usedStoreDesigns = () => {
+  const ids = new Set();
+  for (const f of product.faces) {
+    const objs = f === ed.face && ed.canvas ? ed.canvas.getObjects() : ed.faces[f];
+    objs.forEach((o) => o.storeDesignId && ids.add(o.storeDesignId));
+  }
+  return [...ids];
+};
+export const price = () =>
+  computePrice(product, ed.variant, { printedFaces: printedFaces(), storeDesignIds: usedStoreDesigns() });
 
 /* ======================= Fabric ======================= */
 const BRAND = "#7D3A5E";
@@ -265,6 +277,7 @@ function persist() {
       faces: Object.fromEntries(Object.entries(ed.faces).map(([f, objs]) => [f, { objects: objs }])),
       status: "draft",
       basedOn: ed.replacesDesignId || null,
+      storeDesignIds: usedStoreDesigns(),
     });
     if (!ed.designId) {
       ed.designId = doc.id;
@@ -443,6 +456,64 @@ $("[data-uploads]").addEventListener("click", async (e) => {
   if (!b) return;
   await placeImage(ed.uploads.get(b.dataset.reuse));
   commit();
+});
+
+/* ---------- Diseños de la tienda ---------- */
+const storeDesignsEl = $("[data-store-designs]");
+
+/** Consigue el original del diseño (archivo del sitio u original guardado) como asset local. */
+async function storeDesignAsset(d) {
+  if (d.source?.kind === "asset") {
+    const a = await getAsset(d.source.assetId);
+    if (!a) throw new UploadError(`El archivo del diseño «${d.name}» no está en este navegador.`);
+    return { ...a, displayUrl: await assetDisplayUrl(a.id) };
+  }
+  const res = await fetch(d.source.url);
+  if (!res.ok) throw new UploadError(`No se pudo cargar el diseño «${d.name}».`);
+  const blob = await res.blob();
+  // Pasa por la misma validación que una subida: se guarda el original tal cual.
+  return processUpload(new File([blob], d.source.name, { type: blob.type || "image/svg+xml" }));
+}
+
+export async function addStoreDesign(id) {
+  const d = getStoreDesign(id);
+  if (!isAvailableFor(d, product.id)) {
+    toast("Ese diseño no está disponible para esta prenda.", "warning");
+    return null;
+  }
+  try {
+    const asset = await storeDesignAsset(d);
+    ed.uploads.set(asset.id, asset);
+    const img = await placeImage(asset);
+    img.set({ storeDesignId: d.id, assetName: `${d.name} (diseño nevrado)` });
+    commit();
+    renderUploads();
+    toast(`Agregaste «${d.name}». Podés moverlo, cambiarle el tamaño o sumarle texto.`, "success");
+    if (isMobile()) closeSheet();
+    return img;
+  } catch (err) {
+    toast(err.message || "No se pudo agregar el diseño.", "error", 6000);
+    return null;
+  }
+}
+
+async function renderStoreDesigns() {
+  const list = listStoreDesigns({ publishedOnly: true, productId: product.id });
+  if (!list.length) {
+    storeDesignsEl.closest("section").hidden = true;
+    return;
+  }
+  const urls = await Promise.all(list.map(storeDesignImageUrl));
+  storeDesignsEl.innerHTML = list
+    .map(
+      (d, i) => `<li><button type="button" data-store-design="${d.id}" aria-label="Agregar el diseño ${escapeHtml(d.name)}">
+        <img src="${urls[i] || ""}" alt=""><span>${escapeHtml(d.name)}</span><small>${d.price ? `+${formatPrice(d.price)}` : "Sin costo"}</small></button></li>`
+    )
+    .join("");
+}
+storeDesignsEl.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-store-design]");
+  if (b) addStoreDesign(b.dataset.storeDesign);
 });
 
 export function addText(str = "TU TEXTO") {
@@ -669,7 +740,7 @@ document.addEventListener("click", async (e) => {
     canvas.requestRenderAll();
     ed.faces[ed.face] = snapshot(canvas);
     persist();
-    openFinalize({ ed, product, price, printedFaces, setFace, refresh, persist });
+    openFinalize({ ed, product, price, printedFaces, setFace, refresh, persist, usedStoreDesigns });
   }
 });
 
@@ -724,6 +795,7 @@ async function boot() {
   renderMockup();
   renderGuides();
   layout();
+  renderStoreDesigns();
   product.faces.forEach((f) => ed.histories[f].reset(ed.faces[f]));
 
   if (sourceDesign) {
@@ -743,6 +815,10 @@ async function boot() {
     }
     if (ed.cartItemId) toast("Editando un artículo del carrito. Los cambios se aplican al finalizar.", "info", 5000);
   }
+  if (!sourceDesign && q.get("storeDesign")) {
+    loadingText.textContent = "Colocando el diseño…";
+    await addStoreDesign(q.get("storeDesign"));
+  }
   $("[data-loading]").hidden = true;
   root.setAttribute("aria-busy", "false");
   refresh();
@@ -754,4 +830,4 @@ async function boot() {
 boot();
 
 // Exponer para pruebas automatizadas (no se usa en la interfaz).
-window.__editor = { ed, canvas, undo, redo, setFace, addText, commit, checkBounds };
+window.__editor = { ed, canvas, undo, redo, setFace, addText, commit, checkBounds, addStoreDesign, price };

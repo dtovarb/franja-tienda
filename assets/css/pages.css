@@ -361,7 +361,7 @@
   display: grid;
   margin: 0;
 }
-.ed-card svg {
+.ed-card > svg {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -508,7 +508,7 @@
   background: var(--c-surface-2);
   aspect-ratio: 5 / 6;
 }
-.pdp__stage svg {
+.pdp__stage > svg {
   width: 100%;
   height: 100%;
   padding: 6%;
@@ -670,4 +670,78 @@
   padding: var(--sp-3);
   font-size: 0.75rem;
   border: var(--border);
+}
+
+/* ---------- Diseños de la tienda ---------- */
+.grid-designs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: var(--sp-6) var(--sp-5);
+}
+.dcard {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  animation: rise 500ms var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+.dcard__media {
+  position: relative;
+  background: var(--c-surface-2);
+  aspect-ratio: 5 / 5;
+  overflow: hidden;
+}
+.dcard__media .tag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+}
+.dcard__svg {
+  width: 100%;
+  height: 100%;
+  padding: 4%;
+}
+.dcard__body {
+  display: grid;
+  gap: var(--sp-2);
+  align-content: start;
+  padding-top: var(--sp-3);
+}
+.dcard__label {
+  margin-top: var(--sp-2);
+  color: var(--c-ink-3);
+}
+.dcard__products {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dcard__products .chip {
+  text-decoration: none;
+  color: var(--c-ink);
+  font-size: var(--fs-sm);
+  align-items: flex-start;
+  padding: 6px 10px;
+}
+.dcard__products .chip:hover {
+  border-color: var(--c-magenta);
+  color: var(--c-magenta);
+}
+.pdp__design {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3);
+  background: var(--c-magenta-tint);
+  border-radius: var(--radius-md);
+}
+.pdp__design img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  background: var(--c-surface);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+.pdp__design p {
+  margin: 0;
 }

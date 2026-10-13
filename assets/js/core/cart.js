@@ -72,7 +72,10 @@ export function getItem(itemId) {
 export function priceItem(item) {
   const product = getProduct(item.productId);
   if (!product) return null;
-  return computePrice(product, { sizeId: item.variant.sizeId, qty: item.qty }, { printedFaces: item.printedFaces || [] });
+  return computePrice(product, { sizeId: item.variant.sizeId, qty: item.qty }, {
+    printedFaces: item.printedFaces || [],
+    storeDesignIds: item.storeDesignIds || [],
+  });
 }
 
 export function cartTotals() {

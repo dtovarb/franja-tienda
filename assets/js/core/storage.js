@@ -41,3 +41,11 @@ export function storageAvailable() {
     return false;
   }
 }
+
+export function removeKey(key) {
+  try {
+    localStorage.removeItem(PREFIX + key);
+  } catch {
+    /* almacenamiento bloqueado: no hay nada que borrar */
+  }
+}

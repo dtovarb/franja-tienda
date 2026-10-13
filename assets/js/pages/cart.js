@@ -5,6 +5,7 @@ import { faceLabel } from "../data/garments.js";
 import { getDesign, deleteDesign, collectAssetIds } from "../core/designs.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
 import { storageAvailable } from "../core/storage.js";
+import { createDemoOrder } from "../core/orders.js";
 
 initPage("cart");
 
@@ -124,6 +125,7 @@ function showDemoCheckout() {
         qty: i.qty,
         designId: i.designId,
         printedFaces: i.printedFaces,
+        storeDesignIds: i.storeDesignIds || [],
         originalAssetIds: d ? collectAssetIds(d) : i.assetIds || [],
         clientUnitPrice: priceItem(i)?.unit,
       };
@@ -131,12 +133,27 @@ function showDemoCheckout() {
     clientTotal: t.total,
     note: "El backend debe recalcular precios y validar stock; el total del cliente es solo informativo.",
   };
+  const order = createDemoOrder({
+    items: items.map((i) => ({
+      productId: i.productId,
+      productName: i.productName,
+      variant: i.variant,
+      qty: i.qty,
+      printedFaces: i.printedFaces || [],
+      storeDesignIds: i.storeDesignIds || [],
+      designId: i.designId,
+      thumbnail: i.thumbnail,
+      unit: priceItem(i)?.unit || 0,
+    })),
+    total: t.total,
+  });
   document.querySelector("[data-cart-title]").textContent = "Confirmación (demo)";
   root.innerHTML = `
     <section class="confirm-panel" aria-labelledby="demo-title">
       <span class="tag tag--orange" style="justify-self:start">Demostración</span>
       <h2 id="demo-title" class="h3">Llegaste al final del flujo de prueba</h2>
-      <p><b>No se creó ningún pedido, no se cobró nada y no se envió información a ningún servidor.</b> Este prototipo todavía no tiene backend ni pagos.</p>
+      <p><b>No se creó ningún pedido real, no se cobró nada y no se envió información a ningún servidor.</b> Este prototipo todavía no tiene backend ni pagos.</p>
+      <p>Lo guardamos como <b>pedido de prueba n.º ${order.number}</b> en este navegador, para que lo veas en el <a href="admin.html#pedidos">panel de la tienda</a>.</p>
       <p class="muted">Así quedaría el pedido que la tienda real enviaría a su API (${items.length} artículo${items.length === 1 ? "" : "s"}, ${formatPrice(t.total)}):</p>
       <pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre>
       <p class="muted">Tu carrito sigue guardado en este navegador.</p>

@@ -36,7 +36,7 @@ export const UPLOAD_LIMITS = {
 };
 
 /** Propiedades propias que se guardan en el JSON de Fabric. */
-export const CUSTOM_PROPS = ["assetId", "assetName", "srcWidth", "srcHeight", "isVector", "uid", "kind"];
+export const CUSTOM_PROPS = ["assetId", "assetName", "srcWidth", "srcHeight", "isVector", "uid", "kind", "storeDesignId"];
 
 export const HISTORY_LIMIT = 60;
 

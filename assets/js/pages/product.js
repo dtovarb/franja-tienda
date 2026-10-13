@@ -3,6 +3,7 @@ import { getProduct, getColor, stockLabel, validateVariant, defaultVariant } fro
 import { garmentSvg, getPrintSpec, faceLabel } from "../data/garments.js";
 import { computePrice, PRICING_RULES } from "../core/pricing.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
+import { getStoreDesign, isAvailableFor, storeDesignImageUrl, designArt } from "../core/store-designs.js";
 
 initPage("catalog");
 
@@ -14,6 +15,9 @@ if (!product) {
   root.innerHTML = `<div class="empty"><h1 class="display h1">Prenda no encontrada</h1><p class="muted">El enlace puede estar incompleto.</p><a class="btn btn--primary" href="catalogo.html">Ver catálogo</a></div>`;
 } else {
   document.title = `${product.name} · nevrado`;
+  const askedDesign = p.get("diseno") ? getStoreDesign(p.get("diseno")) : null;
+  const design = isAvailableFor(askedDesign, product.id) ? askedDesign : null;
+  let designUrl = null;
   const def = defaultVariant(product);
   const state = {
     colorId: product.colors.includes(p.get("color")) ? p.get("color") : def.colorId,
@@ -47,6 +51,17 @@ if (!product) {
           <h1 class="display pdp__title">${escapeHtml(product.name)}</h1>
           <p class="lead">${escapeHtml(product.description)}</p>
         </div>
+        ${
+          design
+            ? `<div class="pdp__design" data-chosen-design="${design.id}">
+                <img alt="" data-design-thumb>
+                <div><p><b>Con el diseño «${escapeHtml(design.name)}»</b></p>
+                <p class="hint">${design.price ? `Suma ${formatPrice(design.price)} por prenda.` : "Sin costo de diseño."} En el editor lo podés mover o agrandar. <a href="producto.html?id=${encodeURIComponent(product.id)}">Quitar diseño</a></p></div>
+              </div>`
+            : p.get("diseno")
+              ? `<div class="notice notice--warning">${icon("alert")}<span>Ese diseño no está disponible para esta prenda. Podés elegir otro en <a href="disenos.html">Diseños</a>.</span></div>`
+              : ""
+        }
 
         <fieldset class="field">
           <legend>Color — <span data-color-name></span></legend>
@@ -93,7 +108,7 @@ if (!product) {
 
         <div class="notice notice--danger form-errors" role="alert" data-errors></div>
 
-        <button class="btn btn--primary btn--lg btn--block" type="submit">Personalizar en el editor ${icon("arrowRight")}</button>
+        <button class="btn btn--primary btn--lg btn--block" type="submit">${design ? "Ver y ajustar en el editor" : "Personalizar en el editor"} ${icon("arrowRight")}</button>
 
         <dl class="spec-list">
           ${product.faces
@@ -103,7 +118,7 @@ if (!product) {
             })
             .join("")}
           <dt>Técnica</dt><dd>DTF a definir por el taller según diseño (demo)</dd>
-          <dt>Archivos</dt><dd>JPG, PNG o SVG · hasta 25 MB</dd>
+          <dt>Archivos</dt><dd>JPG, PNG o SVG · hasta 25 MB, o un <a href="disenos.html">diseño de la tienda</a></dd>
         </dl>
       </form>
     </div>`;
@@ -115,14 +130,14 @@ if (!product) {
   function renderStage() {
     const col = getColor(state.colorId);
     const spec = getPrintSpec(product.type, state.face);
-    let svg = garmentSvg(product.type, state.face, col.hex, { title: `${product.name} ${col.name}, ${faceLabel(state.face)}` });
+    const art = design && state.face === product.faces[0] ? designArt(designUrl) : "";
+    let svg = garmentSvg(product.type, state.face, col.hex, { art, title: `${product.name} ${col.name}, ${faceLabel(state.face)}` });
     if (state.guides) {
       const a = spec.area;
-      svg = svg.replace(
-        "</svg>",
-        `<rect class="print-guide" x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}"/>
-         <text x="${a.x}" y="${a.y - 12}" font-family="Space Mono" font-size="22" fill="#7D3A5E">ÁREA ${spec.widthCm}×${spec.heightCm} CM</text></svg>`
-      );
+      // Se inserta antes del ÚLTIMO </svg>: el arte usa un <svg> anidado.
+      const end = svg.lastIndexOf("</svg>");
+      svg = svg.slice(0, end) + `<rect class="print-guide" x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}"/>
+         <text x="${a.x}" y="${a.y - 12}" font-family="Space Mono" font-size="22" fill="#7D3A5E">ÁREA ${spec.widthCm}×${spec.heightCm} CM</text></svg>`;
     }
     stage.innerHTML = svg;
   }
@@ -139,7 +154,7 @@ if (!product) {
     root.querySelectorAll("[data-qty]").forEach((b) => {
       b.disabled = (b.dataset.qty === "-1" && state.qty <= 1) || (b.dataset.qty === "1" && state.qty >= 50);
     });
-    const price = computePrice(product, state, { printedFaces: ["front"] });
+    const price = computePrice(product, state, { printedFaces: [product.faces[0]], storeDesignIds: design ? [design.id] : [] });
     root.querySelector("[data-unit]").textContent = formatPrice(price.unit);
     root.querySelector("[data-breakdown]").innerHTML =
       price.lines.map((l) => `<div><span>${l.label}</span><span>${formatPrice(l.amount)}</span></div>`).join("") +
@@ -197,8 +212,17 @@ if (!product) {
     }
     errEl.innerHTML = "";
     const q = new URLSearchParams({ product: product.id, color: state.colorId, size: state.sizeId, qty: String(state.qty) });
+    if (design) q.set("storeDesign", design.id);
     location.href = `editor.html?${q}`;
   });
 
   sync();
+  if (design) {
+    storeDesignImageUrl(design).then((url) => {
+      designUrl = url;
+      const th = root.querySelector("[data-design-thumb]");
+      if (th && url) th.src = url;
+      renderStage();
+    });
+  }
 }

@@ -4,9 +4,15 @@
  * este módulo se reemplaza por una llamada a GET /api/products y la
  * estructura se mantiene (ver docs/ARQUITECTURA.md).
  *
+ * El panel de la tienda (admin.html) puede editar el catálogo: los cambios
+ * se guardan en el localStorage de ESTE navegador y reemplazan a la lista
+ * semilla de abajo. No hay servidor: nadie más ve esos cambios.
+ *
  * Los colores de prenda son colores reales de indumentaria y son
  * independientes de la paleta de marca.
  */
+
+import { readJSON, writeJSON, removeKey } from "../core/storage.js";
 
 export const CURRENCY = { code: "ARS", locale: "es-AR" };
 
@@ -24,7 +30,12 @@ export const GARMENT_COLORS = {
 /** stock: "ok" | "low" | "out" (disponibilidad de ejemplo) */
 const size = (id, surcharge = 0, stock = "ok") => ({ id, label: id, surcharge, stock });
 
-export const PRODUCTS = [
+/** Talles por defecto según el tipo de prenda (para productos nuevos del panel). */
+export function defaultSizesFor(type) {
+  return ["cap", "tote"].includes(type) ? [size("Único")] : ["S", "M", "L", "XL", "XXL"].map((s) => size(s));
+}
+
+export const SEED_PRODUCTS = [
   {
     id: "remera-clasica",
     sku: "DEMO-TEE-01",
@@ -77,6 +88,40 @@ export const PRODUCTS = [
     badge: "Abrigo",
   },
   {
+    id: "buzo-capucha",
+    sku: "DEMO-HDP-01",
+    type: "hoodieplain",
+    name: "Buzo con capucha",
+    tagline: "Frisa 300 g, frente liso sin bolsillo.",
+    description:
+      "El mismo buzo abrigado, sin bolsillo canguro: el frente queda libre para una estampa grande. Capucha forrada, puños y cintura con rib.",
+    basePrice: 39900,
+    colors: ["negro", "melange", "arena", "bordo"],
+    sizes: [size("S"), size("M"), size("L"), size("XL"), size("XXL", 2500)],
+    faces: ["front", "back"],
+    includedFaces: 1,
+    featured: false,
+    demoArt: "sol",
+    badge: "Nuevo",
+  },
+  {
+    id: "gorra",
+    sku: "DEMO-CAP-01",
+    type: "cap",
+    name: "Gorra",
+    tagline: "Seis paneles, frente estructurado, regulable.",
+    description:
+      "Gabardina de algodón con visera curva y cierre regulable atrás. Estampa en el frente, hasta 11 × 7 cm.",
+    basePrice: 14900,
+    colors: ["negro", "crudo", "marino", "bordo", "arena"],
+    sizes: [size("Único")],
+    faces: ["front"],
+    includedFaces: 1,
+    featured: false,
+    demoArt: "franja",
+    badge: "Nuevo",
+  },
+  {
     id: "tote-bag",
     sku: "DEMO-TOT-01",
     type: "tote",
@@ -94,8 +139,28 @@ export const PRODUCTS = [
   },
 ];
 
+const KEY = "catalog.v1";
+
+/** Catálogo vigente: el editado en el panel (si existe) o la semilla. */
+export const PRODUCTS = readJSON(KEY, null) || structuredClone(SEED_PRODUCTS);
+
+/** Productos visibles en la tienda (los ocultos siguen valiendo para el carrito). */
+export function activeProducts() {
+  return PRODUCTS.filter((p) => p.active !== false);
+}
+
 export function getProduct(id) {
   return PRODUCTS.find((p) => p.id === id) || null;
+}
+
+export function saveProducts(list) {
+  writeJSON(KEY, list);
+  PRODUCTS.splice(0, PRODUCTS.length, ...list);
+}
+
+export function resetProducts() {
+  removeKey(KEY);
+  PRODUCTS.splice(0, PRODUCTS.length, ...structuredClone(SEED_PRODUCTS));
 }
 
 export function getColor(id) {

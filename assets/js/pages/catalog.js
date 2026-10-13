@@ -1,5 +1,5 @@
 import { initPage } from "../core/ui.js";
-import { PRODUCTS } from "../data/catalog.js";
+import { activeProducts } from "../data/catalog.js";
 import { GARMENTS } from "../data/garments.js";
 import { productCard } from "./components.js";
 import { params } from "../core/format.js";
@@ -18,6 +18,7 @@ const countEl = document.querySelector("[data-results-count]");
 
 // Los filtros salen de los tipos presentes en el catálogo: agregar un tipo
 // nuevo (p. ej. gorra) no requiere tocar esta página.
+const PRODUCTS = activeProducts();
 const types = [...new Set(PRODUCTS.map((p) => p.type))];
 const filters = [{ id: "all", label: "Todo" }, ...types.map((t) => ({ id: t, label: GARMENTS[t].name }))];
 let active = params().get("tipo") || "all";

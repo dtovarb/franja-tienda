@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel de la tienda · nevrado</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#1E1A1C">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+  <header id="site-header"></header>
+  <main id="main" class="container admin">
+    <div class="page-head">
+      <p class="eyebrow">Panel de la tienda · demostración</p>
+      <h1 class="display h1">Panel</h1>
+    </div>
+
+    <div class="notice notice--warning admin-warning" role="note">
+      <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+      <div>
+        <p><b>Este panel es una demostración.</b> No tiene usuario ni contraseña: cualquiera que abra esta página puede usarlo. Todo lo que cambies se guarda solo en este navegador y en este dispositivo; nadie más lo ve y no hay ningún servidor detrás.</p>
+        <p>En la tienda real, el panel va con cuenta de dueña, contraseña y una base de datos.</p>
+        <button class="btn btn--sm" type="button" data-reset>Restablecer datos de demostración</button>
+      </div>
+    </div>
+
+    <div class="admin-tabs" role="tablist" aria-label="Secciones del panel">
+      <button role="tab" id="tab-disenos" aria-controls="panel-disenos" data-tab="disenos">Diseños <span class="ed-count" data-count="disenos"></span></button>
+      <button role="tab" id="tab-productos" aria-controls="panel-productos" data-tab="productos">Productos <span class="ed-count" data-count="productos"></span></button>
+      <button role="tab" id="tab-pedidos" aria-controls="panel-pedidos" data-tab="pedidos">Pedidos <span class="ed-count" data-count="pedidos"></span></button>
+    </div>
+
+    <section class="admin-panel" role="tabpanel" id="panel-disenos" aria-labelledby="tab-disenos" data-panel="disenos" hidden></section>
+    <section class="admin-panel" role="tabpanel" id="panel-productos" aria-labelledby="tab-productos" data-panel="productos" hidden></section>
+    <section class="admin-panel" role="tabpanel" id="panel-pedidos" aria-labelledby="tab-pedidos" data-panel="pedidos" hidden></section>
+  </main>
+  <footer id="site-footer"></footer>
+  <script type="module" src="assets/js/pages/admin.js"></script>
+</body>
+</html>

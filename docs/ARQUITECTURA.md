@@ -52,6 +52,9 @@ Esquema del JSON editable (resumido):
 | Carrito (`nevrado.cart.v1`) | localStorage | ~5 MB, solo este navegador, se borra con los datos del sitio |
 | Diseños (`nevrado.designs.v1`) | localStorage | Ídem. Autoguardado de borradores cada cambio |
 | Originales | IndexedDB `nevrado-assets` | Cuota del navegador; no hay limpieza automática de originales huérfanos |
+| Catálogo editado en el panel (`nevrado.catalog.v1`) | localStorage | Si no existe se usa la semilla de `data/catalog.js` |
+| Diseños de la tienda (`nevrado.store-designs.v1`) | localStorage + IndexedDB para los archivos subidos | Esquema `nevrado.store-design/v1`; los de la semilla viven en `assets/designs/` |
+| Pedidos de prueba (`nevrado.orders.v1`) | localStorage | Los crea el checkout demo; no hay cobro |
 
 Ninguna pantalla presenta esto como guardado en un servidor: la interfaz dice «guardado en este navegador».
 
@@ -72,8 +75,10 @@ assets(id uuid, sha256, owner_user_id, storage_key, mime, bytes, width_px, heigh
 designs(id, owner_user_id, product_id, variant_id, doc jsonb, version, status[draft|final], created_at)
 design_assets(design_id, asset_id)
 carts(id, user_id | session_id)  cart_items(id, cart_id, variant_id, qty, design_id)
+store_designs(id, name, description, price, status[draft|published], asset_id, created_by, created_at)
+store_design_products(store_design_id, product_id)   -- vacío = todas las prendas
 orders(id, user_id, status, subtotal, shipping, total, currency, payment_status, created_at)
-order_items(id, order_id, variant_id, qty, unit_price, design_id, design_version,
+order_items(id, order_id, variant_id, qty, unit_price, design_id, design_version, store_design_ids jsonb,
             preview_asset_id, print_asset_ids jsonb, production_status)
 production_events(id, order_item_id, status, note, staff_user_id, created_at)
 ```
@@ -91,7 +96,9 @@ GET    /api/cart   POST /api/cart/items   PATCH/DELETE /api/cart/items/:id
 POST   /api/checkout                     recalcula precios y stock, crea orden pendiente, crea pago
 POST   /api/payments/webhook             confirma pago (Mercado Pago / Stripe)
 GET    /api/orders  GET /api/orders/:id
-Admin: CRUD productos/variantes/técnicas, cola de producción, cambio de estado,
+GET    /api/store-designs                diseños publicados (filtrables por producto)
+Admin: CRUD productos/variantes/técnicas, CRUD store-designs (con subida de archivo),
+       cola de producción, cambio de estado,
        GET /api/admin/order-items/:id/files → URLs firmadas temporales a originales e impresión
 ```
 
