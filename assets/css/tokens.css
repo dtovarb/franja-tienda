@@ -1,0 +1,94 @@
+/* ============================================================
+   FRANJA — tokens de diseño
+   Paleta de marca basada en las cinco franjas de referencia.
+   Los colores de marca NO se usan como colores de prenda:
+   los colores de indumentaria viven en assets/js/data/catalog.js
+   ============================================================ */
+:root {
+  /* Paleta de marca */
+  --c-red: #d52d00;        /* naranja rojizo: acentos de alto impacto */
+  --c-orange: #ff9a56;     /* naranja cálido: detalles secundarios, indicadores */
+  --c-white: #ffffff;      /* fondo principal */
+  --c-pink: #d362a4;       /* rosa: acentos editoriales, etiquetas */
+  --c-magenta: #a50062;    /* magenta oscuro: CTA y estados activos */
+
+  /* Derivados funcionales */
+  --c-magenta-hover: #87004f;
+  --c-magenta-press: #6c003f;
+  --c-magenta-tint: #f8e6f0;
+  --c-orange-tint: #fff1e7;
+  --c-red-tint: #fbe9e3;
+
+  /* Neutros */
+  --c-ink: #121212;        /* texto principal */
+  --c-ink-2: #3b3b3b;      /* texto secundario */
+  --c-ink-3: #6b6b6b;      /* texto terciario (>= 4.5:1 sobre blanco) */
+  --c-line: #e3e3e3;
+  --c-line-strong: #121212;
+  --c-surface: #ffffff;
+  --c-surface-2: #f5f5f3;  /* superficies neutras para prendas */
+  --c-surface-3: #ececea;
+
+  /* Estados */
+  --c-success: #1d7a46;
+  --c-success-tint: #e6f4ec;
+  --c-warning: #8a5300;
+  --c-warning-tint: #fff4e0;
+  --c-danger: #b3261e;
+  --c-danger-tint: #fbe8e7;
+  --c-focus: #a50062;
+
+  /* Tipografía */
+  --ff-display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --ff-ui: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --ff-mono: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --fs-stretch-display: 72%;
+
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: clamp(1.75rem, 1.2rem + 2vw, 2.5rem);
+  --fs-3xl: clamp(2.25rem, 1.4rem + 3.6vw, 4rem);
+  --fs-hero: clamp(3.25rem, 1.2rem + 9vw, 9.5rem);
+
+  /* Espaciado */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --sp-8: 4.5rem;
+  --sp-9: 7rem;
+
+  /* Forma */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-pill: 999px;
+  --border: 1px solid var(--c-line);
+  --border-strong: 2px solid var(--c-line-strong);
+
+  /* Movimiento */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 220ms;
+
+  /* Layout */
+  --container: 1320px;
+  --gutter: clamp(16px, 3vw, 40px);
+  --header-h: 64px;
+  --tap: 44px; /* tamaño táctil mínimo */
+
+  --shadow-sheet: 0 -8px 30px rgba(0, 0, 0, 0.12);
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+  }
+}

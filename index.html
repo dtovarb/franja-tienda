@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FRANJA — Estudio de prendas personalizadas</title>
+  <meta name="description" content="Remeras, buzos y totes personalizados, impresos en taller propio. Prototipo de demostración.">
+  <meta name="theme-color" content="#A50062">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/archivo-var-wdth.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+  <header id="site-header"></header>
+
+  <main id="main">
+    <!-- HERO -->
+    <section class="hero container" aria-labelledby="hero-title">
+      <div class="hero__grid">
+        <div class="hero__copy">
+          <p class="eyebrow"><span class="tag tag--magenta">Temporada 01</span>&nbsp; Taller propio · Estampado a pedido</p>
+          <h1 id="hero-title" class="display hero__title">
+            <span class="line">Vestí</span>
+            <span class="line">lo que</span>
+            <span class="line"><span class="underline">diseñás</span><span class="accent">.</span></span>
+          </h1>
+          <p class="lead">Remeras, buzos y totes que imprimimos y terminamos en nuestro taller. Subí tu imagen, escribí lo tuyo y mirá cómo queda antes de pedirla.</p>
+          <div class="hero__ctas">
+            <a class="btn btn--primary btn--lg" href="catalogo.html?diseñar=1" data-icon="arrowRight">Empezar a diseñar</a>
+            <a class="btn btn--lg" href="catalogo.html">Ver prendas</a>
+          </div>
+          <div class="hero__meta" aria-label="Datos del servicio">
+            <div><b>4 prendas base</b><span class="mono muted">Catálogo demo</span></div>
+            <div><b>Frente + espalda</b><span class="mono muted">Diseño por cara</span></div>
+            <div><b>Archivo a 300 DPI</b><span class="mono muted">Referencia de producción</span></div>
+          </div>
+        </div>
+        <div class="hero__visual" data-hero-visual>
+          <div class="hero__sticker" aria-hidden="true">Hecho<br>a pedido<br>— ed. 01</div>
+          <p class="hero__caption mono">Mockup vectorial de demostración</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track" data-marquee></div>
+    </div>
+
+    <!-- DESTACADOS -->
+    <section class="section container" aria-labelledby="feat-title">
+      <div class="section-head">
+        <div>
+          <span class="section-head__num">01 / Prendas base</span>
+          <h2 id="feat-title" class="display">Elegí el lienzo</h2>
+        </div>
+        <a class="btn" href="catalogo.html">Ver todo el catálogo</a>
+      </div>
+      <div class="grid-products" data-featured></div>
+    </section>
+
+    <!-- CÓMO FUNCIONA -->
+    <section class="section container" id="como-funciona" aria-labelledby="how-title">
+      <div class="section-head">
+        <div>
+          <span class="section-head__num">02 / Personalización</span>
+          <h2 id="how-title" class="display">Cómo funciona</h2>
+        </div>
+        <p class="lead" style="max-width:40ch">Cuatro pasos. Sin cuentas, sin vueltas: todo lo que hacés queda guardado en este navegador mientras probás.</p>
+      </div>
+      <ol class="steps" role="list">
+        <li class="step"><span class="step__num">01</span><h3 class="h3">Elegí la prenda</h3><p>Tipo, color, talle y cantidad. El precio se actualiza a medida que elegís.</p></li>
+        <li class="step"><span class="step__num">02</span><h3 class="h3">Diseñala</h3><p>Subí imágenes JPG, PNG o SVG, sumá textos y acomodá todo dentro del área de impresión, en frente y espalda.</p></li>
+        <li class="step"><span class="step__num">03</span><h3 class="h3">Revisá los archivos</h3><p>Vista previa, diseño editable y archivo de impresión sin fondo. Te avisamos si una imagen tiene poca resolución.</p></li>
+        <li class="step"><span class="step__num">04</span><h3 class="h3">La producimos</h3><p>En la tienda real, el pedido pasa al taller. En este prototipo el circuito termina en una confirmación de demostración.</p></li>
+      </ol>
+    </section>
+
+    <!-- EDITORIAL -->
+    <section class="section container" aria-labelledby="ed-title">
+      <div class="section-head">
+        <div>
+          <span class="section-head__num">03 / Lookbook</span>
+          <h2 id="ed-title" class="display">Hecho por quien lo usa</h2>
+        </div>
+        <span class="tag tag--demo">Imágenes de demostración</span>
+      </div>
+      <div class="editorial" data-editorial></div>
+    </section>
+
+    <!-- ARCHIVOS / TALLER -->
+    <section class="section container" id="archivos" aria-labelledby="files-title">
+      <div class="split">
+        <div>
+          <span class="section-head__num">04 / Archivos e impresión</span>
+          <h2 id="files-title" class="display h1" style="margin-bottom:var(--sp-4)">Tu archivo, intacto</h2>
+          <p class="lead">Guardamos la imagen que subiste tal como llegó. Lo que preparamos para imprimir es otro archivo, separado, que se genera a partir de tu diseño.</p>
+        </div>
+        <ul class="file-list" role="list">
+          <li><span class="mono">01</span><div><b>Archivo original</b><p>La imagen que subiste, sin comprimir ni modificar.</p></div></li>
+          <li><span class="mono">02</span><div><b>Diseño editable</b><p>Textos, posiciones, escalas y rotaciones, para volver a editar o reconstruir el diseño.</p></div></li>
+          <li><span class="mono">03</span><div><b>Vista previa</b><p>Cómo queda la prenda, para que la revises antes de pedirla.</p></div></li>
+          <li><span class="mono">04</span><div><b>Archivo de impresión</b><p>Solo el área estampada, fondo transparente, a la medida física y resolución de producción.</p></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section container" id="taller" aria-labelledby="taller-title">
+      <div class="split">
+        <div>
+          <span class="section-head__num">05 / Taller</span>
+          <h2 id="taller-title" class="display h1">Imprimimos nosotros</h2>
+        </div>
+        <div style="display:grid;gap:var(--sp-4)">
+          <p class="lead">No tercerizamos la impresión. Cada prenda se estampa y se revisa en el taller, por eso podemos mirar tu archivo antes de producirlo.</p>
+          <p class="muted">Texto de marca de ejemplo para el prototipo.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="container">
+      <div class="cta-band">
+        <h2 class="display">Tu idea,<br><span>nuestra prenda.</span></h2>
+        <a class="btn btn--primary btn--lg" href="catalogo.html?diseñar=1">Diseñar ahora</a>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+  <script type="module" src="assets/js/pages/home.js"></script>
+</body>
+</html>

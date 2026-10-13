@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Editor — FRANJA</title>
+  <meta name="theme-color" content="#121212">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/editor.css">
+  <!-- Fabric.js 5.3.0 servido localmente (sin CDN): el editor funciona sin conexión externa. -->
+  <script src="vendor/fabric/fabric.min.js" defer></script>
+</head>
+<body class="editor-body">
+  <div class="ed" data-editor data-sheet="" aria-busy="true">
+    <!-- BARRA SUPERIOR -->
+    <header class="ed-top">
+      <a class="icon-btn" href="catalogo.html" data-back aria-label="Volver a la prenda"><svg class="icon"><use href="#i-back"/></svg></a>
+      <div class="ed-top__product">
+        <p class="ed-top__name" data-product-name>Cargando…</p>
+        <p class="ed-top__variant" data-variant-line></p>
+      </div>
+      <div class="ed-top__group" role="toolbar" aria-label="Historial">
+        <button class="icon-btn" type="button" data-action="undo" aria-label="Deshacer (Ctrl+Z)" title="Deshacer (Ctrl+Z)" disabled><svg class="icon"><use href="#i-undo"/></svg></button>
+        <button class="icon-btn" type="button" data-action="redo" aria-label="Rehacer (Ctrl+Shift+Z)" title="Rehacer (Ctrl+Shift+Z)" disabled><svg class="icon"><use href="#i-redo"/></svg></button>
+      </div>
+      <div class="seg ed-faces" role="group" aria-label="Cara de la prenda" data-faces></div>
+      <p class="ed-save" data-save-status aria-live="polite"></p>
+      <div class="ed-top__price"><span class="mono">Unidad</span><span class="price" data-unit-price>—</span></div>
+      <button class="btn btn--primary ed-finish" type="button" data-action="finalize">Finalizar diseño</button>
+    </header>
+
+    <!-- PANEL HERRAMIENTAS -->
+    <aside class="ed-panel ed-panel--tools" aria-label="Herramientas" data-panel="tools">
+      <div class="ed-panel__head">
+        <div class="ed-tabs" role="tablist" aria-label="Herramientas">
+          <button role="tab" id="tab-add" aria-controls="tp-add" aria-selected="true" data-tab="add">Agregar</button>
+          <button role="tab" id="tab-layers" aria-controls="tp-layers" aria-selected="false" data-tab="layers" tabindex="-1">Capas <span class="ed-count" data-layer-count>0</span></button>
+          <button role="tab" id="tab-product" aria-controls="tp-product" aria-selected="false" data-tab="product" tabindex="-1">Prenda</button>
+        </div>
+        <button class="icon-btn ed-sheet-close" type="button" data-close-sheet aria-label="Cerrar panel"><svg class="icon"><use href="#i-close"/></svg></button>
+      </div>
+
+      <div class="ed-tabpanel" role="tabpanel" id="tp-add" aria-labelledby="tab-add">
+        <section class="ed-section">
+          <h2 class="ed-h">Imagen</h2>
+          <label class="dropzone" data-dropzone>
+            <input type="file" accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml" data-file-input class="sr-only" multiple>
+            <svg class="icon"><use href="#i-upload"/></svg>
+            <span class="dropzone__title" data-dropzone-title>Subir imagen</span>
+            <span class="hint">JPG, PNG o SVG · hasta 25 MB<br>Arrastrala acá o tocá para elegir</span>
+          </label>
+          <div class="notice notice--danger" role="alert" data-upload-error hidden></div>
+          <ul class="uploads" role="list" data-uploads aria-label="Archivos subidos en este diseño"></ul>
+          <p class="hint">Guardamos tu archivo original sin modificarlo. Para imprimir bien, usá imágenes de al menos 2000 px de lado.</p>
+        </section>
+        <section class="ed-section">
+          <h2 class="ed-h">Texto</h2>
+          <form class="ed-quicktext" data-quicktext>
+            <label class="sr-only" for="quicktext">Texto nuevo</label>
+            <input class="input" id="quicktext" maxlength="120" placeholder="Escribí algo…" autocomplete="off">
+            <button class="btn btn--dark" type="submit"><svg class="icon"><use href="#i-text"/></svg>Agregar</button>
+          </form>
+          <p class="hint">Después podés cambiar fuente, tamaño, color y alineación. Doble clic sobre el texto para editarlo en la prenda.</p>
+        </section>
+      </div>
+
+      <div class="ed-tabpanel" role="tabpanel" id="tp-layers" aria-labelledby="tab-layers" hidden>
+        <section class="ed-section">
+          <h2 class="ed-h">Capas · <span data-layers-face></span></h2>
+          <p class="hint">Arriba en la lista = adelante en la prenda.</p>
+          <ol class="layers" role="list" data-layers></ol>
+          <button class="btn btn--sm btn--ghost" type="button" data-action="clear" style="justify-self:start"><svg class="icon"><use href="#i-trash"/></svg>Vaciar esta cara</button>
+        </section>
+      </div>
+
+      <div class="ed-tabpanel" role="tabpanel" id="tp-product" aria-labelledby="tab-product" hidden>
+        <section class="ed-section" data-product-panel></section>
+      </div>
+    </aside>
+
+    <!-- ESCENARIO -->
+    <main class="ed-stage-wrap" data-stage-wrap>
+      <div class="ed-stage" data-stage>
+        <div class="ed-mockup" data-mockup aria-hidden="true"></div>
+        <svg class="ed-guides" data-guides aria-hidden="true"></svg>
+        <canvas id="design-canvas" aria-label="Lienzo de diseño. Usá el panel de propiedades para ajustar con precisión."></canvas>
+        <div class="ed-ctx" data-ctx hidden>
+          <button type="button" data-action="duplicate" aria-label="Duplicar"><svg class="icon"><use href="#i-copy"/></svg></button>
+          <button type="button" data-action="props" aria-label="Propiedades" class="only-mobile"><svg class="icon"><use href="#i-sliders"/></svg></button>
+          <button type="button" data-action="delete" aria-label="Eliminar"><svg class="icon"><use href="#i-trash"/></svg></button>
+        </div>
+        <div class="ed-empty" data-empty hidden>
+          <p class="ed-empty__title">Esta cara está vacía</p>
+          <div class="ed-empty__actions">
+            <button class="btn btn--sm btn--primary" type="button" data-action="pick-file"><svg class="icon"><use href="#i-upload"/></svg>Subir imagen</button>
+            <button class="btn btn--sm" type="button" data-action="add-text"><svg class="icon"><use href="#i-text"/></svg>Agregar texto</button>
+          </div>
+        </div>
+      </div>
+      <div class="ed-status" data-stage-status aria-live="polite"></div>
+      <div class="ed-loading" data-loading><span class="spinner"></span><span data-loading-text>Preparando el editor…</span></div>
+    </main>
+
+    <!-- PANEL PROPIEDADES -->
+    <aside class="ed-panel ed-panel--props" aria-label="Propiedades del elemento" data-panel="props">
+      <div class="ed-panel__head">
+        <h2 class="ed-h" style="margin:0">Propiedades</h2>
+        <button class="icon-btn ed-sheet-close" type="button" data-close-sheet aria-label="Cerrar panel"><svg class="icon"><use href="#i-close"/></svg></button>
+      </div>
+      <div data-props></div>
+    </aside>
+
+    <!-- BARRA MÓVIL -->
+    <nav class="ed-mobilebar" aria-label="Herramientas del editor">
+      <button type="button" data-sheet-open="tools:add"><svg class="icon"><use href="#i-upload"/></svg>Subir</button>
+      <button type="button" data-action="add-text"><svg class="icon"><use href="#i-text"/></svg>Texto</button>
+      <button type="button" data-sheet-open="props"><svg class="icon"><use href="#i-sliders"/></svg>Editar</button>
+      <button type="button" data-sheet-open="tools:layers"><svg class="icon"><use href="#i-layers"/></svg>Capas</button>
+      <button type="button" data-sheet-open="tools:product"><svg class="icon"><use href="#i-shirt"/></svg>Prenda</button>
+    </nav>
+  </div>
+
+  <!-- FINALIZAR -->
+  <dialog class="dialog finalize" data-finalize aria-labelledby="fin-title"></dialog>
+
+  <script type="module" src="assets/js/editor/main.js"></script>
+</body>
+</html>
