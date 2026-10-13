@@ -809,6 +809,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     assert(!(await q.getAttribute("open")), "debería empezar cerrada");
     await q.locator("summary").click();
     assert((await q.getAttribute("open")) !== null, "no abre");
+    await page.waitForSelector("[data-print-sizes] tbody tr", { state: "attached" });
     const rows = await page.locator("[data-print-sizes] tbody tr").count();
     assert(rows === 6, `tabla ${rows}`);
     assert((await page.textContent("[data-print-sizes]")).includes("30,2 × 40,3") || (await page.textContent("[data-print-sizes]")).includes("30.2 × 40.3"), "medida de la remera");

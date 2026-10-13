@@ -154,7 +154,7 @@ Corrí `tests/e2e.mjs` con Playwright y Chromium en el contenedor: **49 de 49 pr
 - Envíos, impuestos y facturación.
 
 ## 5. Pasos para convertirlo en una tienda real
-1. **Definir producción con el taller:** técnicas (DTF, serigrafía, bordado), áreas físicas por talle, DPI mínimos, formatos de entrega y si hace falta PDF o color separado. Después, cargar esos valores en `garment_types`, `print_areas` y `techniques`.
+1. **Definir producción con el taller:** técnicas (DTG; serigrafía o bordado si se suman), áreas físicas por talle, DPI mínimos, formatos de entrega y si hace falta PDF o color separado. Después, cargar esos valores en `garment_types`, `print_areas` y `techniques`.
 2. **Backend y base de datos:** Node con Fastify o NestJS, o Django, sobre PostgreSQL. El modelo y los endpoints están en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 3. **Almacenamiento de archivos:** S3, R2 o GCS privado, con subida directa por URL firmada, verificación de hash y validación en el servidor. `asset-store.js` se reemplaza por ese cliente sin tocar el editor.
 4. **Conectar el frontend a la API:** `catalog.js`, `designs.js` y `cart.js` pasan a usar `fetch`, y la estructura de los datos se mantiene.

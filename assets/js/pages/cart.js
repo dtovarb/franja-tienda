@@ -33,7 +33,7 @@ function render() {
         <h2 class="h3">Resumen</h2>
         <div class="row"><span>Prendas</span><span>${t.count}</span></div>
         <div class="row"><span>Subtotal</span><span>${formatPrice(t.subtotal)}</span></div>
-        <div class="row muted"><span>Envío</span><span>No disponible en el prototipo</span></div>
+        <div class="row muted"><span>Envío</span><span>Según código postal · gratis en el centro de Córdoba Capital</span></div>
         <div class="row row--total"><span>Total</span><span class="price" style="font-size:1.5rem" data-total>${formatPrice(t.total)}</span></div>
         <button class="btn btn--primary btn--lg btn--block" type="button" data-checkout>Continuar (demo) ${icon("arrowRight")}</button>
         <div class="notice notice--info">${icon("info")}<span>El carrito vive en el almacenamiento local de este navegador: no se sincroniza entre dispositivos y se pierde si borrás los datos del sitio. No se procesan pagos.</span></div>

@@ -14,9 +14,9 @@ export const PRICING_RULES = {
   extraFaceSurcharge: 4500,
   /** Técnicas de impresión configurables (por ahora una sola). */
   techniques: {
-    dtf: { id: "dtf", name: "DTF (film transfer)", surchargePerFace: 0, minDpi: 150, idealDpi: 300 },
+    dtg: { id: "dtg", name: "DTG (impresión directa)", surchargePerFace: 0, minDpi: 150, idealDpi: 300 },
   },
-  defaultTechnique: "dtf",
+  defaultTechnique: "dtg",
 };
 
 export function getTechnique(id = PRICING_RULES.defaultTechnique) {

@@ -119,7 +119,7 @@ if (!product) {
               return `<dt>Área ${faceLabel(f).toLowerCase()}</dt><dd>hasta ${sp.widthCm} × ${sp.heightCm} cm (talle M de referencia)</dd>`;
             })
             .join("")}
-          <dt>Técnica</dt><dd>DTF a definir por el taller según diseño (demo)</dd>
+          <dt>Técnica</dt><dd>DTG: impresión directa sobre la prenda</dd>
           <dt>Archivos</dt><dd>JPG, PNG o SVG · hasta 25 MB, o un <a href="disenos.html">diseño de la tienda</a></dd>
         </dl>
       </form>
