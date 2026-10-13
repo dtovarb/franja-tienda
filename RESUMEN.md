@@ -5,7 +5,7 @@ Tienda streetwear con editor de prendas, hecha desde cero con HTML, CSS, JavaScr
 ## 1. Funciones implementadas
 
 ### Marca e interfaz
-- La marca es **nevrado**, ropa para chicas que aman chicas. El logo (en minúsculas, con la tirita de cinco franjas de la bandera lésbica) y el favicon salen del kit de `/mnt/project-files/nevrado-marca/`. Las cinco franjas siguen como firma: subrayado del hero, borde del editor y footer.
+- La marca es **nevrado**. El logo (en minúsculas, con la tirita de cinco franjas de la bandera lésbica) y el favicon salen del kit de `/mnt/project-files/nevrado-marca/`. Las cinco franjas siguen como firma: subrayado del hero, borde del editor y footer.
 - La paleta se definió como variables CSS en `assets/css/tokens.css`. Paleta Arcilla: fondo blanco hueso, ciruela para los CTA, el logo y los estados activos, terracota para acentos, y durazno y rosa polvo solo como fondos y etiquetas. El texto va en tinta cálida casi negra. Los colores de la paleta nunca se usan como colores de prenda: el catálogo tiene sus propios colores de indumentaria.
 - Tipografías: los titulares usan **Archivo** variable al 80 % de ancho en peso 850, en minúsculas o tipo oración, y la interfaz usa **Space Grotesk**. Space Mono se reserva para etiquetas editoriales. Para las estampas hay 7 fuentes: Archivo Black, Anton, Bebas Neue, Archivo, Space Grotesk, Space Mono y Permanent Marker.
 - Las páginas son Inicio, Catálogo con filtros por tipo, Producto, Editor y Carrito. Hay una banda permanente que avisa que el sitio es un prototipo con datos de demostración. No hay testimonios, ventas ni estadísticas inventadas.

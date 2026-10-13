@@ -14,7 +14,7 @@ export const DEMO_ART = {
       <rect x="0" y="48.5" width="100" height="10" fill="${P.pink}"/>
       <rect x="0" y="60" width="100" height="22" fill="${P.magenta}"/>
     </g>
-    <text x="50" y="94" text-anchor="middle" font-family="Archivo" font-stretch="70%" font-weight="900" font-size="12" letter-spacing=".2" fill="${ink}">chicas que aman chicas</text>`,
+    <text x="50" y="94" text-anchor="middle" font-family="Archivo" font-stretch="70%" font-weight="900" font-size="12" letter-spacing=".2" fill="${ink}">calor de taller</text>`,
   franja: ({ ink }) => `
     <text x="50" y="40" text-anchor="middle" font-family="Archivo" font-stretch="62%" font-weight="900" font-size="34" fill="${ink}">nevrado</text>
     <g transform="translate(14 46)">

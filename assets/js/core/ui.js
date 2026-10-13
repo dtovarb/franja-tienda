@@ -119,7 +119,7 @@ export function renderFooter() {
     <div class="container footer-grid">
       <div>
         <p class="footer-brand"><img src="assets/img/nevrado-logo-fondo-oscuro.svg" alt="nevrado" width="320" height="75"></p>
-        <p class="muted" style="color:#b7b7b7;margin-top:12px;max-width:34ch">Ropa para chicas que aman chicas, impresa y terminada en nuestro taller. Vos traés la idea.</p>
+        <p class="muted" style="color:#b7b7b7;margin-top:12px;max-width:34ch">Prendas que imprimimos y terminamos en nuestro taller. Vos traés la idea.</p>
       </div>
       <div>
         <h2>Tienda</h2>
