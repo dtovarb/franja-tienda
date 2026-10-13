@@ -4,7 +4,7 @@ import { demoArt } from "../data/art.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
 import { icon } from "../core/ui.js";
 
-export function productMockup(product, colorId, face = "front", { withArt = true, className = "" } = {}) {
+export function productMockup(product, colorId, face = "front", { withArt = false, className = "" } = {}) {
   const color = getColor(colorId || product.colors[0]);
   const art = withArt ? demoArt(product.demoArt, luminance(color.hex) < 0.18) : "";
   return garmentSvg(product.type, face, color.hex, {

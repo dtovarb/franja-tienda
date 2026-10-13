@@ -30,11 +30,12 @@ document.querySelector("[data-featured]").innerHTML = activeProducts().filter((p
 
 // Editorial
 const tee = getProduct("remera-clasica");
+const crew = getProduct("buzo-cuello-redondo");
 const tote = getProduct("tote-bag");
 document.querySelector("[data-editorial]").innerHTML = `
   <figure class="ed-card ed-card--a">
-    ${productMockup(hoodie, "negro", "back")}
-    <figcaption><span class="tag tag--ink">Buzo canguro · espalda</span><span class="tag tag--demo" style="background:#fff">Demo</span></figcaption>
+    ${productMockup(crew, "rojo", "front")}
+    <figcaption><span class="tag tag--ink">Buzo cuello redondo · rojo</span><span class="tag tag--demo" style="background:#fff">Demo</span></figcaption>
   </figure>
   <figure class="ed-card ed-card--b">
     ${productMockup(tote, "crudo", "front")}
