@@ -1,4 +1,8 @@
 node_modules/
 .vercel/
 tests/results.json
+tests/screenshots/
 *.zip
+.data/
+.env
+.env.local

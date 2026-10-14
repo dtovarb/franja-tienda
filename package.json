@@ -1,0 +1,20 @@
+{
+  "name": "nevrado-tienda",
+  "private": true,
+  "type": "module",
+  "description": "Tienda nevrado: sitio estático + API (funciones de Vercel) con Postgres, almacenamiento privado y Mercado Pago.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node tools/servidor-local.mjs",
+    "usuaria": "node tools/crear-usuaria.mjs",
+    "test": "node --test tests/api/*.test.mjs",
+    "test:e2e": "node tests/e2e.mjs"
+  },
+  "dependencies": {
+    "jose": "^6.2.0",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.9"
+  }
+}

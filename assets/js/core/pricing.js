@@ -30,6 +30,15 @@ export function getTechnique(id = PRICING_RULES.defaultTechnique) {
  * @returns { lines, unit, qty, total }
  */
 export function computePrice(product, variant, { printedFaces = [], technique, storeDesignIds = [] } = {}) {
+  return priceWith(product, variant, { printedFaces, technique, storeDesigns: storeDesignsByIds(storeDesignIds) });
+}
+
+/**
+ * Mismo cálculo con los diseños de la tienda ya resueltos. Es la función que
+ * usa el servidor (api/_lib/orders.js) con los diseños de la base, así la
+ * regla de precios es una sola.
+ */
+export function priceWith(product, variant, { printedFaces = [], technique, storeDesigns = [] } = {}) {
   const lines = [{ label: "Prenda base", amount: product.basePrice }];
   const size = product.sizes.find((s) => s.id === variant.sizeId);
   if (size && size.surcharge) lines.push({ label: `Suplemento talle ${size.label}`, amount: size.surcharge });
@@ -40,7 +49,7 @@ export function computePrice(product, variant, { printedFaces = [], technique, s
   );
 
   // Diseños de la tienda usados en la prenda: cada uno suma su precio una vez por unidad.
-  storeDesignsByIds(storeDesignIds).forEach((d) =>
+  storeDesigns.forEach((d) =>
     lines.push({ label: `Diseño «${d.name}»${d.price ? "" : " (sin costo)"}`, amount: d.price || 0, storeDesignId: d.id })
   );
 
