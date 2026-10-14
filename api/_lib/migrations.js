@@ -7,6 +7,10 @@
  *
  * Nunca se edita una migración ya publicada: los cambios van en una nueva.
  */
+import { GARMENTS } from "../../assets/js/data/garments.js";
+
+const sqlText = (v) => `'${String(v).replaceAll("'", "''")}'`;
+
 export const MIGRATIONS = [
   {
     id: "0001_inicial",
@@ -236,6 +240,23 @@ create table if not exists regret_requests (
   created_at timestamptz not null default now()
 );
 alter table regret_requests enable row level security;
+`,
+  },
+  {
+    // Zonas de estampa: logos de pecho y abajo, mangas y etiqueta interior
+    // (ver GARMENTS en assets/js/data/garments.js), y el recargo de cada una,
+    // editable en el panel. Las zonas sin fila usan DEFAULT_ZONE_PRICES.
+    id: "0005_zonas",
+    sql: `
+create table if not exists zone_prices (
+  zone text primary key,
+  price int not null check (price >= 0),
+  updated_at timestamptz not null default now()
+);
+alter table zone_prices enable row level security;
+${Object.values(GARMENTS)
+  .map((g) => `update products set faces = ${sqlText(JSON.stringify(Object.keys(g.faces)))}::jsonb where type = ${sqlText(g.id)};`)
+  .join("\n")}
 `,
   },
 ];

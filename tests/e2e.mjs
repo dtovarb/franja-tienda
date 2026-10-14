@@ -76,9 +76,9 @@ async function objCenter(page, i) {
     const { canvas } = window.__editor;
     const o = canvas.getObjects()[i];
     const r = canvas.upperCanvasEl.getBoundingClientRect();
-    const p = o.getCenterPoint();
-    const z = canvas.getZoom();
-    return { x: r.left + p.x * z, y: r.top + p.y * z };
+    // Con el acercamiento de las zonas chicas el lienzo tiene desplazamiento.
+    const p = fabric.util.transformPoint(o.getCenterPoint(), canvas.viewportTransform);
+    return { x: r.left + p.x, y: r.top + p.y };
   }, i);
 }
 
@@ -333,6 +333,34 @@ console.log("\nEscritorio 1440×900");
     await page.click('[data-face="front"]');
     await page.waitForTimeout(300);
     return "frente 2 elementos / espalda 2 elementos (SVG + PNG 320 px → DPI bajo)";
+  });
+
+  await t("Editor", "Zonas chicas: manga con acercamiento y recargo propio", async () => {
+    const unit = async () => Number((await page.textContent("[data-unit-price]")).replace(/\D/g, ""));
+    const before = await unit();
+    await page.selectOption("[data-zone-select]", "sleeve-left");
+    await page.waitForTimeout(400);
+    const win = await page.evaluate(() => window.__editor.canvas.viewportTransform.slice());
+    assert(win[0] > 1 && win[4] < 0, `sin acercamiento: ${win}`);
+    await page.fill("#quicktext", "NV");
+    await page.click("[data-quicktext] button");
+    await page.waitForTimeout(300);
+    assert((await unit()) === before + 2500, `unidad ${before} → ${await unit()}`);
+    const o1 = (await objs(page))[0];
+    const c = await objCenter(page, 0);
+    await page.mouse.move(c.x, c.y);
+    await page.mouse.down();
+    await page.mouse.move(c.x + 10, c.y + 12, { steps: 5 });
+    await page.mouse.up();
+    const o2 = (await objs(page))[0];
+    assert(o2.top > o1.top && o2.top - o1.top < 12, `arrastre ${o1.top}→${o2.top}`);
+    await page.screenshot({ path: join(SHOTS, "desktop-editor-manga.png") });
+    await page.keyboard.press("Delete");
+    await page.waitForTimeout(300);
+    assert((await unit()) === before, "el recargo de la manga no se fue al vaciarla");
+    await page.click('[data-face="front"]');
+    await page.waitForTimeout(300);
+    return `manga +$2.500, acercamiento ×${win[0].toFixed(2)}, arrastre en unidades de la prenda`;
   });
 
   await t("Editor", "Guías no se dibujan en el canvas (solo superposición)", async () => {

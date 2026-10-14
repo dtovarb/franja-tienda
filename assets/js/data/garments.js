@@ -13,7 +13,28 @@
 
 export const STAGE = { width: 1000, height: 1200 };
 
-const FACE_LABELS = { front: "Frente", back: "Espalda" };
+/**
+ * Zonas de estampa. Cada zona es una "cara" del editor con su propia área
+ * imprimible y su archivo de impresión. Las zonas chicas se dibujan sobre
+ * una vista de la prenda (`view`: frente o espalda).
+ */
+const FACE_LABELS = {
+  front: "Frente",
+  back: "Espalda",
+  chest: "Logo en el pecho",
+  "front-low": "Logo abajo",
+  "sleeve-left": "Manga izquierda",
+  "sleeve-right": "Manga derecha",
+  label: "Etiqueta interior",
+};
+/** Aclaración breve de cada zona chica, para la clienta. */
+const FACE_HINTS = {
+  chest: "Arriba del frente, para un logo o una palabra.",
+  "front-low": "Abajo del frente, cerca del ruedo.",
+  "sleeve-left": "La de quien la usa: en la foto queda a la derecha.",
+  "sleeve-right": "La de quien la usa: en la foto queda a la izquierda.",
+  label: "Se imprime del lado de adentro, en la nuca, donde iría la etiqueta.",
+};
 
 /* ---------------- Formas ---------------- */
 
@@ -308,6 +329,9 @@ function drawCap(face, color, uid) {
 
 /* ---------------- Catálogo de tipos ---------------- */
 
+// Las áreas de frente arrancan ~8 cm debajo del cuello (posición habitual de
+// DTG), medido sobre las fotos de cada prenda. Las mangas van sobre la vista
+// de frente: la manga izquierda de quien la usa queda a la derecha.
 export const GARMENTS = {
   tee: {
     id: "tee",
@@ -315,8 +339,13 @@ export const GARMENTS = {
     cmPerUnit: 0.09,
     draw: drawTee,
     faces: {
-      front: { printArea: { x: 332, y: 250, w: 336, h: 448 } },
-      back: { printArea: { x: 332, y: 210, w: 336, h: 480 } },
+      front: { printArea: { x: 332, y: 305, w: 336, h: 448 } },
+      back: { printArea: { x: 332, y: 220, w: 336, h: 480 } },
+      chest: { view: "front", printArea: { x: 355, y: 255, w: 290, h: 110 } },
+      "front-low": { view: "front", printArea: { x: 355, y: 800, w: 290, h: 100 } },
+      "sleeve-left": { view: "front", printArea: { x: 792, y: 290, w: 90, h: 90 } },
+      "sleeve-right": { view: "front", printArea: { x: 118, y: 290, w: 90, h: 90 } },
+      label: { view: "back", printArea: { x: 455, y: 165, w: 90, h: 70 } },
     },
   },
   oversize: {
@@ -325,8 +354,13 @@ export const GARMENTS = {
     cmPerUnit: 0.095,
     draw: drawOversize,
     faces: {
-      front: { printArea: { x: 320, y: 270, w: 360, h: 470 } },
-      back: { printArea: { x: 312, y: 230, w: 376, h: 520 } },
+      front: { printArea: { x: 320, y: 300, w: 360, h: 470 } },
+      back: { printArea: { x: 312, y: 235, w: 376, h: 520 } },
+      chest: { view: "front", printArea: { x: 355, y: 255, w: 290, h: 105 } },
+      "front-low": { view: "front", printArea: { x: 355, y: 860, w: 290, h: 95 } },
+      "sleeve-left": { view: "front", printArea: { x: 775, y: 320, w: 95, h: 95 } },
+      "sleeve-right": { view: "front", printArea: { x: 130, y: 320, w: 95, h: 95 } },
+      label: { view: "back", printArea: { x: 458, y: 178, w: 84, h: 66 } },
     },
   },
   hoodie: {
@@ -334,9 +368,13 @@ export const GARMENTS = {
     name: "Buzo canguro",
     cmPerUnit: 0.09,
     draw: drawHoodie,
+    // Sin logo de pecho ni abajo: la capucha y el bolsillo ocupan esas zonas.
     faces: {
       front: { printArea: { x: 350, y: 470, w: 300, h: 280 } },
       back: { printArea: { x: 320, y: 450, w: 360, h: 470 } },
+      "sleeve-left": { view: "front", printArea: { x: 785, y: 440, w: 90, h: 100 } },
+      "sleeve-right": { view: "front", printArea: { x: 125, y: 440, w: 90, h: 100 } },
+      label: { view: "back", printArea: { x: 455, y: 250, w: 90, h: 70 } },
     },
   },
   crewneck: {
@@ -345,8 +383,13 @@ export const GARMENTS = {
     cmPerUnit: 0.09,
     draw: drawCrewneck,
     faces: {
-      front: { printArea: { x: 330, y: 330, w: 340, h: 440 } },
+      front: { printArea: { x: 330, y: 340, w: 340, h: 440 } },
       back: { printArea: { x: 320, y: 300, w: 360, h: 470 } },
+      chest: { view: "front", printArea: { x: 355, y: 285, w: 290, h: 110 } },
+      "front-low": { view: "front", printArea: { x: 355, y: 800, w: 290, h: 100 } },
+      "sleeve-left": { view: "front", printArea: { x: 740, y: 400, w: 90, h: 100 } },
+      "sleeve-right": { view: "front", printArea: { x: 170, y: 400, w: 90, h: 100 } },
+      label: { view: "back", printArea: { x: 455, y: 240, w: 90, h: 70 } },
     },
   },
   cap: {
@@ -397,7 +440,7 @@ const PHOTOS = new Set([
 /** URLs de la foto y sus mapas de luz, o null si esa prenda/color/cara no tiene foto. */
 export function garmentPhoto(type, face, colorId) {
   const key = `${type}-${colorId}`;
-  if (face !== "front" || !colorId || !PHOTOS.has(key)) return null;
+  if (viewOf(type, face) !== "front" || !colorId || !PHOTOS.has(key)) return null;
   return { base: `${PHOTO_DIR}${key}.jpg`, shade: `${PHOTO_DIR}${key}-sombra.png`, light: `${PHOTO_DIR}${key}-brillo.png` };
 }
 
@@ -408,6 +451,37 @@ function photoLayers(photo) {
 
 export function faceLabel(face) {
   return FACE_LABELS[face] || face;
+}
+
+export function faceHint(face) {
+  return FACE_HINTS[face] || "";
+}
+
+/** Vista de la prenda sobre la que se dibuja la zona (frente o espalda). */
+export function viewOf(type, face) {
+  return GARMENTS[type]?.faces[face]?.view || face;
+}
+
+/** Zona principal (frente o espalda) o zona chica (logo, mangas, etiqueta). */
+export const isMainFace = (type, face) => !GARMENTS[type]?.faces[face]?.view;
+
+/**
+ * Ventana del escenario que muestra el editor para una zona: la prenda
+ * entera para frente y espalda, un acercamiento para las zonas chicas.
+ * Mantiene la proporción del escenario (1000 × 1200).
+ */
+export function editorWindow(type, face) {
+  const area = getPrintSpec(type, face).area;
+  if (isMainFace(type, face)) return { x: 0, y: 0, w: STAGE.width, h: STAGE.height };
+  const w = Math.min(STAGE.width, Math.max(area.w * 2.6, 380));
+  const h = w * (STAGE.height / STAGE.width);
+  const clamp = (v, max) => Math.max(0, Math.min(v, max));
+  return {
+    x: Math.round(clamp(area.x + area.w / 2 - w / 2, STAGE.width - w)),
+    y: Math.round(clamp(area.y + area.h / 2 - h / 2, STAGE.height - h)),
+    w: Math.round(w),
+    h: Math.round(h),
+  };
 }
 
 export function getGarment(type) {
@@ -436,14 +510,15 @@ export function getPrintSpec(type, face) {
  * "shade" o "light" (solo esa capa de luz, para superponer en otro lado).
  * colorId: si la prenda tiene foto en ese color, se usa la foto.
  */
-export function garmentSvg(type, face, colorHex, { art = "", className = "", title = "", layer = "full", colorId = null } = {}) {
+export function garmentSvg(type, face, colorHex, { art = "", className = "", title = "", layer = "full", colorId = null, viewBox = null } = {}) {
   const g = getGarment(type);
   const photo = garmentPhoto(type, face, colorId);
-  const L = photo ? photoLayers(photo) : g.draw(face, colorHex, nextUid());
+  const L = photo ? photoLayers(photo) : g.draw(viewOf(type, face), colorHex, nextUid());
   const artLayer = art ? artInArea(art, g.faces[face].printArea) : "";
   const label = title || `${g.name} — ${faceLabel(face)}`;
   const fit = photo ? ` data-photo preserveAspectRatio="xMidYMid slice"` : "";
-  const open = `<svg class="${className}" viewBox="0 0 ${STAGE.width} ${STAGE.height}"${fit} xmlns="http://www.w3.org/2000/svg"`;
+  const vb = viewBox ? `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}` : `0 0 ${STAGE.width} ${STAGE.height}`;
+  const open = `<svg class="${className}" viewBox="${vb}"${fit} xmlns="http://www.w3.org/2000/svg"`;
   if (layer === "shade" || layer === "light") return `${open} aria-hidden="true">${L.defs}${L[layer]}</svg>`;
   const body =
     layer === "base"

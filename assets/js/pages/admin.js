@@ -14,7 +14,8 @@ import { initPage, icon, toast, confirmDialog } from "../core/ui.js";
 import {
   PRODUCTS, GARMENT_COLORS, getProduct, getColor, saveProducts, resetProducts, defaultSizesFor, stockLabel,
 } from "../data/catalog.js";
-import { GARMENTS, garmentSvg } from "../data/garments.js";
+import { GARMENTS, garmentSvg, faceLabel, faceHint } from "../data/garments.js";
+import { ZONE_PRICES, PRICED_ZONES } from "../core/pricing.js";
 import {
   listStoreDesigns, getStoreDesign, saveStoreDesign, deleteStoreDesign, resetStoreDesigns, storeDesignImageUrl,
 } from "../core/store-designs.js";
@@ -68,6 +69,10 @@ const demoData = {
     saveProducts(PRODUCTS);
     return p;
   },
+  zonePrices: async () => ZONE_PRICES,
+  async saveZonePrices(prices) {
+    return Object.assign(ZONE_PRICES, prices); // solo esta sesión
+  },
 };
 
 /** Con servidor: la base de la tienda. Los archivos de diseños van al balde público. */
@@ -91,10 +96,12 @@ const serverData = {
   products: async () => (await api("admin/products")).products,
   saveProduct: async (id, fields) => (await api(`admin/products/${encodeURIComponent(id)}`, { method: "PATCH", body: fields })).product,
   createProduct: async (fields) => (await api("admin/products", { method: "POST", body: fields })).product,
+  zonePrices: async () => (await api("admin/zone-prices")).zonePrices,
+  saveZonePrices: async (zonePrices) => (await api("admin/zone-prices", { method: "PUT", body: { zonePrices } })).zonePrices,
 };
 
 const data = SERVER ? serverData : demoData;
-const state = { designs: [], products: [] };
+const state = { designs: [], products: [], zonePrices: { ...ZONE_PRICES } };
 const findDesign = (id) => state.designs.find((d) => d.id === id);
 const findProduct = (id) => state.products.find((p) => p.id === id);
 
@@ -385,7 +392,7 @@ function productRow(p) {
 }
 
 async function renderProducts({ reload = true } = {}) {
-  if (reload) state.products = await data.products();
+  if (reload) [state.products, state.zonePrices] = await Promise.all([data.products(), data.zonePrices()]);
   productsPanel.innerHTML = `
     <div class="admin-head">
       <div>
@@ -413,8 +420,49 @@ async function renderProducts({ reload = true } = {}) {
       </form>`
         : ""
     }
+    ${zonePricesForm()}
     <ul class="admin-list" role="list">${state.products.map(productRow).join("")}</ul>`;
   updateCounts();
+}
+
+/** Recargos por zona de estampa: el precio base incluye el frente. */
+function zonePricesForm() {
+  return `<form class="admin-form" data-zone-prices-form novalidate>
+    <h3 class="h3">Recargos por zona de estampa</h3>
+    <p class="muted">El precio base de cada prenda incluye el estampado del frente. Cada otra zona que la clienta estampe suma este recargo por unidad. Valen para todas las prendas que tienen esa zona.</p>
+    <div class="admin-grid">
+      ${PRICED_ZONES.map(
+        (z) => `<div class="field"><label for="zp-${z}">${escapeHtml(faceLabel(z))} (ARS)</label>
+          <input class="input" id="zp-${z}" name="${z}" type="number" min="0" step="100" inputmode="numeric" value="${state.zonePrices[z] ?? 0}">
+          ${faceHint(z) ? `<p class="hint">${escapeHtml(faceHint(z))}</p>` : ""}</div>`
+      ).join("")}
+    </div>
+    <div class="notice notice--danger form-errors" role="alert" data-zone-prices-errors></div>
+    <div class="admin-form__actions"><button class="btn btn--primary" type="submit">Guardar recargos</button></div>
+  </form>`;
+}
+
+async function saveZonePricesForm(form) {
+  const errEl = $("[data-zone-prices-errors]", form);
+  const prices = {};
+  for (const z of PRICED_ZONES) {
+    const v = Number(form.elements.namedItem(z).value);
+    if (!Number.isInteger(v) || v < 0) {
+      errEl.textContent = `El recargo de «${faceLabel(z)}» tiene que ser un número entero, sin centavos.`;
+      return;
+    }
+    prices[z] = v;
+  }
+  const btn = form.querySelector("[type=submit]");
+  btn.disabled = true;
+  try {
+    state.zonePrices = await data.saveZonePrices(prices);
+    errEl.textContent = "";
+    toast(`Recargos guardados${SERVER ? "" : " (solo en esta sesión de demostración)"}.`, "success");
+  } catch (err) {
+    errEl.textContent = errText(err, "No se pudieron guardar los recargos.");
+  }
+  btn.disabled = false;
 }
 
 async function saveProductForm(form) {
@@ -503,6 +551,7 @@ productsPanel.addEventListener("submit", (e) => {
   e.preventDefault();
   if (e.target.matches("[data-product-form]")) saveProductForm(e.target);
   if (e.target.matches("[data-new-product-form]")) createProduct(e.target);
+  if (e.target.matches("[data-zone-prices-form]")) saveZonePricesForm(e.target);
 });
 
 /* ======================= Pedidos ======================= */

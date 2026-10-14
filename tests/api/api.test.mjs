@@ -357,3 +357,39 @@ test("la URL de Postgres de la integración de Vercel se limpia antes de conecta
   );
   assert.match(cleanUrl("postgres://u:p@db.ejemplo.co:5432/postgres"), /sslmode=require$/);
 });
+
+test("zonas de estampa: el frente está incluido y cada otra zona suma su recargo", async () => {
+  const { body: cat } = await jsonOf(await call("GET", "/api/catalog"));
+  const tee = cat.products.find((p) => p.id === "remera-clasica");
+  assert.deepEqual(tee.faces, ["front", "back", "chest", "front-low", "sleeve-left", "sleeve-right", "label"]);
+  assert.equal(cat.zonePrices.back, 4500);
+  assert.deepEqual(cat.products.find((p) => p.type === "cap").faces, ["front"]);
+
+  const order = async (faces) => {
+    const r = await jsonOf(await call("POST", "/api/orders", { body: { customer, shipping, items: [await cartItem({ qty: 1, faces })] } }));
+    assert.equal(r.status, 201, JSON.stringify(r.body));
+    return r.body.order;
+  };
+  // Remera M 18900. Solo la espalda: no es la zona incluida, suma 4500.
+  assert.equal((await order({ back: null })).subtotal, 18900 + 4500);
+  assert.equal((await order({ front: null })).subtotal, 18900);
+  // Frente + manga izquierda + etiqueta: 2500 + 1500.
+  const o = await order({ front: null, "sleeve-left": null, label: null });
+  assert.equal(o.subtotal, 18900 + 2500 + 1500);
+  assert.deepEqual(o.items[0].printedFaces, ["front", "sleeve-left", "label"]);
+
+  // La dueña cambia el recargo de la espalda en el panel: se cobra el nuevo.
+  const cookie = await login();
+  assert.equal((await call("PUT", "/api/admin/zone-prices", { body: { zonePrices: { back: 5000 } } })).status, 401);
+  assert.equal((await call("PUT", "/api/admin/zone-prices", { cookie, body: { zonePrices: { pecho: 1 } } })).status, 422);
+  assert.equal((await call("PUT", "/api/admin/zone-prices", { cookie, body: { zonePrices: { back: 10.5 } } })).status, 422);
+  const saved = await jsonOf(await call("PUT", "/api/admin/zone-prices", { cookie, body: { zonePrices: { back: 5000 } } }));
+  assert.equal(saved.body.zonePrices.back, 5000);
+  assert.equal(saved.body.zonePrices.chest, 2500);
+  assert.equal((await order({ back: null })).subtotal, 18900 + 5000);
+  await call("PUT", "/api/admin/zone-prices", { cookie, body: { zonePrices: { back: 4500 } } });
+
+  // Una zona que la prenda no tiene se rechaza.
+  const cap = await cartItem({ productId: "gorra", colorId: "azul", sizeId: "Único", qty: 1, faces: { "sleeve-left": null } });
+  assert.equal((await call("POST", "/api/orders", { body: { customer, shipping, items: [cap] } })).status, 422);
+});

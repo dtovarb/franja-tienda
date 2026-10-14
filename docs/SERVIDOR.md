@@ -22,7 +22,7 @@ El código del servidor está en `api/_lib/`. Las tablas se crean solas la prime
 ## Cómo es un pedido
 
 1. La clienta completa sus datos y dirección. El envío se cotiza por código postal y por el peso del pedido (`POST /api/shipping/quote`, ver «Envíos» abajo) y ella elige la opción.
-2. El navegador prepara los archivos de cada prenda: los **originales** tal como se subieron, la **vista previa** y el **archivo de impresión** (PNG transparente a 300 DPI) de cada cara estampada.
+2. El navegador prepara los archivos de cada prenda: los **originales** tal como se subieron, la **vista previa** y el **archivo de impresión** (PNG transparente a 300 DPI) de cada zona estampada (frente, espalda, logos, mangas o etiqueta).
 3. Pide URLs firmadas (`POST /api/uploads`) y sube cada archivo **directo al balde privado**, sin pasar por la función.
 4. Manda el pedido (`POST /api/orders`). El servidor no confía en nada de lo que llega:
    - saca las caras estampadas y los diseños de la tienda del propio diseño;
@@ -62,7 +62,7 @@ Los datos de contacto de la tienda (mail, WhatsApp) están en un solo lugar: `as
 Con servidor pide mail y contraseña. Tiene cuatro pestañas:
 
 - **Diseños**: alta, edición, publicar/ocultar y baja de los diseños de la tienda (el archivo va al balde público).
-- **Productos**: precio, visibilidad, destacados, colores, recargos y stock por talle.
+- **Productos**: precio, visibilidad, destacados, colores, recargos y stock por talle, y los recargos por zona de estampa (el precio base incluye el frente).
 - **Pedidos**: datos de la clienta y envío, vista previa, descarga del original, la vista previa, el archivo de impresión y el diseño editable (enlaces firmados de 15 minutos), cambio de estado con nota (por ejemplo, el número de seguimiento) y enlace para mandarle a la clienta.
 - **Envíos**: tabla por rango de código postal. Define el envío gratis (CP 5000) y es el respaldo si las empresas de correo no responden. Las dos zonas pagas tienen **importes de ejemplo** y el panel las marca así.
 

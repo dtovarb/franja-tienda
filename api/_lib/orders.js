@@ -14,7 +14,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { priceWith } from "../../assets/js/core/pricing.js";
 import { HttpError } from "./http.js";
-import { getProduct, storeDesignsByIds } from "./catalog.js";
+import { getProduct, storeDesignsByIds, loadZonePrices } from "./catalog.js";
 import { quoteShipping } from "./shipping.js";
 import { PAYMENT_STATUS } from "./mercadopago.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
@@ -147,6 +147,7 @@ export async function createOrder({ db, storage, secret, carriers = [] }, body) 
     if (prev) return { order: await getOrder(db, prev.id), token: orderToken(secret, prev.id), replay: true };
   }
 
+  const zonePrices = await loadZonePrices(db);
   const lines = [];
   for (const [i, it] of items.entries()) {
     const product = await getProduct(db, String(it.productId || ""));
@@ -165,7 +166,7 @@ export async function createOrder({ db, storage, secret, carriers = [] }, body) 
         throw new HttpError(409, `El diseño «${d?.name || id}» ya no está disponible para ${product.name}.`);
       }
     }
-    const price = priceWith(product, { sizeId: size.id, qty }, { printedFaces: analysis.printedFaces, storeDesigns: designs });
+    const price = priceWith(product, { sizeId: size.id, qty }, { printedFaces: analysis.printedFaces, storeDesigns: designs, zonePrices });
     const files = requiredFiles(it, analysis);
     lines.push({ product, size, qty, analysis, price, files, design: { schema: it.design.schema || "nevrado.design/v1", faces: it.design.faces }, colorId: it.colorId });
   }

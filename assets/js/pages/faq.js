@@ -2,7 +2,7 @@ import { initPage } from "../core/ui.js";
 import { activeProducts } from "../data/catalog.js";
 import { getPrintSpec, faceLabel } from "../data/garments.js";
 import { sizeChartTable } from "../data/size-charts.js";
-import { PRICING_RULES } from "../core/pricing.js";
+import { ZONE_PRICES } from "../core/pricing.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
 
 initPage("faq");
@@ -20,7 +20,7 @@ const rows = activeProducts()
   .join("");
 table.insertAdjacentHTML("beforeend", `<thead><tr><th scope="col">Prenda</th><th scope="col">Máximo</th></tr></thead><tbody>${rows}</tbody>`);
 
-document.querySelector("[data-extra-face]").textContent = formatPrice(PRICING_RULES.extraFaceSurcharge);
+document.querySelector("[data-extra-face]").textContent = formatPrice(ZONE_PRICES.back);
 
 // Abrir la pregunta enlazada (#produccion, etc. abren la primera del grupo).
 function openFromHash() {

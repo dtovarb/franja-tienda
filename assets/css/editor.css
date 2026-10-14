@@ -887,3 +887,31 @@ input[type="color"].ink-picker {
 .ed-fabric--light {
   mix-blend-mode: screen;
 }
+
+/* Zonas chicas de estampa (logos, mangas, etiqueta) */
+.ed-zones {
+  min-height: 40px;
+  max-width: 12rem;
+  padding: 0 10px;
+  border: 0;
+  border-left: 1.5px solid var(--c-ink);
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: inherit;
+  cursor: pointer;
+}
+.ed-zones:first-child { border-left: 0; }
+.ed-zones option { background: var(--c-white); color: var(--c-ink); text-transform: none; }
+.ed-zones.is-active {
+  background: var(--c-ink);
+  color: var(--c-white);
+}
+.ed-zones:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+}

@@ -63,7 +63,7 @@ export const SEED_PRODUCTS = [
     basePrice: 18900,
     colors: ["blanco", "negro", "arena", "grafito", "gris", "rosa-palo", "nude", "marron-claro"],
     sizes: [size("S"), size("M"), size("L"), size("XL", 0, "low"), size("XXL", 1500)],
-    faces: ["front", "back"],
+    faces: Object.keys(GARMENTS.tee.faces),
     includedFaces: 1,
     featured: true,
     demoArt: "sol",
@@ -80,7 +80,7 @@ export const SEED_PRODUCTS = [
     basePrice: 23500,
     colors: ["negro", "blanco", "arena", "grafito", "gris", "rosa-palo", "nude", "marron-claro"],
     sizes: [size("S"), size("M"), size("L", 0, "low"), size("XL"), size("XXL", 2000, "out")],
-    faces: ["front", "back"],
+    faces: Object.keys(GARMENTS.oversize.faces),
     includedFaces: 1,
     featured: true,
     demoArt: "franja",
@@ -97,7 +97,7 @@ export const SEED_PRODUCTS = [
     basePrice: 42900,
     colors: ["negro", "blanco"],
     sizes: [size("S"), size("M"), size("L"), size("XL"), size("XXL", 2500, "low")],
-    faces: ["front", "back"],
+    faces: Object.keys(GARMENTS.hoodie.faces),
     includedFaces: 1,
     featured: true,
     demoArt: "hecho",
@@ -114,7 +114,7 @@ export const SEED_PRODUCTS = [
     basePrice: 34900,
     colors: ["negro", "blanco", "marino", "bordo", "rojo", "rosa", "marron"],
     sizes: [size("S"), size("M"), size("L"), size("XL"), size("XXL", 2500)],
-    faces: ["front", "back"],
+    faces: Object.keys(GARMENTS.crewneck.faces),
     includedFaces: 1,
     featured: true,
     demoArt: "sol",
@@ -131,7 +131,7 @@ export const SEED_PRODUCTS = [
     basePrice: 14900,
     colors: ["naranja", "verde", "azul", "celeste"],
     sizes: [size("Único")],
-    faces: ["front"],
+    faces: Object.keys(GARMENTS.cap.faces),
     includedFaces: 1,
     featured: false,
     demoArt: "franja",
@@ -147,7 +147,7 @@ export const SEED_PRODUCTS = [
     basePrice: 12500,
     colors: ["crudo", "negro"],
     sizes: [size("Único")],
-    faces: ["front", "back"],
+    faces: Object.keys(GARMENTS.tote.faces),
     includedFaces: 1,
     featured: false,
     demoArt: "hecho",
@@ -162,7 +162,7 @@ const KEY = "catalog.v1";
 // catálogo guardado antes de sacar el buzo con capucha).
 // Con servidor, el catálogo (y los colores) salen de la base; si no, del navegador.
 if (CATALOG) Object.assign(GARMENT_COLORS, CATALOG.colors);
-export const PRODUCTS = (CATALOG?.products || readJSON(KEY, null) || structuredClone(SEED_PRODUCTS)).filter((p) => GARMENTS[p.type]);
+export const PRODUCTS = (CATALOG?.products || (readJSON(KEY, null) || structuredClone(SEED_PRODUCTS)).map((p) => ({ ...p, faces: Object.keys(GARMENTS[p.type]?.faces || {}) }))).filter((p) => GARMENTS[p.type]);
 
 /** Productos visibles en la tienda (los ocultos siguen valiendo para el carrito). */
 export function activeProducts() {

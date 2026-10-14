@@ -11,7 +11,7 @@ import { createMercadoPago } from "./mercadopago.js";
 import { createCarriers } from "./carriers.js";
 import { createMailer, sendOrderMails } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
-import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign } from "./catalog.js";
+import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZonePrices, saveZonePrices } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
 import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkToken, orderToken, ORDER_STATUSES } from "./orders.js";
@@ -76,9 +76,11 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
 
     ["GET", "/api/catalog", async () => {
       const { db } = await ctx();
-      const [colors, products, storeDesigns] = await Promise.all([loadColors(db), loadProducts(db), loadStoreDesigns(db, { publishedOnly: true })]);
+      const [colors, products, storeDesigns, zonePrices] = await Promise.all([
+        loadColors(db), loadProducts(db), loadStoreDesigns(db, { publishedOnly: true }), loadZonePrices(db),
+      ]);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
-      return json({ colors, products, storeDesigns }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
+      return json({ colors, products, storeDesigns, zonePrices }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
     }],
 
     ["GET", "/api/reviews", async (req, url) => {
@@ -298,6 +300,18 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       await auth.require(req);
       const body = await readJson(req, 64 * 1024);
       return json({ rates: await db.tx((q) => replaceRates(q, body.rates)) });
+    }],
+
+    ["GET", "/api/admin/zone-prices", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      return json({ zonePrices: await loadZonePrices(db) });
+    }],
+    ["PUT", "/api/admin/zone-prices", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      const body = await readJson(req, 8192);
+      return json({ zonePrices: await db.tx((q) => saveZonePrices(q, body.zonePrices)) });
     }],
 
     /* ------------- Archivos en disco (solo servidor local) ------------- */

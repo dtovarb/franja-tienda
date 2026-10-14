@@ -8,7 +8,7 @@
 /* global fabric */
 import { injectSprite, toast, confirmDialog, icon } from "../core/ui.js";
 import { getProduct, getColor, defaultVariant, validateVariant } from "../data/catalog.js";
-import { STAGE, garmentSvg, getPrintSpec, faceLabel, luminance } from "../data/garments.js";
+import { STAGE, garmentSvg, getPrintSpec, faceLabel, faceHint, luminance, editorWindow, isMainFace } from "../data/garments.js";
 import { computePrice } from "../core/pricing.js";
 import { getDesign, saveDesign } from "../core/designs.js";
 import { getItem } from "../core/cart.js";
@@ -84,6 +84,8 @@ export const ed = {
 for (const f of product.faces) if (!Array.isArray(ed.faces[f])) ed.faces[f] = [];
 
 export const spec = (face = ed.face) => getPrintSpec(product.type, face);
+/** Parte de la prenda que se ve: entera, o un acercamiento en las zonas chicas. */
+const view = () => editorWindow(product.type, ed.face);
 export const color = () => getColor(ed.variant.colorId);
 export const printedFaces = () => product.faces.filter((f) => (f === ed.face ? ed.canvas.getObjects().length : ed.faces[f].length) > 0);
 /** Ids de los diseños de la tienda presentes en cualquier cara (cada uno se cobra una vez). */
@@ -160,36 +162,41 @@ function layout() {
   const availW = stageWrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const availH = stageWrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
   if (availW <= 0 || availH <= 0) return;
-  const z = Math.min(availW / STAGE.width, availH / STAGE.height);
-  const w = Math.floor(STAGE.width * z);
-  const h = Math.floor(STAGE.height * z);
+  const win = view();
+  const z = Math.min(availW / win.w, availH / win.h);
+  const w = Math.floor(win.w * z);
+  const h = Math.floor(win.h * z);
   stage.style.width = `${w}px`;
   stage.style.height = `${h}px`;
   canvas.setDimensions({ width: w, height: h });
-  ed.zoom = w / STAGE.width;
-  canvas.setZoom(ed.zoom);
+  ed.zoom = w / win.w;
+  canvas.setViewportTransform([ed.zoom, 0, 0, ed.zoom, -win.x * ed.zoom, -win.y * ed.zoom]);
   canvas.calcOffset();
   positionOverlays();
 }
 new ResizeObserver(() => requestAnimationFrame(layout)).observe(stageWrap);
 
 function renderMockup() {
-  mockupEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "base", colorId: color().id });
-  shadeEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "shade", colorId: color().id });
-  lightEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "light", colorId: color().id });
+  const viewBox = view();
+  mockupEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "base", colorId: color().id, viewBox });
+  shadeEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "shade", colorId: color().id, viewBox });
+  lightEl.innerHTML = garmentSvg(product.type, ed.face, color().hex, { layer: "light", colorId: color().id, viewBox });
 }
 
 function renderGuides() {
   const s = spec();
   const a = s.area;
+  const win = view();
+  const k = win.w / STAGE.width; // en un acercamiento el rótulo se achica igual que la ventana
   const cx = a.x + a.w / 2;
-  const label = `ÁREA DE IMPRESIÓN · ${s.widthCm} × ${s.heightCm} CM`;
-  guidesEl.setAttribute("viewBox", `0 0 ${STAGE.width} ${STAGE.height}`);
+  const small = !isMainFace(product.type, ed.face);
+  const label = small ? `${s.widthCm} × ${s.heightCm} CM` : `ÁREA DE IMPRESIÓN · ${s.widthCm} × ${s.heightCm} CM`;
+  guidesEl.setAttribute("viewBox", `${win.x} ${win.y} ${win.w} ${win.h}`);
   guidesEl.innerHTML = `
     <line class="center-v" x1="${cx}" y1="${a.y}" x2="${cx}" y2="${a.y + a.h}"/>
     <rect class="area" x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}"/>
-    <rect class="area-label-bg" x="${a.x}" y="${a.y - 30}" width="${label.length * 12.2 + 12}" height="26"/>
-    <text class="area-label" x="${a.x + 6}" y="${a.y - 10}">${label}</text>`;
+    <rect class="area-label-bg" x="${a.x}" y="${a.y - 30 * k}" width="${(label.length * 12.2 + 12) * k}" height="${26 * k}"/>
+    <text class="area-label" x="${a.x + 6 * k}" y="${a.y - 10 * k}" style="font-size:${20 * k}px">${label}</text>`;
 }
 
 /* ======================= Área imprimible ======================= */
@@ -250,8 +257,11 @@ function positionOverlays() {
   const isEmpty = canvas.getObjects().length === 0;
   emptyEl.hidden = !isEmpty;
   if (isEmpty) {
-    emptyEl.style.left = `${(a.x + a.w / 2) * z}px`;
-    emptyEl.style.top = `${(a.y + a.h / 2) * z}px`;
+    const win = view();
+    emptyEl.style.left = `${(a.x + a.w / 2 - win.x) * z}px`;
+    // En las zonas chicas el aviso va debajo del área, para no taparla.
+    const below = !isMainFace(product.type, ed.face);
+    emptyEl.style.top = below ? `${(a.y + a.h - win.y) * z + 70}px` : `${(a.y + a.h / 2 - win.y) * z}px`;
   }
   const act = canvas.getActiveObject();
   if (!act || transforming || act.isEditing) {
@@ -341,13 +351,25 @@ function announce(msg) {
 
 /* ======================= Caras ======================= */
 const facesEl = $("[data-faces]");
+// Frente y espalda como botones; las zonas chicas (logos, mangas, etiqueta) en una lista.
 function renderFaceButtons() {
-  facesEl.innerHTML = product.faces
-    .map((f) => {
-      const has = (f === ed.face ? canvas.getObjects().length : ed.faces[f].length) > 0;
-      return `<button type="button" data-face="${f}" aria-pressed="${f === ed.face}" class="${has ? "has-content" : ""}" ${has ? `aria-label="${faceLabel(f)}, con diseño"` : ""}>${faceLabel(f)}</button>`;
-    })
-    .join("");
+  const has = (f) => (f === ed.face ? canvas.getObjects().length : ed.faces[f].length) > 0;
+  const main = product.faces.filter((f) => isMainFace(product.type, f));
+  const extra = product.faces.filter((f) => !isMainFace(product.type, f));
+  const onExtra = extra.includes(ed.face);
+  facesEl.innerHTML =
+    main
+      .map(
+        (f) =>
+          `<button type="button" data-face="${f}" aria-pressed="${f === ed.face}" class="${has(f) ? "has-content" : ""}" ${has(f) ? `aria-label="${faceLabel(f)}, con diseño"` : ""}>${faceLabel(f)}</button>`
+      )
+      .join("") +
+    (extra.length
+      ? `<select class="ed-zones${onExtra ? " is-active" : ""}${extra.some(has) ? " has-content" : ""}" data-zone-select aria-label="Otras zonas de estampa">
+          <option value="" ${onExtra ? "" : "selected"}>${extra.some(has) ? "Más zonas ●" : "Más zonas"}</option>
+          ${extra.map((f) => `<option value="${f}" ${f === ed.face ? "selected" : ""}>${faceLabel(f)}${has(f) ? " ●" : ""}</option>`).join("")}
+        </select>`
+      : "");
 }
 
 export async function setFace(f) {
@@ -355,6 +377,7 @@ export async function setFace(f) {
   ed.faces[ed.face] = snapshot(canvas);
   canvas.discardActiveObject();
   ed.face = f;
+  layout();
   renderMockup();
   renderGuides();
   ed.restoring = true;
@@ -366,11 +389,16 @@ export async function setFace(f) {
     ed.restoring = false;
   }
   refresh();
-  announce(`Editando ${faceLabel(f).toLowerCase()}`);
+  announce(`Editando ${faceLabel(f).toLowerCase()}. ${faceHint(f)}`);
+  if (faceHint(f)) toast(`${faceLabel(f)}: ${faceHint(f)}`);
 }
 facesEl.addEventListener("click", (e) => {
   const b = e.target.closest("[data-face]");
   if (b) setFace(b.dataset.face);
+});
+facesEl.addEventListener("change", (e) => {
+  const sel = e.target.closest("[data-zone-select]");
+  if (sel?.value) setFace(sel.value);
 });
 
 /* ======================= Agregar elementos ======================= */
@@ -536,7 +564,8 @@ export function addText(str = "TU TEXTO") {
     left: a.x + a.w / 2,
     top: a.y + a.h * 0.3,
     fontFamily: FONTS[0].family,
-    fontSize: 64,
+    // En las zonas chicas el texto arranca a la escala del área.
+    fontSize: Math.round(Math.min(64, a.h * 0.4)),
     fontWeight: "normal",
     fill: dark ? "#ffffff" : "#121212",
     textAlign: "center",
