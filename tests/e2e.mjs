@@ -820,6 +820,26 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     return `${n} preguntas en 4 temas; tabla de ${rows} prendas`;
   });
 
+  await t("Ayuda", "Guía de talles en la ficha y en preguntas, con los talles que se venden", async () => {
+    await page.goto(`${BASE}/producto.html?id=buzo-cuello-redondo`);
+    await page.waitForSelector("[data-size-guide]", { state: "attached" });
+    await page.click("[data-size-guide] summary");
+    const rows = await page.$$eval("[data-size-chart] tbody tr", (trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent.trim())));
+    assert(rows.length === 5 && rows[0].join("|") === "S|54|72|64" && rows[4].join("|") === "XXL|62|82|71", JSON.stringify(rows));
+    await page.goto(`${BASE}/producto.html?id=remera-oversize`);
+    await page.waitForSelector("[data-size-chart]", { state: "attached" });
+    const ovr = await page.$$eval("[data-size-chart] tbody tr", (trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent.trim()).join("|")));
+    assert(ovr.includes("M|61,5|84,5") && ovr.length === 5, ovr.join(" / "));
+    await page.goto(`${BASE}/producto.html?id=gorra`);
+    assert(!(await page.locator("[data-size-guide]").count()), "la gorra no lleva tabla");
+    await page.goto(`${BASE}/preguntas.html#talles`);
+    await page.waitForSelector("[data-size-charts] table", { state: "attached" });
+    const n = await page.locator("[data-size-charts] table").count();
+    assert(n === 4, `tablas ${n}`);
+    assert(!(await page.locator("text=A definir").count()), "quedó algo «A definir»");
+    return "ficha con talles a la venta; 4 tablas en preguntas; sin «A definir»";
+  });
+
   await t("Ayuda", "Opiniones de ejemplo en inicio y producto, siempre marcadas como ejemplo", async () => {
     await page.goto(`${BASE}/index.html#opiniones`);
     await page.waitForSelector("[data-review]");

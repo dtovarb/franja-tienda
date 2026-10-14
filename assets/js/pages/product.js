@@ -2,6 +2,7 @@ import { initPage, icon } from "../core/ui.js";
 import { getProduct, getColor, stockLabel, validateVariant, defaultVariant } from "../data/catalog.js";
 import { garmentSvg, garmentPhoto, getPrintSpec, faceLabel } from "../data/garments.js";
 import { listReviews, reviewSummary } from "../data/reviews.js";
+import { sizeChartTable, measureHelp } from "../data/size-charts.js";
 import { reviewsBlock } from "./components.js";
 import { computePrice, PRICING_RULES } from "../core/pricing.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
@@ -88,6 +89,17 @@ if (!product) {
               .join("")}
           </div>
           <p class="hint" data-stock></p>
+          ${(() => {
+            const table = sizeChartTable(product, `Medidas de ${escapeHtml(product.name)} por talle`);
+            return table
+              ? `<details class="size-guide" data-size-guide>
+                  <summary>Guía de talles</summary>
+                  <p class="hint">Medidas de la prenda en centímetros, estirada sobre una superficie plana. Compará con una prenda tuya de tela parecida.</p>
+                  ${table}
+                  ${measureHelp(product)}
+                </details>`
+              : "";
+          })()}
         </fieldset>
 
         <div class="field">

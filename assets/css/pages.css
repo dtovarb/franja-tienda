@@ -990,3 +990,62 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------------- Tablas de talles ---------------- */
+.size-guide {
+  margin-top: var(--sp-3);
+  border-top: 1px solid var(--c-line);
+  border-bottom: 1px solid var(--c-line);
+}
+.size-guide summary {
+  cursor: pointer;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  font-family: var(--ff-mono);
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.size-guide > :not(summary) {
+  margin-bottom: var(--sp-3);
+}
+.size-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+.size-table th,
+.size-table td {
+  text-align: left;
+  padding: 6px 12px 6px 0;
+  border-bottom: 1px solid var(--c-line);
+}
+.size-table thead th {
+  font-family: var(--ff-mono);
+  font-weight: 400;
+  text-transform: uppercase;
+  color: var(--c-ink-3);
+}
+.size-help {
+  display: grid;
+  gap: 4px;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+}
+.size-charts {
+  display: grid;
+  gap: var(--sp-2);
+}
+.size-charts__title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  margin-top: var(--sp-3);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}

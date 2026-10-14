@@ -1,6 +1,7 @@
 import { initPage } from "../core/ui.js";
 import { activeProducts } from "../data/catalog.js";
 import { getPrintSpec, faceLabel } from "../data/garments.js";
+import { sizeChartTable } from "../data/size-charts.js";
 import { PRICING_RULES } from "../core/pricing.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
 
@@ -28,3 +29,11 @@ function openFromHash() {
 }
 openFromHash();
 addEventListener("hashchange", openFromHash);
+
+// Tablas de talles de las prendas a la venta (solo los talles que se venden)
+document.querySelector("[data-size-charts]").innerHTML = activeProducts()
+  .map((p) => {
+    const table = sizeChartTable(p, `Medidas de ${escapeHtml(p.name)} por talle`);
+    return table ? `<h3 class="size-charts__title">${escapeHtml(p.name)}</h3>${table}` : "";
+  })
+  .join("");
