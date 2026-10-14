@@ -77,15 +77,22 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
 
     ["GET", "/api/catalog", async () => {
       const { db } = await ctx();
+      // Una consulta después de la otra: al arrancar en frío usan la misma
+      // conexión que ya abrió la migración, en vez de abrir varias juntas
+      // contra el pooler (eso dejaba la última colgada 15 s).
       // Colores y productos son imprescindibles; si fallan los diseños o los
       // recargos, la tienda sigue con lo que hay (diseños vacíos, recargos de
       // fábrica) en vez de caer al modo demostración.
-      const [colors, products, storeDesigns, zonePrices] = await Promise.all([
-        loadColors(db),
-        loadProducts(db),
-        loadStoreDesigns(db, { publishedOnly: true }).catch((err) => (console.error("catálogo: diseños", err), [])),
-        loadZonePrices(db).catch((err) => (console.error("catálogo: recargos", err), { ...DEFAULT_ZONE_PRICES })),
-      ]);
+      const t = [Date.now()];
+      const colors = await loadColors(db);
+      t.push(Date.now());
+      const products = await loadProducts(db);
+      t.push(Date.now());
+      const storeDesigns = await loadStoreDesigns(db, { publishedOnly: true }).catch((err) => (console.error("catálogo: diseños", err), []));
+      t.push(Date.now());
+      const zonePrices = await loadZonePrices(db).catch((err) => (console.error("catálogo: recargos", err), { ...DEFAULT_ZONE_PRICES }));
+      t.push(Date.now());
+      if (t[4] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms`);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
       return json({ colors, products, storeDesigns, zonePrices }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
     }],
