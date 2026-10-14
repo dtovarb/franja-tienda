@@ -5,7 +5,7 @@
 import { SERVER } from "./api.js";
 import { cartCount, onCartChange } from "./cart.js";
 import { escapeHtml } from "./format.js";
-import { CONTACT, whatsappUrl, CONSUMER_COMPLAINTS_URL } from "../data/contact.js";
+import { CONTACT, whatsappUrl, instagramUrl, CONSUMER_COMPLAINTS_URL } from "../data/contact.js";
 
 /* ---------------- Íconos (SVG sprite, trazo 2px) ---------------- */
 const ICONS = {
@@ -158,6 +158,7 @@ export function renderFooter({ whatsapp = true } = {}) {
         <ul role="list">
           <li><a href="${whatsappUrl()}" target="_blank" rel="noopener">WhatsApp ${CONTACT.whatsappLabel}</a></li>
           <li><a href="mailto:${CONTACT.email}">${CONTACT.email}</a></li>
+          <li><a href="${instagramUrl}" target="_blank" rel="noopener">Instagram @${CONTACT.instagram}</a></li>
           <li>${CONTACT.city}</li>
         </ul>
       </div>

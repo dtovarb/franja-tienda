@@ -103,7 +103,7 @@ function layout(title, paragraphs) {
     ${paragraphs.map((p) => `<p style="margin:0 0 12px;line-height:1.5">${p}</p>`).join("")}
   </td></tr>
   <tr><td colspan="5" style="padding:16px 28px;border-top:1px solid #e4e0dc;font-size:12px;color:#5b5256;line-height:1.5">
-    WhatsApp ${esc(CONTACT.whatsappLabel)} · ${esc(CONTACT.email)}<br>nevrado · ${esc(CONTACT.city)}
+    WhatsApp ${esc(CONTACT.whatsappLabel)} · ${esc(CONTACT.email)} · Instagram @${esc(CONTACT.instagram)}<br>nevrado · ${esc(CONTACT.city)}
   </td></tr>
 </table>
 </td></tr></table>
@@ -120,7 +120,7 @@ function customerMail(code, req) {
   ];
   return {
     subject: `Código de arrepentimiento ${code} · nevrado`,
-    text: [...lines, "", `WhatsApp ${CONTACT.whatsappLabel} · ${CONTACT.email}`, `nevrado · ${CONTACT.city}`].join("\n\n"),
+    text: [...lines, "", `WhatsApp ${CONTACT.whatsappLabel} · ${CONTACT.email} · Instagram @${CONTACT.instagram}`, `nevrado · ${CONTACT.city}`].join("\n\n"),
     html: layout(title, [esc(lines[0]), `Tu código de identificación es <b style="font-size:18px;letter-spacing:1px">${esc(code)}</b>.`, esc(lines[2])]),
   };
 }

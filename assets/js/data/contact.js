@@ -8,8 +8,11 @@ export const CONTACT = {
   /** WhatsApp con formato internacional para wa.me (Córdoba: 54 9 351 …). */
   whatsapp: "5493518199773",
   whatsappLabel: "351 819-9773",
+  instagram: "nevradotienda",
   city: "Córdoba, Argentina",
 };
+
+export const instagramUrl = `https://www.instagram.com/${CONTACT.instagram}`;
 
 export const whatsappUrl = (text = "") =>
   `https://wa.me/${CONTACT.whatsapp}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
