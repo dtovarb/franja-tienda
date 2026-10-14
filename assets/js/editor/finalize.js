@@ -218,7 +218,7 @@ export async function openFinalize({ ed, product, price, printedFaces, setFace, 
         <dt>Color</dt><dd>${escapeHtml(col.name)}</dd>
         <dt>Talle</dt><dd>${escapeHtml(ed.variant.sizeId)}</dd>
         <dt>Cantidad</dt><dd>${ed.variant.qty}</dd>
-        <dt>Caras</dt><dd>${faces.map(faceLabel).join(" + ")}</dd>
+        <dt>Zonas</dt><dd>${faces.map(faceLabel).join(" + ")}</dd>
       </dl>
       <div class="breakdown">
         ${p.lines.map((l) => `<div><span>${l.label}</span><span>${formatPrice(l.amount)}</span></div>`).join("")}

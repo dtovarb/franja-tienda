@@ -45,7 +45,7 @@ export function renderProductPanel({ ed, product, setVariant, price, printedFace
         ${p.lines.map((l) => `<div><span>${l.label}</span><span>${formatPrice(l.amount)}</span></div>`).join("")}
         <div class="total"><span>Total × ${p.qty}</span><span>${formatPrice(p.total)}</span></div>
       </div>
-      <p class="hint">Caras con diseño: ${faces.length ? faces.map(faceLabel).join(" y ") : "ninguna todavía"}. La primera está incluida.</p>`;
+      <p class="hint">Zonas con diseño: ${faces.length ? faces.map(faceLabel).join(", ") : "ninguna todavía"}. El frente está incluido; cada otra zona suma su recargo.</p>`;
   }
 
   host.addEventListener("click", (e) => {

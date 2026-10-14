@@ -5,7 +5,7 @@
  * es independiente de la del editor.
  */
 /* global fabric */
-import { STAGE, garmentSvg, garmentPhoto, getPrintSpec, faceLabel } from "../data/garments.js";
+import { STAGE, garmentSvg, garmentPhoto, getPrintSpec, faceLabel, editorWindow } from "../data/garments.js";
 import { getColor } from "../data/catalog.js";
 import { getTechnique } from "../core/pricing.js";
 import { getAssets } from "../core/asset-store.js";
@@ -95,19 +95,25 @@ export async function renderPreview({ productType, colorHex, colorId = null, fac
     ctx.fillRect(0, 0, W, H);
   }
   const photo = garmentPhoto(productType, face, colorId);
+  // Zonas chicas (logos, mangas, etiqueta): la vista previa es un acercamiento, como en el editor.
+  const win = editorWindow(productType, face);
+  const k = W / win.w; // píxeles por unidad del escenario
   const draw = async (layer, op = "source-over") => {
     // Las fotos se dibujan directo: una <image> dentro de un SVG cargado como imagen no se descarga.
     const { img, url } = photo
       ? { img: await loadBitmap(photo[layer]), url: null }
-      : await loadSvgImage(garmentSvg(productType, face, colorHex, { layer }), W, H);
+      : await loadSvgImage(garmentSvg(productType, face, colorHex, { layer, viewBox: win }), W, H);
     ctx.globalCompositeOperation = op;
-    ctx.drawImage(img, 0, 0, W, H);
+    if (photo) {
+      const u = img.naturalWidth / STAGE.width; // píxeles de la foto por unidad del escenario
+      ctx.drawImage(img, win.x * u, win.y * u, win.w * u, win.h * u, 0, 0, W, H);
+    } else ctx.drawImage(img, 0, 0, W, H);
     ctx.globalCompositeOperation = "source-over";
     if (url) URL.revokeObjectURL(url);
   };
   await draw("base");
   if (objects.length) {
-    const sc = await staticCanvasFor(objects, { width: W, height: H, viewportTransform: [scale, 0, 0, scale, 0, 0] });
+    const sc = await staticCanvasFor(objects, { width: W, height: H, viewportTransform: [k, 0, 0, k, -win.x * k, -win.y * k] });
     ctx.drawImage(sc.lowerCanvasEl, 0, 0);
     sc.dispose();
   }

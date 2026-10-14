@@ -8,10 +8,30 @@
  */
 import { faceLabel } from "../data/garments.js";
 import { storeDesignsByIds } from "./store-designs.js";
+import { CATALOG } from "./api.js";
+
+/**
+ * Recargo de cada zona de estampa. El precio base de la prenda incluye el
+ * frente; cada otra zona estampada suma lo suyo. Son los valores iniciales:
+ * con servidor, los que se cargan en el panel (tabla zone_prices) los
+ * reemplazan.
+ */
+export const DEFAULT_ZONE_PRICES = {
+  front: 0,
+  back: 4500,
+  chest: 2500,
+  "front-low": 2500,
+  "sleeve-left": 2500,
+  "sleeve-right": 2500,
+  label: 1500,
+};
+
+/** Zonas que tienen recargo editable en el panel, en orden. */
+export const PRICED_ZONES = Object.keys(DEFAULT_ZONE_PRICES).filter((z) => z !== "front");
+
+export const ZONE_PRICES = { ...DEFAULT_ZONE_PRICES, ...(CATALOG?.zonePrices || {}) };
 
 export const PRICING_RULES = {
-  /** Suplemento por cada cara estampada por encima de las incluidas. */
-  extraFaceSurcharge: 4500,
   /** Técnicas de impresión configurables (por ahora una sola). */
   techniques: {
     dtg: { id: "dtg", name: "DTG (impresión directa)", surchargePerFace: 0, minDpi: 150, idealDpi: 300 },
@@ -30,7 +50,7 @@ export function getTechnique(id = PRICING_RULES.defaultTechnique) {
  * @returns { lines, unit, qty, total }
  */
 export function computePrice(product, variant, { printedFaces = [], technique, storeDesignIds = [] } = {}) {
-  return priceWith(product, variant, { printedFaces, technique, storeDesigns: storeDesignsByIds(storeDesignIds) });
+  return priceWith(product, variant, { printedFaces, technique, storeDesigns: storeDesignsByIds(storeDesignIds), zonePrices: ZONE_PRICES });
 }
 
 /**
@@ -38,15 +58,16 @@ export function computePrice(product, variant, { printedFaces = [], technique, s
  * usa el servidor (api/_lib/orders.js) con los diseños de la base, así la
  * regla de precios es una sola.
  */
-export function priceWith(product, variant, { printedFaces = [], technique, storeDesigns = [] } = {}) {
+export function priceWith(product, variant, { printedFaces = [], technique, storeDesigns = [], zonePrices = DEFAULT_ZONE_PRICES } = {}) {
   const lines = [{ label: "Prenda base", amount: product.basePrice }];
   const size = product.sizes.find((s) => s.id === variant.sizeId);
   if (size && size.surcharge) lines.push({ label: `Suplemento talle ${size.label}`, amount: size.surcharge });
 
-  const extraFaces = printedFaces.slice(product.includedFaces ?? 1);
-  extraFaces.forEach((f) =>
-    lines.push({ label: `Estampa adicional (${faceLabel(f).toLowerCase()})`, amount: PRICING_RULES.extraFaceSurcharge })
-  );
+  // El frente está incluido en el precio base; cada otra zona suma su recargo.
+  printedFaces.forEach((f) => {
+    const amount = zonePrices[f] ?? DEFAULT_ZONE_PRICES[f] ?? 0;
+    if (amount) lines.push({ label: `Estampa: ${faceLabel(f).toLowerCase()}`, amount, zone: f });
+  });
 
   // Diseños de la tienda usados en la prenda: cada uno suma su precio una vez por unidad.
   storeDesigns.forEach((d) =>

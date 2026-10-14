@@ -6,6 +6,7 @@
 import { GARMENTS } from "../../assets/js/data/garments.js";
 import { HttpError } from "./http.js";
 import { insertProduct } from "./seed.js";
+import { DEFAULT_ZONE_PRICES, PRICED_ZONES } from "../../assets/js/core/pricing.js";
 
 export async function loadColors(q) {
   const rows = await q.query("select id, name, hex from garment_colors order by sort, id");
@@ -178,4 +179,25 @@ export async function saveStoreDesign(q, id, body, { source } = {}) {
 export async function deleteStoreDesign(q, id) {
   const rows = await q.query("update store_designs set deleted_at=now() where id=$1 and deleted_at is null returning id", [id]);
   if (!rows.length) throw new HttpError(404, "Ese diseño no existe.");
+}
+
+/* ------------------------- Recargos por zona ------------------------- */
+/** Recargo de cada zona de estampa: los del panel sobre los valores iniciales. */
+export async function loadZonePrices(q) {
+  const rows = await q.query("select zone, price from zone_prices");
+  return { ...DEFAULT_ZONE_PRICES, ...Object.fromEntries(rows.map((r) => [r.zone, r.price])) };
+}
+
+export async function saveZonePrices(q, prices) {
+  if (!prices || typeof prices !== "object") throw new HttpError(422, "Faltan los recargos.");
+  for (const [zone, value] of Object.entries(prices)) {
+    if (!PRICED_ZONES.includes(zone)) throw new HttpError(422, `Zona desconocida: ${zone}.`);
+    const price = Number(value);
+    if (!Number.isInteger(price) || price < 0 || price > 1_000_000) throw new HttpError(422, "Cada recargo tiene que ser un número entero, sin centavos.");
+    await q.query(
+      "insert into zone_prices (zone, price) values ($1, $2) on conflict (zone) do update set price = excluded.price, updated_at = now()",
+      [zone, price]
+    );
+  }
+  return loadZonePrices(q);
 }

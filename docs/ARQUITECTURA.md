@@ -13,7 +13,8 @@
 | JSON editable con `src: "asset:<sha256>"` | El diseño no embebe binarios: se reconstruye resolviendo los originales aparte, igual que lo haría un backend con almacenamiento de objetos. |
 | Exportación desde un `StaticCanvas` fuera de pantalla | La resolución de exportación no depende de la del editor; se renderiza con caché desactivada y a la escala física pedida. |
 | `NUM_FRACTION_DIGITS = 6` | Fabric redondea por defecto a 2 decimales; una escala 0.0896 pasaba a 0.09 y alteraba el tamaño impreso. Detectado por las pruebas. |
-| Precio calculado en un único módulo (`pricing.js`) | Selector, editor, resumen y carrito usan la misma función: talle, caras adicionales y técnica se suman igual en todas partes. El carrito recalcula desde el catálogo en vez de confiar en el importe guardado. |
+| Zonas de estampa (`GARMENTS` en `data/garments.js`) | Frente, espalda, logo en el pecho, logo abajo, mangas y etiqueta interior. Cada zona es una «cara» del editor con su área, su vista previa y su archivo de impresión; las chicas se dibujan sobre la vista de frente o espalda (`view`) y el editor las muestra con acercamiento. El precio base incluye el frente y cada otra zona suma su recargo (`DEFAULT_ZONE_PRICES`, editable en el panel, tabla `zone_prices`). |
+| Precio calculado en un único módulo (`pricing.js`) | Selector, editor, resumen y carrito usan la misma función: talle, zonas de estampa y técnica se suman igual en todas partes. El carrito recalcula desde el catálogo en vez de confiar en el importe guardado. |
 
 ## Los cuatro elementos de un diseño
 

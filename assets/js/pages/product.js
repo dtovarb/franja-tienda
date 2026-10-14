@@ -1,10 +1,10 @@
 import { initPage, icon } from "../core/ui.js";
 import { getProduct, getColor, stockLabel, validateVariant, defaultVariant } from "../data/catalog.js";
-import { garmentSvg, garmentPhoto, getPrintSpec, faceLabel } from "../data/garments.js";
+import { garmentSvg, garmentPhoto, getPrintSpec, faceLabel, isMainFace } from "../data/garments.js";
 import { listReviews, reviewSummary } from "../data/reviews.js";
 import { sizeChartTable, measureHelp } from "../data/size-charts.js";
 import { reviewsBlock, demoTag, IS_DEMO } from "./components.js";
-import { computePrice, PRICING_RULES } from "../core/pricing.js";
+import { computePrice, ZONE_PRICES } from "../core/pricing.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
 import { getStoreDesign, isAvailableFor, storeDesignImageUrl, designArt } from "../core/store-designs.js";
 
@@ -29,6 +29,9 @@ if (!product) {
     face: "front",
     guides: true,
   };
+  // La foto muestra frente y espalda; las zonas chicas se marcan sobre esas vistas.
+  const mainFaces = product.faces.filter((f) => isMainFace(product.type, f));
+  const zoneCost = (f) => (ZONE_PRICES[f] ? `+${formatPrice(ZONE_PRICES[f])}` : "incluida");
 
   root.innerHTML = `
     <nav aria-label="Ruta" class="mono muted" style="padding-top:var(--sp-5)"><a href="catalogo.html">Prendas</a> / ${escapeHtml(product.name)}</nav>
@@ -37,7 +40,7 @@ if (!product) {
         <div class="pdp__stage" data-stage></div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
           <div class="seg" role="group" aria-label="Cara de la prenda">
-            ${product.faces.map((f) => `<button type="button" data-face="${f}" aria-pressed="${f === state.face}">${faceLabel(f)}</button>`).join("")}
+            ${mainFaces.map((f) => `<button type="button" data-face="${f}" aria-pressed="${f === state.face}">${faceLabel(f)}</button>`).join("")}
           </div>
           <label style="display:inline-flex;gap:8px;align-items:center;font-size:var(--fs-sm)"><input type="checkbox" data-guides checked> Mostrar área de impresión</label>
         </div>
@@ -117,7 +120,7 @@ if (!product) {
             <span class="price pdp__price" data-unit></span>
           </div>
           <div class="breakdown" data-breakdown style="margin-top:var(--sp-3)"></div>
-          <p class="hint" style="margin-top:var(--sp-2)">La primera cara estampada está incluida. Cada cara adicional suma ${formatPrice(PRICING_RULES.extraFaceSurcharge)}. El precio final se ajusta en el editor según las caras que diseñes.</p>
+          <p class="hint" style="margin-top:var(--sp-2)">El precio incluye el estampado del frente. ${product.faces.length > 1 ? "Cada otra zona que estampes suma su recargo (ver abajo). " : ""}El precio final se ajusta en el editor según las zonas que diseñes.</p>
         </div>
 
         <div class="notice notice--danger form-errors" role="alert" data-errors></div>
@@ -128,9 +131,10 @@ if (!product) {
           ${product.faces
             .map((f) => {
               const sp = getPrintSpec(product.type, f);
-              return `<dt>Área ${faceLabel(f).toLowerCase()}</dt><dd>hasta ${sp.widthCm} × ${sp.heightCm} cm (talle M de referencia)</dd>`;
+              return `<dt>${faceLabel(f)}</dt><dd>hasta ${sp.widthCm} × ${sp.heightCm} cm · ${zoneCost(f)}</dd>`;
             })
             .join("")}
+          <dt>Medidas</dt><dd>Áreas máximas en talle M de referencia</dd>
           <dt>Técnica</dt><dd>DTG: impresión directa sobre la prenda</dd>
           <dt>Archivos</dt><dd>JPG, PNG o SVG · hasta 25 MB, o un <a href="disenos.html">diseño de la tienda</a></dd>
         </dl>

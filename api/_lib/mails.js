@@ -18,8 +18,7 @@
 import { loadColors } from "./catalog.js";
 import { orderToken } from "./orders.js";
 import { CONTACT } from "../../assets/js/data/contact.js";
-
-const FACES = { front: "frente", back: "espalda" };
+import { faceLabel } from "../../assets/js/data/garments.js";
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const price = (n) => money.format(Math.round(Number(n) || 0));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -115,7 +114,7 @@ const LABELS = { comprobante: "Comprobante de compra", pedido_recibido: "Mail de
 /* ------------------------------ Contenido ------------------------------ */
 function itemsOf(order, colors) {
   return order.items.map((it) => {
-    const faces = (it.printed_faces || []).map((f) => FACES[f] || f).join(" y ");
+    const faces = (it.printed_faces || []).map((f) => faceLabel(f).toLowerCase()).join(", ");
     const detail = [colors[it.color_id]?.name || it.color_id, `talle ${it.size_id}`, faces && `estampa ${faces}`].filter(Boolean).join(" · ");
     return { name: it.product_name, detail, qty: it.qty, unit: it.unit_price, total: it.unit_price * it.qty };
   });
