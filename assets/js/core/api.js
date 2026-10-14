@@ -30,9 +30,24 @@ async function detect() {
   }
 }
 
+/**
+ * Con el servidor andando, un tropiezo al traer el catálogo no tiene que
+ * mandar la tienda al modo demostración: se reintenta una vez.
+ */
+async function loadCatalog() {
+  for (let i = 0; i < 2; i++) {
+    try {
+      return await api("catalog");
+    } catch {
+      if (i === 0) await new Promise((r) => setTimeout(r, 800));
+    }
+  }
+  return null;
+}
+
 const detected = await detect();
 /** Catálogo del servidor ({ colors, products, storeDesigns }) o null. */
-export const CATALOG = detected ? await api("catalog").catch(() => null) : null;
+export const CATALOG = detected ? await loadCatalog() : null;
 /** null = modo demostración; si no, { services: { db, storage, auth, payments } }. */
 export const SERVER = CATALOG ? detected : null;
 

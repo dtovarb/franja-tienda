@@ -17,6 +17,7 @@ import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
 import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkToken, orderToken, ORDER_STATUSES } from "./orders.js";
 import { defaultSizesFor } from "../../assets/js/data/catalog.js";
 import { createRegret } from "./regret.js";
+import { DEFAULT_ZONE_PRICES } from "../../assets/js/core/pricing.js";
 
 export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
   const config = readConfig(overrides);
@@ -76,8 +77,14 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
 
     ["GET", "/api/catalog", async () => {
       const { db } = await ctx();
+      // Colores y productos son imprescindibles; si fallan los diseños o los
+      // recargos, la tienda sigue con lo que hay (diseños vacíos, recargos de
+      // fábrica) en vez de caer al modo demostración.
       const [colors, products, storeDesigns, zonePrices] = await Promise.all([
-        loadColors(db), loadProducts(db), loadStoreDesigns(db, { publishedOnly: true }), loadZonePrices(db),
+        loadColors(db),
+        loadProducts(db),
+        loadStoreDesigns(db, { publishedOnly: true }).catch((err) => (console.error("catálogo: diseños", err), [])),
+        loadZonePrices(db).catch((err) => (console.error("catálogo: recargos", err), { ...DEFAULT_ZONE_PRICES })),
       ]);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
       return json({ colors, products, storeDesigns, zonePrices }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
