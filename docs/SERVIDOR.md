@@ -39,6 +39,18 @@ La clienta sigue su pedido en `pedido.html?id=…&t=…`. El `t` es un token pro
 
 `pendiente_pago` → `pagado` → `produccion` → `despachado` → `entregado`, y `cancelado` **solo desde `pendiente_pago` o `pagado`** (la política de la tienda: se cancela antes de producción). El servidor no deja saltar pasos. Cada cambio queda en el historial del pedido con quién lo hizo.
 
+## Mails
+
+Con `RESEND_API_KEY` configurada, la tienda manda mails con [Resend](https://resend.com) (`api/_lib/mails.js`):
+
+- **Comprobante de compra** a la clienta cuando el pedido pasa a «Pagado» (aviso de Mercado Pago o cambio a mano en el panel): número de pedido, prendas, subtotal, envío, total, operación de Mercado Pago, dirección y el enlace para seguir el pedido. Aclara que no es una factura.
+- **Pedido recibido** a la clienta cuando no hay cobro online («cobro a coordinar»).
+- **Aviso a la dueña** (`OWNER_EMAILS`) en esos mismos dos momentos, con enlace al panel.
+
+Cada mail sale una sola vez por pedido: queda registrado en la tabla `order_emails` y va con `Idempotency-Key` a Resend, así los avisos repetidos de Mercado Pago no lo duplican. Si Resend falla, el pedido sigue igual, el error queda en el historial del pedido y el próximo aviso lo reintenta. Sin `RESEND_API_KEY` no se manda nada.
+
+El remitente (`MAIL_FROM`, por defecto `nevrado <pedidos@nevrado.com>`) tiene que ser de un dominio verificado en Resend.
+
 ## Panel (`admin.html`)
 
 Con servidor pide mail y contraseña. Tiene cuatro pestañas:
@@ -76,7 +88,8 @@ Hace falta, una sola vez:
    - En *Webhooks*, la URL `https://<dominio>/api/webhooks/mercadopago` con el evento *Pagos*, y su clave secreta en `MP_WEBHOOK_SECRET`.
 5. **Correo Argentino.** Pedir las credenciales de la API en el formulario de <https://www.correoargentino.com.ar/MiCorreo/public/primeros-pasos> y cargar `MICORREO_USER`, `MICORREO_PASSWORD` y `MICORREO_CUSTOMER_ID` (o, en lugar del último, el mail y la contraseña de la cuenta MiCorreo en `MICORREO_ACCOUNT_EMAIL` y `MICORREO_ACCOUNT_PASSWORD`).
 6. **Andreani** (si hay contrato): `ANDREANI_CONTRATO`, `ANDREANI_CLIENTE` y, si te dieron usuario de la API, `ANDREANI_USER` y `ANDREANI_PASSWORD`.
-7. Volver a desplegar. `https://<dominio>/api/health` tiene que mostrar `"ready": true`.
+7. **Mails** (opcional): verificar el dominio en Resend, cargar `RESEND_API_KEY` y, si hace falta, `MAIL_FROM` y `MAIL_REPLY_TO`.
+8. Volver a desplegar. `https://<dominio>/api/health` tiene que mostrar `"ready": true`.
 
 Mientras falte el paso 1, el sitio publicado sigue en modo demostración. Mientras falte el 4, los pedidos se registran como «cobro a coordinar».
 
@@ -95,6 +108,7 @@ Ninguna clave se escribe en el código ni en el chat: van solo en las variables 
 | `SHIPPING_ORIGIN_CP` | Código postal desde donde se despacha (5000 por defecto). |
 | `MICORREO_USER`, `MICORREO_PASSWORD`, `MICORREO_CUSTOMER_ID` | Cotización con Correo Argentino. |
 | `ANDREANI_CONTRATO`, `ANDREANI_CLIENTE`, `ANDREANI_USER`, `ANDREANI_PASSWORD` | Cotización con Andreani. |
+| `RESEND_API_KEY`, `MAIL_FROM`, `MAIL_REPLY_TO` | Mails de los pedidos (Resend). Respuestas de las clientas a `MAIL_REPLY_TO` si está. |
 | `PUBLIC_URL` | Dirección pública, si no es la del pedido (para los enlaces de vuelta de Mercado Pago). |
 
 `.env.example` tiene la lista para el servidor local.
@@ -105,7 +119,7 @@ Ninguna clave se escribe en el código ni en el chat: van solo en las variables 
 - Las tablas tienen RLS activado y sin políticas: la API REST pública de Supabase no puede leerlas. Todo pasa por este servidor.
 - Sesión del panel en cookie `HttpOnly`, `SameSite=Strict`, 12 horas; las acciones que cambian datos además exigen que el `Origin` sea el de la tienda. Freno a los intentos de contraseña.
 - Precios, stock y envío siempre recalculados en el servidor; los pedidos repetidos por un reintento no se duplican (`idempotencyKey`).
-- Pendiente para más adelante: limpiar archivos subidos que nunca llegaron a un pedido, y avisos por mail.
+- Pendiente para más adelante: limpiar archivos subidos que nunca llegaron a un pedido.
 
 ## Desarrollo
 
