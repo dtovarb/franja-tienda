@@ -43,6 +43,11 @@ export async function openDb(config) {
         idle_timeout: 20,
         max_lifetime: 60 * 5,
         connect_timeout: 10,
+        // Una consulta por conexión a la vez. El pooler de Supabase en modo
+        // transacción no se lleva bien con varias consultas encoladas en la
+        // misma conexión: cuando el catálogo pedía 4 cosas con 3 conexiones,
+        // la cuarta se colgaba (o recibía filas de otra consulta).
+        max_pipeline: 1,
         onnotice: () => {},
       });
     let sql = open();
