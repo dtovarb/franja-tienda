@@ -27,6 +27,8 @@ const FORM_KEY = "checkout.datos.v1";
 const MINE_KEY = "pedidos.mios.v1";
 
 let quote = null;
+let optionId = null;
+const chosenOption = () => quote?.options.find((o) => o.id === optionId) || null;
 
 export function renderCheckout(root, { onBack }) {
   const saved = readJSON(FORM_KEY, {});
@@ -51,7 +53,7 @@ export function renderCheckout(root, { onBack }) {
           <legend class="h3">Envío</legend>
           <p class="hint">Enviamos a todo el país por Andreani o Correo Argentino. No hay retiro: en el centro de Córdoba Capital el envío es gratis.</p>
           ${field("postalCode", "Código postal", 'autocomplete="postal-code" inputmode="numeric" maxlength="10" required', "4 números, por ejemplo 5000.")}
-          <p class="checkout__quote" data-quote aria-live="polite"></p>
+          <div class="checkout__quote" data-quote aria-live="polite"></div>
           <div class="checkout__row">
             ${field("street", "Calle", 'autocomplete="address-line1" maxlength="120" required')}
             ${field("number", "Altura", 'inputmode="numeric" maxlength="12" required')}
@@ -99,19 +101,28 @@ export function renderCheckout(root, { onBack }) {
     const out = form.querySelector("[data-quote]");
     const value = cp.value.trim();
     quote = null;
+    optionId = null;
     paintTotals(form);
     if (value.replace(/\D/g, "").length < 4) {
       out.textContent = "";
       return;
     }
     try {
-      quote = await api("shipping/quote", { method: "POST", body: { postalCode: value } });
-      out.textContent = quote.free ? `${quote.zone}: envío gratis.` : `${quote.zone}: ${formatPrice(quote.price)}.`;
+      out.innerHTML = `<p class="hint">Calculando el envío…</p>`;
+      const items = getCart().items.map((i) => ({ productId: i.productId, qty: i.qty }));
+      quote = await api("shipping/quote", { method: "POST", body: { postalCode: value, items } });
+      optionId = quote.options[0]?.id || null; // la más barata
+      out.innerHTML = shippingOptions(quote);
     } catch (err) {
       out.textContent = err.message;
     }
     paintTotals(form);
   }, 350);
+  form.querySelector("[data-quote]").addEventListener("change", (e) => {
+    if (e.target.name !== "shippingOption") return;
+    optionId = e.target.value;
+    paintTotals(form);
+  });
   cp.addEventListener("input", updateQuote);
   if (cp.value) updateQuote();
   form.addEventListener("submit", (e) => {
@@ -128,8 +139,9 @@ export function renderCheckout(root, { onBack }) {
 
 function paintTotals(form) {
   const t = cartTotals();
-  form.querySelector("[data-ship]").textContent = quote ? (quote.free ? "Gratis" : formatPrice(quote.price)) : "Ingresá tu código postal";
-  form.querySelector("[data-total]").textContent = formatPrice(t.subtotal + (quote?.price || 0));
+  const o = chosenOption();
+  form.querySelector("[data-ship]").textContent = o ? (o.price ? formatPrice(o.price) : "Gratis") : "Ingresá tu código postal";
+  form.querySelector("[data-total]").textContent = formatPrice(t.subtotal + (o?.price || 0));
 }
 
 function readForm(form) {
@@ -141,6 +153,7 @@ function readForm(form) {
   if (!/^[\d\s+()-]{6,30}$/.test(v.phone)) errors.push("Revisá tu teléfono (solo números, espacios, + y guiones).");
   if (!v.street || !v.number || !v.city) errors.push("Completá calle, altura y localidad.");
   if (!quote) errors.push("Escribí un código postal válido para calcular el envío.");
+  else if (!chosenOption()) errors.push("Elegí cómo te mandamos el pedido.");
   return { v, errors };
 }
 
@@ -254,7 +267,7 @@ async function submit(form) {
       body: {
         idempotencyKey: key,
         customer: { name: v.name, email: v.email, phone: v.phone },
-        shipping: { street: v.street, number: v.number, apartment: v.apartment, city: v.city, province: v.province, postalCode: v.postalCode, notes: v.notes },
+        shipping: { optionId, street: v.street, number: v.number, apartment: v.apartment, city: v.city, province: v.province, postalCode: v.postalCode, notes: v.notes },
         items: prepared.map((p) => p.payload),
       },
     });
@@ -289,4 +302,23 @@ function rememberOrder(order, token) {
   } catch {
     /* sin almacenamiento */
   }
+}
+
+/** Opciones de envío para elegir (una sola, si es gratis o sale de la tabla). */
+function shippingOptions(q) {
+  if (q.options.length === 1) {
+    const o = q.options[0];
+    return `<p><b>${o.price ? `${escapeHtml(o.service)}: ${formatPrice(o.price)}` : `${escapeHtml(o.service)}: envío gratis`}</b>${
+      o.price ? `<br><span class="hint">${escapeHtml(o.carrier)}, a domicilio.</span>` : ""
+    }</p>`;
+  }
+  return `<fieldset class="ship-options"><legend class="sr-only">Cómo te lo mandamos</legend>${q.options
+    .map(
+      (o, i) => `<label class="ship-option">
+        <input type="radio" name="shippingOption" value="${escapeHtml(o.id)}" ${i === 0 ? "checked" : ""}>
+        <span><b>${escapeHtml(o.carrier)}</b> · ${escapeHtml(o.service)}<br><span class="hint">A domicilio</span></span>
+        <span class="price">${formatPrice(o.price)}</span>
+      </label>`
+    )
+    .join("")}</fieldset>`;
 }

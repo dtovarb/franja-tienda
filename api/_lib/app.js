@@ -8,6 +8,7 @@ import { openDb, migrate, DbUnavailable } from "./db.js";
 import { createStorage, BUCKETS } from "./storage.js";
 import { createAuth, checkOrigin } from "./auth.js";
 import { createMercadoPago } from "./mercadopago.js";
+import { createCarriers } from "./carriers.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
 import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates } from "./shipping.js";
@@ -29,6 +30,7 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
         storage: createStorage(config, fetchImpl),
         auth: createAuth(config, { db, fetchImpl }),
         mp: createMercadoPago(config, fetchImpl),
+        carriers: createCarriers(config, fetchImpl),
       };
     })().catch((err) => {
       ready = null;
@@ -58,11 +60,14 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
         return json({
           ok: true,
           ready: !!(c.storage && c.auth),
-          services: { db: c.db.kind, storage: c.storage?.kind || null, auth: c.auth?.provider || null, payments: c.mp ? "mercadopago" : null },
+          services: {
+            db: c.db.kind, storage: c.storage?.kind || null, auth: c.auth?.provider || null, payments: c.mp ? "mercadopago" : null,
+            shipping: c.carriers.map((x) => x.id),
+          },
         });
       } catch (err) {
         if (!(err instanceof DbUnavailable)) console.error(err);
-        return json({ ok: true, ready: false, services: { db: null, storage: null, auth: null, payments: null } });
+        return json({ ok: true, ready: false, services: { db: null, storage: null, auth: null, payments: null, shipping: [] } });
       }
     }],
 
@@ -89,9 +94,9 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
     }],
 
     ["POST", "/api/shipping/quote", async (req) => {
-      const { db } = await ctx();
-      const body = await readJson(req, 4096);
-      return json(await quoteShipping(db, body.postalCode));
+      const { db, carriers } = await ctx();
+      const body = await readJson(req, 16 * 1024);
+      return json(await quoteShipping(db, body.postalCode, { carriers, lines: await shippingLines(db, body.items) }));
     }],
 
     ["POST", "/api/uploads", async (req) => {
@@ -114,7 +119,7 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       checkOrigin(req);
       const body = await readJson(req);
       const secret = config.sessionSecret;
-      const { order, token, replay } = await createOrder({ db: c.db, storage: c.storage, secret }, body);
+      const { order, token, replay } = await createOrder({ db: c.db, storage: c.storage, secret, carriers: c.carriers }, body);
       const payment = await startPayment(c, req, order, token);
       return json({ order: publicOrder(order), token, payment, replay }, replay ? 200 : 201);
     }],
@@ -310,6 +315,17 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       });
     }],
   ];
+
+  /** Tipo y cantidad de cada prenda, para pesar el paquete. */
+  async function shippingLines(db, items) {
+    if (!Array.isArray(items)) return [];
+    const products = await loadProducts(db);
+    return items.slice(0, 20).flatMap((it) => {
+      const p = products.find((x) => x.id === it?.productId);
+      const qty = Math.min(50, Math.max(1, Number(it?.qty) || 1));
+      return p ? [{ type: p.type, qty }] : [];
+    });
+  }
 
   /** Crea la preferencia de pago, si Mercado Pago está configurado. */
   async function startPayment(c, req, order, token) {

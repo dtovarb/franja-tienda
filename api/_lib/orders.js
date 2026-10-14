@@ -134,7 +134,7 @@ async function verifyFiles(storage, files) {
 }
 
 /* -------------------------------- Crear -------------------------------- */
-export async function createOrder({ db, storage, secret }, body) {
+export async function createOrder({ db, storage, secret, carriers = [] }, body) {
   const customer = validateCustomer(body.customer);
   const address = validateAddress(body.shipping);
   const items = Array.isArray(body.items) ? body.items : [];
@@ -147,7 +147,6 @@ export async function createOrder({ db, storage, secret }, body) {
     if (prev) return { order: await getOrder(db, prev.id), token: orderToken(secret, prev.id), replay: true };
   }
 
-  const shipping = await quoteShipping(db, address.postalCode);
   const lines = [];
   for (const [i, it] of items.entries()) {
     const product = await getProduct(db, String(it.productId || ""));
@@ -170,6 +169,13 @@ export async function createOrder({ db, storage, secret }, body) {
     const files = requiredFiles(it, analysis);
     lines.push({ product, size, qty, analysis, price, files, design: { schema: it.design.schema || "nevrado.design/v1", faces: it.design.faces }, colorId: it.colorId });
   }
+
+  // El envío se vuelve a cotizar acá con el pedido real; la clienta eligió una opción por su id.
+  const quote = await quoteShipping(db, address.postalCode, { carriers, lines: lines.map((l) => ({ type: l.product.type, qty: l.qty })) });
+  const chosen = typeof body.shipping?.optionId === "string" ? body.shipping.optionId : null;
+  const option = chosen ? quote.options.find((o) => o.id === chosen) : quote.options.length === 1 ? quote.options[0] : null;
+  if (!option) throw new HttpError(409, "Las opciones de envío cambiaron. Volvé a elegir cómo te lo mandamos.");
+  const shipping = { ...option, postalCode: quote.postalCode, live: quote.live, zone: `${option.carrier} · ${option.service}` };
 
   await verifyFiles(storage, lines.flatMap((l) => l.files));
 

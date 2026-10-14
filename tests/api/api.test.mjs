@@ -106,7 +106,7 @@ async function login() {
 
 test("salud y catálogo desde la base", async () => {
   const h = await jsonOf(await call("GET", "/api/health"));
-  assert.deepEqual(h.body.services, { db: process.env.TEST_DATABASE_URL ? "postgres" : "pglite", storage: "local", auth: "local", payments: "mercadopago" });
+  assert.deepEqual(h.body.services, { db: process.env.TEST_DATABASE_URL ? "postgres" : "pglite", storage: "local", auth: "local", payments: "mercadopago", shipping: [] });
   const { body } = await jsonOf(await call("GET", "/api/catalog"));
   assert.equal(body.products.length, 6);
   assert.equal(body.storeDesigns.length, 5);
@@ -120,10 +120,12 @@ test("salud y catálogo desde la base", async () => {
 
 test("envío por código postal: centro de Córdoba gratis", async () => {
   const q = async (cp) => (await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: cp } })));
-  assert.equal((await q("5000")).body.price, 0);
+  assert.equal((await q("5000")).body.options[0].price, 0);
   assert.equal((await q("X5000ABC")).body.free, true);
-  assert.equal((await q("5010")).body.rateId, "cordoba-provincia");
-  assert.equal((await q("1425")).body.rateId, "resto-del-pais");
+  // Sin empresas de correo configuradas se usa la tabla del panel (marcada de ejemplo).
+  assert.equal((await q("5010")).body.options[0].id, "tabla:cordoba-provincia");
+  assert.equal((await q("1425")).body.options[0].id, "tabla:resto-del-pais");
+  assert.equal((await q("1425")).body.options[0].example, true);
   assert.equal((await q("12")).status, 422);
 });
 
@@ -336,7 +338,7 @@ test("panel: productos, diseños de la tienda y tarifas de envío", async () => 
   r = await jsonOf(await call("PUT", "/api/admin/shipping-rates", { cookie, body: { rates } }));
   assert.equal(r.body.rates[1].example, false);
   assert.equal(r.body.rates[2].example, true);
-  assert.equal((await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: "5800" } }))).body.price, 5200);
+  assert.equal((await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: "5800" } }))).body.options[0].price, 5200);
 });
 
 test("sin cuentas en Vercel la API responde 'sin configurar' y la tienda sigue en demo", async () => {

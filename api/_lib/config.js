@@ -13,6 +13,13 @@
  *   MP_ACCESS_TOKEN               Mercado Pago (Checkout Pro)
  *   MP_WEBHOOK_SECRET             firma de las notificaciones de Mercado Pago
  *   PUBLIC_URL                    dirección pública de la tienda (opcional)
+ *   SHIPPING_ORIGIN_CP            CP desde donde se despacha (por defecto 5000)
+ *   MICORREO_USER, MICORREO_PASSWORD, MICORREO_CUSTOMER_ID
+ *                                 Correo Argentino (API MiCorreo). En lugar del
+ *                                 customerId sirven MICORREO_ACCOUNT_EMAIL y
+ *                                 MICORREO_ACCOUNT_PASSWORD (cuenta MiCorreo).
+ *   ANDREANI_CONTRATO, ANDREANI_CLIENTE (+ ANDREANI_USER, ANDREANI_PASSWORD)
+ *                                 Andreani, para clientes con contrato.
  *
  * Sin DATABASE_URL, fuera de Vercel, se usa una base local (PGlite) en
  * .data/db y los archivos van a .data/archivos: sirve para desarrollar y
@@ -44,5 +51,22 @@ export function readConfig(overrides = {}) {
     mpWebhookSecret: e.MP_WEBHOOK_SECRET || null,
     mpApi: e.MP_API_URL || "https://api.mercadopago.com",
     publicUrl: (e.PUBLIC_URL || "").replace(/\/$/, "") || null,
+    originPostalCode: e.SHIPPING_ORIGIN_CP || "5000",
+    micorreo: {
+      api: (e.MICORREO_API_URL || "https://api.correoargentino.com.ar/micorreo/v1").replace(/\/$/, ""),
+      user: e.MICORREO_USER || null,
+      password: e.MICORREO_PASSWORD || null,
+      customerId: e.MICORREO_CUSTOMER_ID || null,
+      accountEmail: e.MICORREO_ACCOUNT_EMAIL || null,
+      accountPassword: e.MICORREO_ACCOUNT_PASSWORD || null,
+    },
+    andreani: {
+      api: (e.ANDREANI_API_URL || "https://apis.andreani.com").replace(/\/$/, ""),
+      contract: e.ANDREANI_CONTRATO || null,
+      client: e.ANDREANI_CLIENTE || null,
+      user: e.ANDREANI_USER || null,
+      password: e.ANDREANI_PASSWORD || null,
+      originBranch: e.ANDREANI_SUCURSAL_ORIGEN || null,
+    },
   };
 }

@@ -3,7 +3,9 @@
  * (con sus archivos en el almacenamiento privado) y tarifas de envío.
  */
 import { icon, toast, confirmDialog } from "../core/ui.js";
-import { api, ApiError } from "../core/api.js";
+import { SERVER, api, ApiError } from "../core/api.js";
+
+const SHIPPING_LIVE = (SERVER?.services?.shipping || []).length > 0;
 import { getColor } from "../data/catalog.js";
 import { faceLabel } from "../data/garments.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
@@ -272,7 +274,11 @@ async function renderShipping(panel) {
     <div class="admin-head">
       <div>
         <h2 class="h3">Tarifas de envío</h2>
-        <p class="muted">Se aplica la primera fila cuyo rango incluya el código postal de la clienta, de arriba hacia abajo. Los importes marcados «de ejemplo» todavía no son tarifas reales.</p>
+        <p class="muted">${
+          SHIPPING_LIVE
+            ? "Los precios salen en vivo de Correo Argentino y Andreani. Esta tabla se usa para el envío gratis (precio 0) y como respaldo si las empresas no responden."
+            : "Mientras no estén conectadas las cuentas de Correo Argentino y Andreani, el envío sale de esta tabla."
+        } Gana la primera fila, de arriba hacia abajo, cuyo rango incluya el código postal. Los importes marcados «de ejemplo» no son tarifas reales.</p>
       </div>
     </div>
     <form class="admin-form" data-rates-form novalidate>

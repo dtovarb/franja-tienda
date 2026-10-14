@@ -12,6 +12,7 @@ import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { readFileSync, mkdtempSync, rmSync, mkdirSync } from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
+import http from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
@@ -33,6 +34,17 @@ const PORT = 3100;
 const BASE = `http://localhost:${PORT}`;
 const TMP = mkdtempSync(join(tmpdir(), "nevrado-e2e-srv-"));
 const env = { ...process.env, LOCAL_DB_DIR: join(TMP, "db"), LOCAL_FILES_DIR: join(TMP, "archivos"), PUERTO: String(PORT), SESSION_SECRET: "e2e" };
+// Correo Argentino (MiCorreo) falso, para ver las opciones de envío en el checkout.
+const fakeMiCorreo = http.createServer((req, res) => {
+  res.setHeader("content-type", "application/json");
+  if (req.url.endsWith("/token")) return res.end(JSON.stringify({ token: "t", expires: new Date(Date.now() + 3600e3).toISOString() }));
+  res.end(JSON.stringify({ rates: [
+    { deliveredType: "D", productType: "CP", productName: "Paq.ar Clásico", price: 6100 },
+    { deliveredType: "D", productType: "EP", productName: "Paq.ar Expreso", price: 8900 },
+  ] }));
+});
+await new Promise((r) => fakeMiCorreo.listen(3199, r));
+Object.assign(env, { MICORREO_API_URL: "http://127.0.0.1:3199/micorreo/v1", MICORREO_USER: "u", MICORREO_PASSWORD: "p", MICORREO_CUSTOMER_ID: "1" });
 for (const k of ["DATABASE_URL", "POSTGRES_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "MP_ACCESS_TOKEN"]) delete env[k];
 
 const results = [];
@@ -126,6 +138,14 @@ try {
     await page.fill("#co-name", "Flor Prueba");
     await page.fill("#co-email", "flor@example.com");
     await page.fill("#co-phone", "351 555 1234");
+    // Fuera del centro de Córdoba: opciones del correo, se elige una y cambia el total.
+    await page.fill("#co-postalCode", "1425");
+    await page.waitForSelector(".ship-option");
+    assert((await page.locator(".ship-option").count()) === 2, "opciones de envío");
+    assert(digits(await page.textContent("[data-total]")) === 37800 + 6100, "total con la más barata");
+    await page.check('.ship-option input[value="correo-argentino:EP"]');
+    assert(digits(await page.textContent("[data-total]")) === 37800 + 8900, "total con expreso");
+    await page.screenshot({ path: join(SHOTS, "servidor-checkout-envios.png") });
     await page.fill("#co-postalCode", "5000");
     await page.waitForFunction(() => /gratis/.test(document.querySelector("[data-quote]").textContent));
     await page.fill("#co-street", "San Martín");
@@ -191,6 +211,7 @@ try {
 } finally {
   await browser.close();
   server.kill();
+  fakeMiCorreo.close();
   rmSync(TMP, { recursive: true, force: true });
 }
 

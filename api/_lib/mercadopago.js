@@ -42,7 +42,7 @@ export function createMercadoPago(config, fetchImpl = fetch) {
             unit_price: it.unit_price,
             currency_id: "ARS",
           })),
-          ...(order.shipping_cost ? [{ id: "envio", title: "Envío", quantity: 1, unit_price: order.shipping_cost, currency_id: "ARS" }] : []),
+          ...(order.shipping_cost ? [{ id: "envio", title: `Envío${order.shipping?.quote?.carrier ? ` · ${order.shipping.quote.carrier}` : ""}`.slice(0, 250), quantity: 1, unit_price: order.shipping_cost, currency_id: "ARS" }] : []),
         ],
         payer: { name: order.customer.name, email: order.customer.email },
         back_urls: { success: back, pending: back, failure: back },

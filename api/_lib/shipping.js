@@ -1,10 +1,15 @@
 /**
- * Envío por código postal (Andreani o Correo Argentino, sin retiro).
- * La tarifa sale de la tabla shipping_rates: gana la primera regla, en
- * orden, cuyo rango incluya el código postal. CP 5000 (centro de Córdoba
- * Capital) es gratis.
+ * Envío por código postal (Andreani o Correo Argentino, a domicilio, sin retiro).
+ *
+ * 1. Si la tabla del panel (shipping_rates) da envío gratis para ese CP
+ *    (centro de Córdoba Capital, CP 5000), esa es la única opción.
+ * 2. Si no, se cotiza en vivo con las empresas configuradas (carriers.js)
+ *    según el peso y tamaño del pedido, y la clienta elige.
+ * 3. Si no hay ninguna configurada o ninguna responde, se usa la tabla del
+ *    panel (gana la primera fila, en orden, cuyo rango incluya el CP).
  */
 import { HttpError } from "./http.js";
+import { parcelFor } from "./carriers.js";
 
 /** Acepta "5000" o el CPA "X5000ABC" y devuelve el número de 4 dígitos. */
 export function normalizePostalCode(raw) {
@@ -16,13 +21,37 @@ export async function listRates(q) {
   return q.query("select id, name, cp_from, cp_to, price, example, sort from shipping_rates order by sort, id");
 }
 
-export async function quoteShipping(q, rawPostalCode) {
+/**
+ * @param lines [{ type, qty }] prendas del pedido (para peso y tamaño)
+ * @returns { postalCode, free, live, options: [{ id, carrier, service, price, days, example }] }
+ */
+export async function quoteShipping(q, rawPostalCode, { carriers = [], lines = [] } = {}) {
   const cp = normalizePostalCode(rawPostalCode);
   if (!cp || cp < 1000) throw new HttpError(422, "Escribí un código postal válido (4 números, por ejemplo 5000).");
   const rate = (await listRates(q)).find((r) => cp >= r.cp_from && cp <= r.cp_to);
+  const base = { postalCode: String(cp) };
+  if (rate && rate.price === 0) {
+    return { ...base, free: true, live: false, options: [{ id: `tabla:${rate.id}`, carrier: "Envío gratis", service: rate.name, price: 0, days: null, example: false }] };
+  }
+  const parcel = parcelFor(lines.length ? lines : [{ type: "tee", qty: 1 }]);
+  const results = await Promise.allSettled(carriers.map((c) => withTimeout(c.quote({ postalCode: cp, parcel }), 8000)));
+  const live = results.flatMap((r, i) => {
+    if (r.status === "fulfilled") return r.value;
+    console.error(`Cotización de ${carriers[i].name} falló:`, r.reason?.message);
+    return [];
+  });
+  if (live.length) return { ...base, free: false, live: true, options: live.sort((a, b) => a.price - b.price).map((o) => ({ ...o, example: false })) };
   if (!rate) throw new HttpError(422, "Todavía no tenemos tarifa para ese código postal. Escribinos y lo resolvemos.");
-  return { postalCode: String(cp), rateId: rate.id, zone: rate.name, price: rate.price, free: rate.price === 0, example: rate.example };
+  return {
+    ...base,
+    free: false,
+    live: false,
+    options: [{ id: `tabla:${rate.id}`, carrier: "Andreani o Correo Argentino", service: rate.name, price: rate.price, days: null, example: rate.example }],
+  };
 }
+
+const withTimeout = (p, ms) =>
+  Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("tiempo de espera agotado")), ms).unref?.())]);
 
 export async function replaceRates(q, list) {
   if (!Array.isArray(list) || !list.length || list.length > 50) throw new HttpError(422, "La lista de tarifas no es válida.");

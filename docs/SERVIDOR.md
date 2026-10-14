@@ -21,7 +21,7 @@ El código del servidor está en `api/_lib/`. Las tablas se crean solas la prime
 
 ## Cómo es un pedido
 
-1. La clienta completa sus datos y dirección. El envío se cotiza por código postal (`POST /api/shipping/quote`).
+1. La clienta completa sus datos y dirección. El envío se cotiza por código postal y por el peso del pedido (`POST /api/shipping/quote`, ver «Envíos» abajo) y ella elige la opción.
 2. El navegador prepara los archivos de cada prenda: los **originales** tal como se subieron, la **vista previa** y el **archivo de impresión** (PNG transparente a 300 DPI) de cada cara estampada.
 3. Pide URLs firmadas (`POST /api/uploads`) y sube cada archivo **directo al balde privado**, sin pasar por la función.
 4. Manda el pedido (`POST /api/orders`). El servidor no confía en nada de lo que llega:
@@ -29,7 +29,7 @@ El código del servidor está en `api/_lib/`. Las tablas se crean solas la prime
    - recalcula los precios con la misma regla del sitio (`priceWith` en `assets/js/core/pricing.js`) y los datos de la base;
    - controla color, talle y stock;
    - lee cada archivo del balde y comprueba hash SHA-256, tamaño y tipo real. Rechaza los SVG con código o recursos externos;
-   - cotiza el envío.
+   - vuelve a cotizar el envío y cobra la opción que eligió la clienta.
 5. Crea el pedido en `pendiente_pago` y, si Mercado Pago está activo, la preferencia de pago. La clienta paga en Mercado Pago y vuelve a `pedido.html`.
 6. Mercado Pago avisa a `POST /api/webhooks/mercadopago`. El servidor verifica la firma, **vuelve a pedir el pago a la API** y solo marca «Pagado» si el importe coincide.
 
@@ -46,7 +46,21 @@ Con servidor pide mail y contraseña. Tiene cuatro pestañas:
 - **Diseños**: alta, edición, publicar/ocultar y baja de los diseños de la tienda (el archivo va al balde público).
 - **Productos**: precio, visibilidad, destacados, colores, recargos y stock por talle.
 - **Pedidos**: datos de la clienta y envío, vista previa, descarga del original, la vista previa, el archivo de impresión y el diseño editable (enlaces firmados de 15 minutos), cambio de estado con nota (por ejemplo, el número de seguimiento) y enlace para mandarle a la clienta.
-- **Envíos**: tarifas por rango de código postal. **Solo el CP 5000 gratis es una regla real; las otras dos zonas tienen importes de ejemplo** y el panel las marca así hasta que se cambien.
+- **Envíos**: tabla por rango de código postal. Define el envío gratis (CP 5000) y es el respaldo si las empresas de correo no responden. Las dos zonas pagas tienen **importes de ejemplo** y el panel las marca así.
+
+## Envíos
+
+Solo a domicilio (la tienda no tiene retiro), en `api/_lib/shipping.js` y `api/_lib/carriers.js`:
+
+1. Si la tabla del panel da $0 para ese código postal (centro de Córdoba Capital), es la única opción.
+2. Si no, se cotiza **en vivo** con las empresas configuradas y la clienta elige entre las opciones a domicilio, de la más barata a la más cara:
+   - **Correo Argentino**, API MiCorreo: `POST /token` (usuario y contraseña de la API) y `POST /rates` con el CP de origen (`SHIPPING_ORIGIN_CP`, 5000 por defecto), el de destino y el paquete. Devuelve Paq.ar Clásico y Expreso.
+   - **Andreani**, API de tarifas `GET /v1/tarifas` con número de contrato y de cliente. Andreani da estos datos solo a clientes con contrato.
+3. Si ninguna está configurada o ninguna responde (8 segundos), se usa la tabla del panel.
+
+El paquete se arma con un peso y medidas aproximados por tipo de prenda (`PARCEL_BY_TYPE` en `carriers.js`: remera 250 g, buzo canguro 750 g, etc., más 60 g de embalaje). Conviene pesar las prendas reales y ajustar esos números.
+
+Las pruebas usan respuestas simuladas con el formato de cada API. Con las credenciales reales hay que hacer una cotización de prueba antes de abrir la tienda.
 
 ## Ponerlo en producción
 
@@ -60,7 +74,9 @@ Hace falta, una sola vez:
 4. **Mercado Pago.** En *Tus integraciones* crear una aplicación de Checkout Pro y cargar en Vercel:
    - `MP_ACCESS_TOKEN`: el Access Token (primero el de prueba, después el de producción).
    - En *Webhooks*, la URL `https://<dominio>/api/webhooks/mercadopago` con el evento *Pagos*, y su clave secreta en `MP_WEBHOOK_SECRET`.
-5. Volver a desplegar. `https://<dominio>/api/health` tiene que mostrar `"ready": true`.
+5. **Correo Argentino.** Pedir las credenciales de la API en el formulario de <https://www.correoargentino.com.ar/MiCorreo/public/primeros-pasos> y cargar `MICORREO_USER`, `MICORREO_PASSWORD` y `MICORREO_CUSTOMER_ID` (o, en lugar del último, el mail y la contraseña de la cuenta MiCorreo en `MICORREO_ACCOUNT_EMAIL` y `MICORREO_ACCOUNT_PASSWORD`).
+6. **Andreani** (si hay contrato): `ANDREANI_CONTRATO`, `ANDREANI_CLIENTE` y, si te dieron usuario de la API, `ANDREANI_USER` y `ANDREANI_PASSWORD`.
+7. Volver a desplegar. `https://<dominio>/api/health` tiene que mostrar `"ready": true`.
 
 Mientras falte el paso 1, el sitio publicado sigue en modo demostración. Mientras falte el 4, los pedidos se registran como «cobro a coordinar».
 
@@ -76,6 +92,9 @@ Ninguna clave se escribe en el código ni en el chat: van solo en las variables 
 | `OWNER_EMAILS` | Quién entra al panel. Vacío = nadie (con Supabase). |
 | `SESSION_SECRET` | Firma de la sesión del panel y de los enlaces de pedido. **Si se cambia, los enlaces viejos de las clientas dejan de andar.** |
 | `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` | Mercado Pago. |
+| `SHIPPING_ORIGIN_CP` | Código postal desde donde se despacha (5000 por defecto). |
+| `MICORREO_USER`, `MICORREO_PASSWORD`, `MICORREO_CUSTOMER_ID` | Cotización con Correo Argentino. |
+| `ANDREANI_CONTRATO`, `ANDREANI_CLIENTE`, `ANDREANI_USER`, `ANDREANI_PASSWORD` | Cotización con Andreani. |
 | `PUBLIC_URL` | Dirección pública, si no es la del pedido (para los enlaces de vuelta de Mercado Pago). |
 
 `.env.example` tiene la lista para el servidor local.
