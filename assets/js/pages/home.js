@@ -14,8 +14,8 @@ const ovr = getProduct("remera-oversize");
 const hoodie = getProduct("buzo-canguro");
 visual.insertAdjacentHTML(
   "afterbegin",
-  productMockup(ovr, "negro", "front", { className: "hero__garment" }) +
-    productMockup(hoodie, "blanco", "front", { className: "hero__garment hero__garment--2" })
+  (ovr ? productMockup(ovr, "negro", "front", { className: "hero__garment" }) : "") +
+    (hoodie ? productMockup(hoodie, "blanco", "front", { className: "hero__garment hero__garment--2" }) : "")
 );
 
 // Marquee

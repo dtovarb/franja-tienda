@@ -12,16 +12,53 @@ import { seedData } from "./seed.js";
 
 export class DbUnavailable extends Error {}
 
+/** Tope de cada consulta (o transacción) contra Postgres. */
+const QUERY_TIMEOUT_MS = 15_000;
+
+/** Corta una promesa que tarda más de `ms` y avisa con `onTimeout`. */
+export function withTimeout(promise, ms, onTimeout = () => {}) {
+  let timer;
+  const expired = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      console.error(`Postgres: consulta cortada después de ${ms} ms; se reabren las conexiones.`);
+      onTimeout();
+      reject(new DbUnavailable("La base de datos no respondió a tiempo."));
+    }, ms);
+  });
+  return Promise.race([promise, expired]).finally(() => clearTimeout(timer));
+}
+
 export async function openDb(config) {
   if (config.databaseUrl) {
     const { default: postgres } = await import("postgres");
     // prepare:false: compatible con el pooler de Supabase (modo transacción).
-    const sql = postgres(cleanUrl(config.databaseUrl), { prepare: false, max: Number(process.env.PG_MAX_CONNECTIONS || 3), idle_timeout: 20, onnotice: () => {} });
+    // En Vercel la función se congela entre pedidos: una conexión puede
+    // quedar muerta sin que el driver se entere y la consulta esperaría para
+    // siempre. Por eso cada consulta tiene un tope; si se pasa, se descartan
+    // las conexiones y la siguiente consulta abre otras.
+    const open = () =>
+      postgres(cleanUrl(config.databaseUrl), {
+        prepare: false,
+        max: Number(process.env.PG_MAX_CONNECTIONS || 3),
+        idle_timeout: 20,
+        max_lifetime: 60 * 5,
+        connect_timeout: 10,
+        onnotice: () => {},
+      });
+    let sql = open();
+    const limit = Number(process.env.PG_QUERY_TIMEOUT_MS || QUERY_TIMEOUT_MS);
+    const guarded = (run, ms = limit) => {
+      const used = sql;
+      return withTimeout(run(used), ms, () => {
+        if (sql === used) sql = open();
+        used.end({ timeout: 0 }).catch(() => {});
+      });
+    };
     const wrap = (s) => ({ query: (text, params = []) => s.unsafe(text, params) });
     return {
       kind: "postgres",
-      ...wrap(sql),
-      tx: (fn) => sql.begin((s) => fn(wrap(s))),
+      query: (text, params = []) => guarded((s) => s.unsafe(text, params)),
+      tx: (fn) => guarded((s) => s.begin((t) => fn(wrap(t))), limit * 2),
       close: () => sql.end({ timeout: 5 }),
     };
   }
@@ -61,7 +98,18 @@ export function cleanUrl(raw) {
 
 /** Aplica las migraciones pendientes y carga los datos iniciales una sola vez. */
 export async function migrate(db) {
+  // Camino rápido: si ya está todo aplicado no se toma el candado. Así una
+  // instancia trabada no bloquea a las demás en cada arranque.
+  const pending = async (q) => {
+    const done = new Set((await q.query("select id from schema_migrations")).map((r) => r.id));
+    return [...MIGRATIONS.map((m) => m.id), "datos_iniciales"].some((id) => !done.has(id));
+  };
+  if (!(await pending(db).catch(() => true))) return;
+
   await db.tx(async (q) => {
+    // Si algo se traba, Postgres corta en vez de dejar el candado tomado.
+    await q.query("set local lock_timeout = '10s'");
+    await q.query("set local idle_in_transaction_session_timeout = '30s'");
     await q.query("select pg_advisory_xact_lock(424242)");
     await q.query("create table if not exists schema_migrations (id text primary key, applied_at timestamptz not null default now())");
     const done = new Set((await q.query("select id from schema_migrations")).map((r) => r.id));

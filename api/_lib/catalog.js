@@ -51,9 +51,15 @@ const designRow = (r) => ({
   status: r.status,
   productIds: r.product_ids,
   source: r.source,
-  createdAt: new Date(r.created_at).toISOString(),
-  updatedAt: new Date(r.updated_at).toISOString(),
+  createdAt: isoDate(r.created_at),
+  updatedAt: isoDate(r.updated_at),
 });
+
+/** Fecha en ISO; una fecha rara no tiene que tirar abajo el catálogo entero. */
+function isoDate(v) {
+  const d = v instanceof Date ? v : new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
 
 export async function loadStoreDesigns(q, { publishedOnly = false } = {}) {
   const rows = await q.query(
