@@ -99,6 +99,10 @@ Ninguna clave se escribe en el código ni en el chat: van solo en las variables 
 
 `.env.example` tiene la lista para el servidor local.
 
+### Baldes de archivos
+
+El servidor crea solo los baldes `pedidos` (privado) y `disenos` (público) la primera vez que alguien sube un archivo, con un límite de 50 MB por archivo: es el máximo del plan gratuito de Supabase, y con un límite mayor Supabase no crea el balde. Si se crean a mano en *Storage*, tienen que llamarse igual, `pedidos` tiene que ser privado y el límite no puede pasar el del proyecto. Si un balde falta y no se puede crear, la clienta ve «No pudimos guardar los archivos…» y el detalle queda en el registro de Vercel.
+
 ## Seguridad
 
 - Balde de pedidos **privado**; los archivos se ven solo con enlaces firmados que vencen, emitidos por el panel.

@@ -20,8 +20,10 @@ import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { HttpError } from "./http.js";
 
+// Supabase no deja que el límite de un balde supere el límite global del
+// proyecto, que en el plan gratuito es 50 MB: con más, el balde no se crea.
 export const BUCKETS = {
-  pedidos: { public: false, limit: 60 * 1024 * 1024 },
+  pedidos: { public: false, limit: 50 * 1024 * 1024 },
   disenos: { public: true, limit: 25 * 1024 * 1024 },
 };
 
@@ -36,6 +38,16 @@ export function createStorage(config, fetchImpl = fetch) {
   return null;
 }
 
+/** Falla del almacenamiento: el detalle va al registro y la clienta ve un mensaje claro. */
+function unavailable(detail) {
+  console.error(`Almacenamiento: ${detail}`);
+  return new HttpError(503, "No pudimos guardar los archivos del pedido. Probá de nuevo en unos minutos; si sigue pasando, escribinos.");
+}
+const reason = async (r) => {
+  const t = await r.text().catch(() => "");
+  return `${r.status}${t ? ` ${t.slice(0, 300)}` : ""}`;
+};
+
 /* ------------------------------ Supabase ------------------------------ */
 function supabaseStorage({ supabaseUrl, supabaseServiceKey }, fetchImpl = fetch) {
   const base = `${supabaseUrl}/storage/v1`;
@@ -49,8 +61,14 @@ function supabaseStorage({ supabaseUrl, supabaseServiceKey }, fetchImpl = fetch)
           headers: { ...auth, "content-type": "application/json" },
           body: JSON.stringify({ id, name: id, public: b.public, file_size_limit: b.limit }),
         });
-        // 400/409 = ya existe.
-        if (!r.ok && ![400, 409].includes(r.status)) throw new Error(`No se pudo crear el balde ${id}: ${r.status}`);
+        if (r.ok) return;
+        const why = await reason(r);
+        // No se pudo crear: puede que ya exista (Supabase responde 400 o 409)
+        // o que lo hayan creado a mano. Se comprueba que esté y que sea como debe.
+        const g = await fetchImpl(`${base}/bucket/${id}`, { headers: auth });
+        if (!g.ok) throw unavailable(`no se pudo crear el balde ${id} (${why}) y no existe (${g.status}).`);
+        const existing = await g.json().catch(() => ({}));
+        if (!b.public && existing.public) throw unavailable(`el balde ${id} es público y tiene que ser privado: cambialo en Supabase → Storage.`);
       })
     ).catch((e) => {
       bucketsReady = null;
@@ -63,7 +81,7 @@ function supabaseStorage({ supabaseUrl, supabaseServiceKey }, fetchImpl = fetch)
       checkKey(bucket, key);
       await ensureBuckets();
       const r = await fetchImpl(`${base}/object/upload/sign/${bucket}/${key}`, { method: "POST", headers: { ...auth, "x-upsert": "true" } });
-      if (!r.ok) throw new Error(`Supabase no emitió la URL de subida (${r.status}).`);
+      if (!r.ok) throw unavailable(`Supabase no emitió la URL de subida de ${bucket}/${key} (${await reason(r)}).`);
       const { url } = await r.json();
       return { url: `${base}${url}`, method: "PUT", headers: { "content-type": mime, "x-upsert": "true" } };
     },
@@ -71,7 +89,7 @@ function supabaseStorage({ supabaseUrl, supabaseServiceKey }, fetchImpl = fetch)
       checkKey(bucket, key);
       const r = await fetchImpl(`${base}/object/${bucket}/${key}`, { headers: auth });
       if (r.status === 404 || r.status === 400) return null;
-      if (!r.ok) throw new Error(`No se pudo leer ${bucket}/${key} (${r.status}).`);
+      if (!r.ok) throw unavailable(`no se pudo leer ${bucket}/${key} (${await reason(r)}).`);
       return new Uint8Array(await r.arrayBuffer());
     },
     async write(bucket, key, bytes, mime) {
@@ -82,7 +100,7 @@ function supabaseStorage({ supabaseUrl, supabaseServiceKey }, fetchImpl = fetch)
         headers: { ...auth, "content-type": mime, "x-upsert": "true" },
         body: bytes,
       });
-      if (!r.ok) throw new Error(`No se pudo guardar ${bucket}/${key} (${r.status}).`);
+      if (!r.ok) throw unavailable(`no se pudo guardar ${bucket}/${key} (${await reason(r)}).`);
     },
     async signedUrl(bucket, key, { expiresIn = 600, downloadName } = {}) {
       checkKey(bucket, key);
@@ -91,7 +109,7 @@ function supabaseStorage({ supabaseUrl, supabaseServiceKey }, fetchImpl = fetch)
         headers: { ...auth, "content-type": "application/json" },
         body: JSON.stringify({ expiresIn }),
       });
-      if (!r.ok) throw new Error(`No se pudo firmar ${bucket}/${key} (${r.status}).`);
+      if (!r.ok) throw unavailable(`no se pudo firmar ${bucket}/${key} (${await reason(r)}).`);
       const { signedURL } = await r.json();
       return `${base}${signedURL}${downloadName ? `&download=${encodeURIComponent(downloadName)}` : ""}`;
     },
