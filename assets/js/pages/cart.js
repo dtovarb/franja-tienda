@@ -6,6 +6,7 @@ import { getDesign, deleteDesign, collectAssetIds } from "../core/designs.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
 import { storageAvailable } from "../core/storage.js";
 import { createDemoOrder } from "../core/orders.js";
+import { SERVER } from "../core/api.js";
 
 initPage("cart");
 
@@ -35,8 +36,12 @@ function render() {
         <div class="row"><span>Subtotal</span><span>${formatPrice(t.subtotal)}</span></div>
         <div class="row muted"><span>Envío</span><span>Según código postal · gratis en el centro de Córdoba Capital</span></div>
         <div class="row row--total"><span>Total</span><span class="price" style="font-size:1.5rem" data-total>${formatPrice(t.total)}</span></div>
-        <button class="btn btn--primary btn--lg btn--block" type="button" data-checkout>Continuar (demo) ${icon("arrowRight")}</button>
-        <div class="notice notice--info">${icon("info")}<span>El carrito vive en el almacenamiento local de este navegador: no se sincroniza entre dispositivos y se pierde si borrás los datos del sitio. No se procesan pagos.</span></div>
+        <button class="btn btn--primary btn--lg btn--block" type="button" data-checkout>${SERVER ? "Continuar con el pedido" : "Continuar (demo)"} ${icon("arrowRight")}</button>
+        <div class="notice notice--info">${icon("info")}<span>${
+          SERVER
+            ? "El carrito se guarda en este navegador hasta que confirmás el pedido. Ahí subimos tu diseño y sus archivos a la tienda."
+            : "El carrito vive en el almacenamiento local de este navegador: no se sincroniza entre dispositivos y se pierde si borrás los datos del sitio. No se procesan pagos."
+        }</span></div>
       </aside>
     </div>`;
   if (added) {
@@ -96,7 +101,19 @@ root.addEventListener("click", async (e) => {
       toast("Artículo eliminado.", "info");
     }
   }
-  if (e.target.closest("[data-checkout]")) showDemoCheckout();
+  if (e.target.closest("[data-checkout]")) {
+    if (SERVER) {
+      const { renderCheckout } = await import("./checkout.js");
+      document.querySelector("[data-cart-title]").textContent = "Datos del pedido";
+      renderCheckout(root, {
+        onBack: () => {
+          document.querySelector("[data-cart-title]").textContent = "Tu carrito";
+          render();
+        },
+      });
+      window.scrollTo({ top: 0 });
+    } else showDemoCheckout();
+  }
 });
 root.addEventListener("change", (e) => {
   const inp = e.target.closest("[data-qty-input]");

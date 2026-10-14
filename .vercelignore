@@ -1,3 +1,8 @@
-tests/
-docs/
-*.zip
+# No se publican en el sitio (no los necesita ni la tienda ni la API).
+.data
+tests
+tools
+docs
+README.md
+RESUMEN.md
+.env*

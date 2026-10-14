@@ -4,10 +4,11 @@
  * Administra diseños de la tienda, productos (precio, visibilidad, colores,
  * talles y stock) y los pedidos de prueba del checkout.
  *
- * No hay login ni servidor: todo se guarda en este navegador. Cada acción de
- * acá corresponde a un endpoint de administración del plan de backend
- * (docs/ARQUITECTURA.md), así que la interfaz se puede conservar y cambiar
- * solo la capa de datos.
+ * Dos modos, con la misma interfaz:
+ *   - Con servidor (core/api.js): pide login, y diseños, productos, pedidos
+ *     y tarifas de envío se leen y guardan en la base (api/admin/*).
+ *   - Sin servidor (demostración): sin login, todo en este navegador.
+ * La diferencia está en `data` (abajo) y en la pestaña de pedidos.
  */
 import { initPage, icon, toast, confirmDialog } from "../core/ui.js";
 import {
@@ -20,12 +21,86 @@ import {
 import { listOrders, setOrderStatus, clearOrders, ORDER_STATUSES } from "../core/orders.js";
 import { processUpload, UploadError } from "../editor/upload.js";
 import { formatPrice, escapeHtml, uid } from "../core/format.js";
+import { SERVER, api, putToTarget } from "../core/api.js";
+import { getAsset } from "../core/asset-store.js";
 
 initPage("admin");
 
+/* ======================= Datos ======================= */
+const designSource = async (file) => {
+  const a = await processUpload(file);
+  return { asset: a, source: { kind: "asset", assetId: a.id, name: a.name, type: a.type, width: a.width, height: a.height, isVector: a.isVector } };
+};
+
+/** Demostración: todo en este navegador. */
+const demoData = {
+  designs: async () => listStoreDesigns(),
+  async saveDesign(current, fields, file) {
+    const source = file ? (await designSource(file)).source : current.source;
+    return saveStoreDesign({ ...current, ...fields, source });
+  },
+  deleteDesign: async (id) => deleteStoreDesign(id),
+  products: async () => PRODUCTS,
+  async saveProduct(id, fields) {
+    Object.assign(getProduct(id), fields);
+    saveProducts(PRODUCTS);
+    return getProduct(id);
+  },
+  async createProduct({ type, name, basePrice }) {
+    const p = {
+      id: uid("prd"),
+      sku: `NEV-${type.slice(0, 3).toUpperCase()}-${String(PRODUCTS.length + 1).padStart(2, "0")}`,
+      type,
+      name,
+      tagline: "",
+      description: "",
+      basePrice,
+      colors: ["negro", "blanco"].filter((c) => GARMENT_COLORS[c]),
+      sizes: defaultSizesFor(type),
+      faces: Object.keys(GARMENTS[type].faces),
+      includedFaces: 1,
+      featured: false,
+      active: true,
+      demoArt: "sol",
+      badge: "Nuevo",
+    };
+    PRODUCTS.push(p);
+    saveProducts(PRODUCTS);
+    return p;
+  },
+};
+
+/** Con servidor: la base de la tienda. Los archivos de diseños van al balde público. */
+const serverData = {
+  designs: async () => (await api("admin/store-designs")).storeDesigns,
+  async saveDesign(current, fields, file) {
+    let fileMeta;
+    if (file) {
+      const { asset } = await designSource(file); // mismos controles que las subidas de clientas
+      fileMeta = { sha256: asset.id, mime: asset.type, bytes: asset.size, name: asset.name };
+      const { target } = await api("admin/uploads", { method: "POST", body: { file: fileMeta } });
+      await putToTarget(target, (await getAsset(asset.id)).blob);
+    }
+    const body = { ...fields, file: fileMeta };
+    const r = current.id
+      ? await api(`admin/store-designs/${encodeURIComponent(current.id)}`, { method: "PATCH", body })
+      : await api("admin/store-designs", { method: "POST", body });
+    return r.storeDesign;
+  },
+  deleteDesign: (id) => api(`admin/store-designs/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  products: async () => (await api("admin/products")).products,
+  saveProduct: async (id, fields) => (await api(`admin/products/${encodeURIComponent(id)}`, { method: "PATCH", body: fields })).product,
+  createProduct: async (fields) => (await api("admin/products", { method: "POST", body: fields })).product,
+};
+
+const data = SERVER ? serverData : demoData;
+const state = { designs: [], products: [] };
+const findDesign = (id) => state.designs.find((d) => d.id === id);
+const findProduct = (id) => state.products.find((p) => p.id === id);
+
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const TABS = ["disenos", "productos", "pedidos"];
+const TABS = SERVER ? ["disenos", "productos", "pedidos", "envios"] : ["disenos", "productos", "pedidos"];
 
 /* ======================= Pestañas ======================= */
 function selectTab(name, { focus = false } = {}) {
@@ -50,19 +125,20 @@ $(".admin-tabs").addEventListener("keydown", (e) => {
 });
 
 function updateCounts() {
-  $('[data-count="disenos"]').textContent = listStoreDesigns().length;
-  $('[data-count="productos"]').textContent = PRODUCTS.length;
-  $('[data-count="pedidos"]').textContent = listOrders().length;
+  $('[data-count="disenos"]').textContent = state.designs.length;
+  $('[data-count="productos"]').textContent = state.products.length;
+  if (!SERVER) $('[data-count="pedidos"]').textContent = listOrders().length;
 }
 
-const productNames = (ids) => (ids?.length ? ids.map((id) => getProduct(id)?.name || id).join(", ") : "Todas las prendas");
+const productNames = (ids) => (ids?.length ? ids.map((id) => findProduct(id)?.name || getProduct(id)?.name || id).join(", ") : "Todas las prendas");
+const errText = (err, fallback) => (err instanceof UploadError ? err.message : err?.message || fallback);
 
 /* ======================= Diseños ======================= */
 const designsPanel = $("[data-panel=disenos]");
 let editingDesign = null; // null = cerrado, {} = nuevo, {…} = editando
 
 async function renderDesigns() {
-  const list = listStoreDesigns();
+  const list = (state.designs = await data.designs());
   const urls = await Promise.all(list.map(storeDesignImageUrl));
   designsPanel.innerHTML = `
     <div class="admin-head">
@@ -137,7 +213,7 @@ function renderDesignForm() {
           <legend>Prendas donde se puede usar</legend>
           <label class="check"><input type="checkbox" name="allProducts" ${all ? "checked" : ""}> Todas las prendas</label>
           <div class="admin-checks" data-product-checks ${all ? "hidden" : ""}>
-            ${PRODUCTS.map((p) => `<label class="check"><input type="checkbox" name="productIds" value="${p.id}" ${sel.has(p.id) ? "checked" : ""}> ${escapeHtml(p.name)}</label>`).join("")}
+            ${state.products.map((p) => `<label class="check"><input type="checkbox" name="productIds" value="${p.id}" ${sel.has(p.id) ? "checked" : ""}> ${escapeHtml(p.name)}</label>`).join("")}
           </div>
         </fieldset>
       </div>
@@ -178,25 +254,16 @@ async function submitDesign(form) {
   const btn = form.querySelector("[type=submit]");
   btn.disabled = true;
   try {
-    let source = editingDesign.source;
-    if (file) {
-      const a = await processUpload(file);
-      source = { kind: "asset", assetId: a.id, name: a.name, type: a.type, width: a.width, height: a.height, isVector: a.isVector };
-    }
-    const saved = saveStoreDesign({
-      ...editingDesign,
-      name,
-      description: form.description.value.trim(),
-      price,
-      status: form.status.value,
-      productIds,
-      source,
-    });
+    const saved = await data.saveDesign(
+      editingDesign,
+      { name, description: form.description.value.trim(), price, status: form.status.value, productIds },
+      file
+    );
     editingDesign = null;
-    toast(`Diseño «${saved.name}» guardado en este navegador.`, "success");
+    toast(`Diseño «${saved.name}» guardado${SERVER ? "" : " en este navegador"}.`, "success");
     renderDesigns();
   } catch (err) {
-    errEl.textContent = err instanceof UploadError ? err.message : err.message || "No se pudo guardar el diseño.";
+    errEl.textContent = errText(err, "No se pudo guardar el diseño.");
     btn.disabled = false;
   }
 }
@@ -209,22 +276,26 @@ designsPanel.addEventListener("click", async (e) => {
   }
   const edit = e.target.closest("[data-edit-design]");
   if (edit) {
-    editingDesign = structuredClone(getStoreDesign(edit.dataset.editDesign));
+    editingDesign = structuredClone(findDesign(edit.dataset.editDesign));
     renderDesignForm();
     $("[data-design-form]").scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
   const tog = e.target.closest("[data-toggle-design]");
   if (tog) {
-    const d = getStoreDesign(tog.dataset.toggleDesign);
-    saveStoreDesign({ ...d, status: d.status === "published" ? "draft" : "published" });
-    toast(d.status === "published" ? `«${d.name}» ya no se ve en la tienda.` : `«${d.name}» publicado.`, "info");
+    const d = findDesign(tog.dataset.toggleDesign);
+    try {
+      await data.saveDesign(d, { name: d.name, description: d.description, price: d.price, productIds: d.productIds, status: d.status === "published" ? "draft" : "published" });
+      toast(d.status === "published" ? `«${d.name}» ya no se ve en la tienda.` : `«${d.name}» publicado.`, "info");
+    } catch (err) {
+      toast(errText(err, "No se pudo cambiar el diseño."), "error");
+    }
     renderDesigns();
     return;
   }
   const del = e.target.closest("[data-delete-design]");
   if (del) {
-    const d = getStoreDesign(del.dataset.deleteDesign);
+    const d = findDesign(del.dataset.deleteDesign);
     const ok = await confirmDialog({
       title: `¿Eliminar «${d.name}»?`,
       body: "Deja de aparecer en la tienda. Las prendas que ya están en carritos o pedidos conservan su imagen.",
@@ -232,9 +303,13 @@ designsPanel.addEventListener("click", async (e) => {
       danger: true,
     });
     if (!ok) return;
-    deleteStoreDesign(d.id);
+    try {
+      await data.deleteDesign(d.id);
+      toast("Diseño eliminado.", "info");
+    } catch (err) {
+      toast(errText(err, "No se pudo eliminar el diseño."), "error");
+    }
     if (editingDesign?.id === d.id) editingDesign = null;
-    toast("Diseño eliminado.", "info");
     renderDesigns();
   }
 });
@@ -309,7 +384,8 @@ function productRow(p) {
   </li>`;
 }
 
-function renderProducts() {
+async function renderProducts({ reload = true } = {}) {
+  if (reload) state.products = await data.products();
   productsPanel.innerHTML = `
     <div class="admin-head">
       <div>
@@ -337,12 +413,12 @@ function renderProducts() {
       </form>`
         : ""
     }
-    <ul class="admin-list" role="list">${PRODUCTS.map(productRow).join("")}</ul>`;
+    <ul class="admin-list" role="list">${state.products.map(productRow).join("")}</ul>`;
   updateCounts();
 }
 
-function saveProductForm(form) {
-  const p = getProduct(form.dataset.productForm);
+async function saveProductForm(form) {
+  const p = findProduct(form.dataset.productForm);
   const errEl = $("[data-product-errors]", form);
   const errors = [];
   const name = form.name.value.trim();
@@ -360,7 +436,7 @@ function saveProductForm(form) {
     errEl.innerHTML = errors.map(escapeHtml).join("<br>");
     return;
   }
-  Object.assign(p, {
+  const fields = {
     name,
     basePrice,
     colors,
@@ -370,14 +446,22 @@ function saveProductForm(form) {
     description: form.description.value.trim(),
     active: form.active.checked,
     featured: form.featured.checked,
-  });
-  saveProducts(PRODUCTS);
-  toast(`«${p.name}» guardado en este navegador.`, "success");
-  renderProducts();
+  };
+  const btn = form.querySelector("[type=submit]");
+  btn.disabled = true;
+  try {
+    const saved = await data.saveProduct(p.id, fields);
+    toast(`«${saved.name}» guardado${SERVER ? "" : " en este navegador"}.`, "success");
+  } catch (err) {
+    errEl.textContent = errText(err, "No se pudo guardar el producto.");
+    btn.disabled = false;
+    return;
+  }
+  await renderProducts();
   $(`[data-product-row="${p.id}"] details`).open = true;
 }
 
-function createProduct(form) {
+async function createProduct(form) {
   const errEl = $("[data-new-product-errors]", form);
   const type = form.type.value;
   const name = form.name.value.trim();
@@ -389,42 +473,30 @@ function createProduct(form) {
     errEl.innerHTML = errors.map(escapeHtml).join("<br>");
     return;
   }
-  const p = {
-    id: uid("prd"),
-    sku: `NEV-${type.slice(0, 3).toUpperCase()}-${String(PRODUCTS.length + 1).padStart(2, "0")}`,
-    type,
-    name,
-    tagline: "",
-    description: "",
-    basePrice,
-    colors: ["negro", "blanco"].filter((c) => GARMENT_COLORS[c]),
-    sizes: defaultSizesFor(type),
-    faces: Object.keys(GARMENTS[type].faces),
-    includedFaces: 1,
-    featured: false,
-    active: true,
-    demoArt: "sol",
-    badge: "Nuevo",
-  };
-  PRODUCTS.push(p);
-  saveProducts(PRODUCTS);
+  let p;
+  try {
+    p = await data.createProduct({ type, name, basePrice });
+  } catch (err) {
+    errEl.textContent = errText(err, "No se pudo crear el producto.");
+    return;
+  }
   creatingProduct = false;
   toast(`«${name}» creado. Completá colores, talles y descripción.`, "success");
-  renderProducts();
+  await renderProducts();
   const det = $(`[data-product-row="${p.id}"] details`);
   det.open = true;
   det.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-productsPanel.addEventListener("click", (e) => {
+productsPanel.addEventListener("click", async (e) => {
   if (e.target.closest("[data-new-product]")) {
     creatingProduct = true;
-    renderProducts();
+    await renderProducts({ reload: false });
     $("[data-new-product-form] [name=name]").focus();
   }
   if (e.target.closest("[data-cancel-product]")) {
     creatingProduct = false;
-    renderProducts();
+    renderProducts({ reload: false });
   }
 });
 productsPanel.addEventListener("submit", (e) => {
@@ -464,7 +536,7 @@ function renderOrders() {
           <ul class="admin-order__items" role="list">
             ${o.items
               .map((it) => {
-                const designs = (it.storeDesignIds || []).map((id) => getStoreDesign(id)?.name || id);
+                const designs = (it.storeDesignIds || []).map((id) => findDesign(id)?.name || getStoreDesign(id)?.name || id);
                 return `<li>${it.thumbnail ? `<img src="${it.thumbnail}" alt="">` : ""}
                   <span><b>${it.qty} × ${escapeHtml(it.productName || getProduct(it.productId)?.name || it.productId)}</b>
                   <span class="hint">${escapeHtml(getColor(it.variant?.colorId)?.name || "")} · talle ${escapeHtml(it.variant?.sizeId || "")}${designs.length ? ` · diseño ${escapeHtml(designs.join(", "))}` : " · diseño propio"} · ${formatPrice(it.unit)} c/u</span></span></li>`;
@@ -495,7 +567,7 @@ ordersPanel.addEventListener("click", async (e) => {
 });
 
 /* ======================= Restablecer ======================= */
-$("[data-reset]").addEventListener("click", async () => {
+$("[data-reset]")?.addEventListener("click", async () => {
   const ok = await confirmDialog({
     title: "¿Restablecer los datos de demostración?",
     body: "Vuelven los productos y diseños originales y se borran los pedidos de prueba. Tu carrito no se toca.",
@@ -512,12 +584,18 @@ $("[data-reset]").addEventListener("click", async () => {
   toast("Datos de demostración restablecidos.", "success");
 });
 
-function renderAll() {
-  renderDesigns();
-  renderProducts();
-  renderOrders();
+async function renderAll() {
+  await renderProducts(); // primero: los diseños nombran productos
+  await renderDesigns();
+  if (SERVER) (await import("./admin-server.js")).renderServerPanels({ ordersPanel, updateTabs: selectTab });
+  else renderOrders();
 }
 
-renderAll();
-selectTab(location.hash.slice(1));
-window.addEventListener("hashchange", () => selectTab(location.hash.slice(1)));
+function start() {
+  renderAll().catch((err) => toast(errText(err, "No se pudo cargar el panel."), "error", 8000));
+  selectTab(location.hash.slice(1));
+  window.addEventListener("hashchange", () => selectTab(location.hash.slice(1)));
+}
+
+if (SERVER) (await import("./admin-server.js")).gate(start);
+else start();

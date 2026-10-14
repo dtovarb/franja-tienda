@@ -2,6 +2,7 @@
  * Componentes de interfaz compartidos: íconos, header, footer, toasts y
  * diálogos de confirmación.
  */
+import { SERVER } from "./api.js";
 import { cartCount, onCartChange } from "./cart.js";
 import { escapeHtml } from "./format.js";
 
@@ -72,7 +73,11 @@ export function renderHeader(active) {
   if (!el) return;
   el.className = "site-header";
   el.innerHTML = `
-    <div class="demo-bar"><strong>Prototipo</strong> · productos y precios de demostración · no se procesan pagos</div>
+    <div class="demo-bar">${
+      SERVER
+        ? `<strong>Tienda en preparación</strong> · fotos de referencia${SERVER.services.payments ? "" : " · cobro online todavía sin activar"}`
+        : "<strong>Prototipo</strong> · productos y precios de demostración · no se procesan pagos"
+    }</div>
     <div class="container site-header__inner">
       <a class="logo" href="index.html" aria-label="nevrado, ir al inicio"><img src="assets/img/nevrado-logo.svg" alt="nevrado" width="128" height="30"><small>taller de prendas</small></a>
       <nav class="nav" id="main-nav" aria-label="Principal">
@@ -130,7 +135,8 @@ export function renderFooter() {
           <li><a href="catalogo.html?diseñar=1">Diseñar una prenda</a></li>
           <li><a href="disenos.html">Diseños listos</a></li>
           <li><a href="carrito.html">Carrito</a></li>
-          <li><a href="admin.html">Panel de la tienda (demo)</a></li>
+          <li><a href="admin.html">Panel de la tienda${SERVER ? "" : " (demo)"}</a></li>
+          ${SERVER ? '<li><a href="pedido.html">Mis pedidos</a></li>' : ""}
         </ul>
       </div>
       <div>

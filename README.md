@@ -1,12 +1,25 @@
 # nevrado: prototipo de tienda de ropa personalizada
 
-Prototipo funcional de una tienda streetwear con editor de prendas (Fabric.js), carrito en el navegador y exportación de archivos para producción. **Sin backend**: todo corre en el navegador y los datos quedan solo en ese navegador.
+Tienda streetwear con editor de prendas (Fabric.js), carrito y exportación de archivos para producción. Funciona en dos modos:
 
-> Productos, precios, stock, contacto e imágenes son de **demostración**. No se procesan pagos ni se crean pedidos reales.
+- **Con servidor** (`api/`, ver [docs/SERVIDOR.md](docs/SERVIDOR.md)): catálogo en Postgres, pedidos reales con sus archivos en almacenamiento privado, panel con login y cobro con Mercado Pago. Se despliega en Vercel con Supabase.
+- **Demostración**: si no hay servidor (por ejemplo, publicada como sitio estático), todo corre en el navegador y no se cobra nada.
+
+> Contacto e imágenes siguen siendo de **demostración**: las fotos son de terceros y hay que reemplazarlas antes de publicar.
 
 ## Cómo ejecutarlo
 
-Necesitás un servidor estático (los módulos ES no funcionan abriendo el HTML con `file://`). Cualquiera de estas opciones, desde esta carpeta:
+Con servidor (Node 20 o más):
+
+```bash
+npm install
+npm run usuaria -- tu@mail.com     # cuenta local para el panel
+npm run dev                        # http://localhost:3000
+```
+
+Sin `.env` usa una base y una carpeta de archivos locales (`.data/`), sin ninguna cuenta. Cómo conectarlo a Supabase y Mercado Pago: [docs/SERVIDOR.md](docs/SERVIDOR.md).
+
+Solo el modo demostración: necesitás un servidor estático (los módulos ES no funcionan abriendo el HTML con `file://`). Cualquiera de estas opciones, desde esta carpeta:
 
 ```bash
 python3 -m http.server 8080        # Python 3 (sin instalar nada)
@@ -30,6 +43,13 @@ Navegadores: Chrome/Edge, Firefox y Safari recientes (usa módulos ES, IndexedDB
 ## Pruebas automatizadas
 
 ```bash
+npm test                                      # API (base en memoria; Supabase y Mercado Pago simulados)
+node tests/e2e-servidor.mjs                   # navegador con servidor: login, checkout, archivos y producción
+```
+
+Modo demostración:
+
+```bash
 python3 -m http.server 8080 &                 # servidor
 python3 tests/make-fixtures.py                # genera imágenes de prueba (requiere Pillow)
 npm i -D playwright && npx playwright install chromium   # si no lo tenés
@@ -38,9 +58,9 @@ node tests/e2e.mjs http://localhost:8080
 
 Recorre el flujo completo en escritorio (1440×900), móvil táctil (390×844) y tablet (820×1180). Resultados en `tests/results.json` y capturas en `tests/screenshots/`.
 
-## Panel de la tienda (demo)
+## Panel de la tienda
 
-`admin.html` (enlace en el pie: «Panel de la tienda (demo)») administra diseños de la tienda, productos (precio, visibilidad, destacados, colores, recargos y stock por talle) y los pedidos de prueba del checkout. **No tiene login y guarda todo en el navegador**: es para probar el circuito, no para usar con la tienda publicada. «Restablecer datos de demostración» vuelve al estado inicial.
+`admin.html` (enlace en el pie) administra diseños de la tienda, productos (precio, visibilidad, destacados, colores, recargos y stock por talle) y pedidos. Con servidor pide login y suma pedidos reales con sus archivos y las tarifas de envío. En modo demostración **no tiene login y guarda todo en el navegador**; «Restablecer datos de demostración» vuelve al estado inicial.
 
 ## Fotos de prendas
 
@@ -56,7 +76,7 @@ El script lleva la foto al escenario de 1000 × 1200 sin mover las áreas de imp
 
 ## Preguntas frecuentes y opiniones
 
-`preguntas.html` responde cómo trabaja la tienda; lo que todavía no está decidido (plazos, envíos, pagos, cambios) está marcado «A definir». Las opiniones (`assets/js/data/reviews.js`) son **simuladas** y se muestran siempre como «Opiniones de ejemplo»; cuando haya reales se cargan con la misma estructura desde el backend. No se publican como datos estructurados para buscadores.
+`preguntas.html` responde cómo trabaja la tienda con sus políticas reales (DTG, plazos con envío incluido, cancelación antes de producción, envíos por código postal, Mercado Pago). Las opiniones (`assets/js/data/reviews.js`) son **simuladas** y se muestran siempre como «Opiniones de ejemplo»; la base ya tiene la tabla `reviews` (marcadas `demo`) y `GET /api/reviews` para cuando haya reales. No se publican como datos estructurados para buscadores.
 
 ## Estructura
 

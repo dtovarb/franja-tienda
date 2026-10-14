@@ -11,6 +11,7 @@
 import { readJSON, writeJSON, removeKey } from "./storage.js";
 import { uid } from "./format.js";
 import { assetDisplayUrl } from "./asset-store.js";
+import { CATALOG } from "./api.js";
 
 const KEY = "store-designs.v1";
 export const STORE_DESIGN_SCHEMA = "nevrado.store-design/v1";
@@ -40,6 +41,8 @@ export const SEED_STORE_DESIGNS = [
 ];
 
 function all() {
+  // Con servidor: los diseños publicados de la base (el panel pide también los borradores).
+  if (CATALOG) return structuredClone(CATALOG.storeDesigns);
   return readJSON(KEY, null) || structuredClone(SEED_STORE_DESIGNS);
 }
 
