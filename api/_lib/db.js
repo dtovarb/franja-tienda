@@ -13,7 +13,7 @@ import { seedData } from "./seed.js";
 export class DbUnavailable extends Error {}
 
 /** Tope de cada consulta (o transacción) contra Postgres. */
-const QUERY_TIMEOUT_MS = 8_000;
+const QUERY_TIMEOUT_MS = 15_000;
 
 /** Corta una promesa que tarda más de `ms` y avisa con `onTimeout`. */
 export function withTimeout(promise, ms, onTimeout = () => {}) {
@@ -35,15 +35,11 @@ export async function openDb(config) {
     // En Vercel la función se congela entre pedidos: una conexión puede
     // quedar muerta sin que el driver se entere y la consulta esperaría para
     // siempre. Por eso cada consulta tiene un tope; si se pasa, se descartan
-    // las conexiones y la siguiente consulta abre otras. Las lecturas se
-    // reintentan una vez con conexiones nuevas.
-    // Una sola conexión por instancia (lo recomendado con el pooler en
-    // funciones): al arrancar en frío, abrir varias a la vez dejaba alguna
-    // colgada y el catálogo tardaba 15 s.
+    // las conexiones y la siguiente consulta abre otras.
     const open = () =>
       postgres(cleanUrl(config.databaseUrl), {
         prepare: false,
-        max: Number(process.env.PG_MAX_CONNECTIONS || 1),
+        max: Number(process.env.PG_MAX_CONNECTIONS || 3),
         idle_timeout: 20,
         max_lifetime: 60 * 5,
         connect_timeout: 10,
@@ -61,14 +57,7 @@ export async function openDb(config) {
     const wrap = (s) => ({ query: (text, params = []) => s.unsafe(text, params) });
     return {
       kind: "postgres",
-      query: async (text, params = []) => {
-        try {
-          return await guarded((s) => s.unsafe(text, params));
-        } catch (err) {
-          if (!(err instanceof DbUnavailable) || !/^\s*select\b/i.test(text)) throw err;
-          return guarded((s) => s.unsafe(text, params));
-        }
-      },
+      query: (text, params = []) => guarded((s) => s.unsafe(text, params)),
       tx: (fn) => guarded((s) => s.begin((t) => fn(wrap(t))), limit * 2),
       close: () => sql.end({ timeout: 5 }),
     };
