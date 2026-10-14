@@ -26,7 +26,7 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       await migrate(db);
       return {
         db,
-        storage: createStorage(config),
+        storage: createStorage(config, fetchImpl),
         auth: createAuth(config, { db, fetchImpl }),
         mp: createMercadoPago(config, fetchImpl),
       };
@@ -148,7 +148,7 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       if (!c.mp.verifySignature(req, String(dataId))) throw new HttpError(401, "Firma inválida.");
       // Se consulta el pago a la API: el cuerpo de la notificación no alcanza.
       const payment = await c.mp.getPayment(dataId);
-      await c.db.query("insert into webhook_events (id, provider, payload) values ($1,'mercadopago',$2::jsonb) on conflict (id) do nothing", [
+      await c.db.query("insert into webhook_events (id, provider, payload) values ($1,'mercadopago',$2::text::jsonb) on conflict (id) do nothing", [
         `${dataId}:${payment.status}`, JSON.stringify({ id: payment.id, status: payment.status, ref: payment.external_reference }),
       ]);
       return json(await applyPayment(c.db, payment));

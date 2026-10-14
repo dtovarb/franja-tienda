@@ -2,8 +2,8 @@
  * Esquema de la base de datos (PostgreSQL).
  *
  * El servidor aplica las migraciones pendientes solo, al arrancar, y anota
- * cada una en `schema_migrations`. Las mismas sentencias están copiadas en
- * supabase/migrations/ para quien prefiera correrlas a mano.
+ * cada una en `schema_migrations` (con un candado, por si arrancan dos
+ * funciones a la vez). No hace falta correr SQL a mano en Supabase.
  *
  * Nunca se edita una migración ya publicada: los cambios van en una nueva.
  */

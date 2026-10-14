@@ -264,3 +264,18 @@
 .admin-product details[open] .admin-product__state .hint {
   visibility: hidden;
 }
+
+/* ---------------- Con servidor: login y detalle de pedidos ---------------- */
+.admin-login { max-width: 420px; margin-bottom: var(--sp-6); }
+.order-admin { gap: var(--sp-5); }
+.order-admin__items li { align-items: start; }
+.order-admin__previews { display: flex; gap: var(--sp-2); flex: none; }
+.order-admin__previews img { width: 88px; height: auto; border: 1px solid var(--c-line); background: var(--c-surface-2); }
+.order-admin__items .order-admin__files { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
+.order-admin__status { display: grid; gap: var(--sp-3); align-content: start; }
+.order-admin__events summary { cursor: pointer; font-weight: 600; }
+.order-admin__events ul { list-style: none; padding: 0; margin: var(--sp-2) 0 0; display: grid; gap: var(--sp-1); }
+.admin-table td .tag { margin-top: 4px; display: inline-block; }
+.admin-product--order summary { grid-template-columns: minmax(0, 1fr) auto; }
+.admin-product--order .admin-row__main { display: grid; gap: 2px; }
+.admin-product--order .admin-product__state { display: grid; justify-items: end; gap: 4px; text-align: right; }

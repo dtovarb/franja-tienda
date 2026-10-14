@@ -30,8 +30,8 @@ function checkKey(bucket, key) {
   if (!BUCKETS[bucket] || !SAFE_KEY.test(key) || key.includes("..")) throw new HttpError(400, "Ruta de archivo inválida.");
 }
 
-export function createStorage(config) {
-  if (config.supabaseUrl && config.supabaseServiceKey) return supabaseStorage(config);
+export function createStorage(config, fetchImpl = fetch) {
+  if (config.supabaseUrl && config.supabaseServiceKey) return supabaseStorage(config, fetchImpl);
   if (!config.onVercel) return localStorage(config);
   return null;
 }

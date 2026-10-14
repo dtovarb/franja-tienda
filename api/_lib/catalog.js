@@ -160,7 +160,7 @@ export async function saveStoreDesign(q, id, body, { source } = {}) {
     const [cur] = await q.query("select * from store_designs where id=$1 and deleted_at is null", [id]);
     if (!cur) throw new HttpError(404, "Ese diseño no existe.");
     await q.query(
-      `update store_designs set name=$2, description=$3, price=$4, status=$5, product_ids=$6::jsonb, source=$7::jsonb, updated_at=now() where id=$1`,
+      `update store_designs set name=$2, description=$3, price=$4, status=$5, product_ids=$6::text::jsonb, source=$7::text::jsonb, updated_at=now() where id=$1`,
       [id, name, description, price, status, JSON.stringify(productIds), JSON.stringify(source || cur.source)]
     );
   } else {
@@ -168,7 +168,7 @@ export async function saveStoreDesign(q, id, body, { source } = {}) {
     id = `sd-${crypto.randomUUID().slice(0, 8)}`;
     const [{ n }] = await q.query("select coalesce(max(sort),0)+1 as n from store_designs");
     await q.query(
-      `insert into store_designs (id, name, description, price, status, product_ids, source, sort) values ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8)`,
+      `insert into store_designs (id, name, description, price, status, product_ids, source, sort) values ($1,$2,$3,$4,$5,$6::text::jsonb,$7::text::jsonb,$8)`,
       [id, name, description, price, status, JSON.stringify(productIds), JSON.stringify(source), n]
     );
   }

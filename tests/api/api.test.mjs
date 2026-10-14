@@ -75,7 +75,8 @@ before(async () => {
   printPng = Buffer.concat([png, Buffer.from("impresion")]);
   app = createApp(
     {
-      LOCAL_DB_DIR: "memory",
+      // TEST_DATABASE_URL=postgres://… prueba lo mismo contra un Postgres real (driver de producción).
+      ...(process.env.TEST_DATABASE_URL ? { DATABASE_URL: process.env.TEST_DATABASE_URL } : { LOCAL_DB_DIR: "memory" }),
       LOCAL_FILES_DIR: tmp,
       SESSION_SECRET: "secreto-de-prueba",
       MP_ACCESS_TOKEN: "TEST-token",
@@ -86,9 +87,13 @@ before(async () => {
     { fetchImpl: fakeFetch }
   );
   const { db } = await app.init();
+  await db.query("delete from staff_users");
   await db.query("insert into staff_users (email, password_hash) values ($1,$2)", ["duena@nevrado.test", await hashPassword("clave-larga-123")]);
 });
-after(() => rm(tmp, { recursive: true, force: true }));
+after(async () => {
+  await (await app.init()).db.close();
+  await rm(tmp, { recursive: true, force: true });
+});
 
 async function login() {
   const r = await call("POST", "/api/auth/login", { body: { email: "duena@nevrado.test", password: "clave-larga-123" } });
@@ -101,7 +106,7 @@ async function login() {
 
 test("salud y catálogo desde la base", async () => {
   const h = await jsonOf(await call("GET", "/api/health"));
-  assert.deepEqual(h.body.services, { db: "pglite", storage: "local", auth: "local", payments: "mercadopago" });
+  assert.deepEqual(h.body.services, { db: process.env.TEST_DATABASE_URL ? "postgres" : "pglite", storage: "local", auth: "local", payments: "mercadopago" });
   const { body } = await jsonOf(await call("GET", "/api/catalog"));
   assert.equal(body.products.length, 6);
   assert.equal(body.storeDesigns.length, 5);
@@ -339,4 +344,13 @@ test("sin cuentas en Vercel la API responde 'sin configurar' y la tienda sigue e
   const h = await (await off.handle(new Request(BASE + "/api/health"))).json();
   assert.equal(h.ready, false);
   assert.equal((await off.handle(new Request(BASE + "/api/catalog"))).status, 503);
+});
+
+test("la URL de Postgres de la integración de Vercel se limpia antes de conectar", async () => {
+  const { cleanUrl } = await import("../../api/_lib/db.js");
+  assert.equal(
+    cleanUrl("postgres://postgres.abc:pw@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"),
+    "postgres://postgres.abc:pw@aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require"
+  );
+  assert.match(cleanUrl("postgres://u:p@db.ejemplo.co:5432/postgres"), /sslmode=require$/);
 });

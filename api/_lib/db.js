@@ -5,7 +5,7 @@
  *
  * Producción: `postgres` (Supabase). Desarrollo y pruebas: PGlite, un
  * Postgres real compilado a WebAssembly que guarda en disco (o en memoria).
- * Las columnas jsonb se escriben con JSON.stringify(...) y `$n::jsonb`.
+ * Las columnas jsonb se escriben con JSON.stringify(...) y `$n::text::jsonb` (así ningún driver lo vuelve a codificar).
  */
 import { MIGRATIONS } from "./migrations.js";
 import { seedData } from "./seed.js";
@@ -16,7 +16,7 @@ export async function openDb(config) {
   if (config.databaseUrl) {
     const { default: postgres } = await import("postgres");
     // prepare:false: compatible con el pooler de Supabase (modo transacción).
-    const sql = postgres(config.databaseUrl, { prepare: false, max: 3, idle_timeout: 20, onnotice: () => {} });
+    const sql = postgres(cleanUrl(config.databaseUrl), { prepare: false, max: Number(process.env.PG_MAX_CONNECTIONS || 3), idle_timeout: 20, onnotice: () => {} });
     const wrap = (s) => ({ query: (text, params = []) => s.unsafe(text, params) });
     return {
       kind: "postgres",
@@ -27,6 +27,10 @@ export async function openDb(config) {
   }
   if (config.localDbDir !== null && config.localDbDir !== undefined) {
     const { PGlite } = await import("@electric-sql/pglite");
+    if (config.localDbDir !== "memory") {
+      const { mkdir } = await import("node:fs/promises");
+      await mkdir(config.localDbDir, { recursive: true });
+    }
     const pg = config.localDbDir === "memory" ? new PGlite() : new PGlite(config.localDbDir);
     await pg.waitReady;
     const wrap = (s) => ({ query: async (text, params = []) => (await s.query(text, params)).rows });
@@ -39,6 +43,20 @@ export async function openDb(config) {
     };
   }
   throw new DbUnavailable("No hay base de datos configurada (DATABASE_URL).");
+}
+
+/**
+ * La URL que crea la integración de Supabase en Vercel trae parámetros
+ * propios (p. ej. `supa=base-pooler.x`) que `postgres` mandaría al servidor
+ * como parámetros de conexión, y Postgres los rechaza. Se deja solo sslmode.
+ */
+export function cleanUrl(raw) {
+  const u = new URL(raw);
+  const ssl = u.searchParams.get("sslmode");
+  u.search = "";
+  const local = ["localhost", "127.0.0.1", "::1"].includes(u.hostname);
+  if (ssl || !local) u.searchParams.set("sslmode", ssl || "require");
+  return u.toString();
 }
 
 /** Aplica las migraciones pendientes y carga los datos iniciales una sola vez. */

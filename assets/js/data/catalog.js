@@ -14,6 +14,7 @@
 
 import { readJSON, writeJSON, removeKey } from "../core/storage.js";
 import { GARMENTS } from "./garments.js";
+import { CATALOG } from "../core/api.js";
 
 export const CURRENCY = { code: "ARS", locale: "es-AR" };
 
@@ -159,7 +160,9 @@ const KEY = "catalog.v1";
 /** Catálogo vigente: el editado en el panel (si existe) o la semilla. */
 // Se descartan productos de tipos de prenda que ya no existen (p. ej. un
 // catálogo guardado antes de sacar el buzo con capucha).
-export const PRODUCTS = (readJSON(KEY, null) || structuredClone(SEED_PRODUCTS)).filter((p) => GARMENTS[p.type]);
+// Con servidor, el catálogo (y los colores) salen de la base; si no, del navegador.
+if (CATALOG) Object.assign(GARMENT_COLORS, CATALOG.colors);
+export const PRODUCTS = (CATALOG?.products || readJSON(KEY, null) || structuredClone(SEED_PRODUCTS)).filter((p) => GARMENTS[p.type]);
 
 /** Productos visibles en la tienda (los ocultos siguen valiendo para el carrito). */
 export function activeProducts() {

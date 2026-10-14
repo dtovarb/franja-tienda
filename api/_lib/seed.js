@@ -31,7 +31,7 @@ export async function seedData(q) {
   for (const d of SEED_STORE_DESIGNS) {
     await q.query(
       `insert into store_designs (id, name, description, price, status, product_ids, source, sort)
-       values ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8) on conflict (id) do nothing`,
+       values ($1,$2,$3,$4,$5,$6::text::jsonb,$7::text::jsonb,$8) on conflict (id) do nothing`,
       [d.id, d.name, d.description, d.price, d.status, JSON.stringify(d.productIds || []), JSON.stringify(d.source), i++]
     );
   }
@@ -53,7 +53,7 @@ export async function seedData(q) {
 export async function insertProduct(q, p, sort = 0) {
   await q.query(
     `insert into products (id, sku, type, name, tagline, description, base_price, faces, included_faces, featured, active, badge, demo_art, sort)
-     values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13,$14) on conflict (id) do nothing`,
+     values ($1,$2,$3,$4,$5,$6,$7,$8::text::jsonb,$9,$10,$11,$12,$13,$14) on conflict (id) do nothing`,
     [
       p.id, p.sku, p.type, p.name, p.tagline || "", p.description || "", p.basePrice, JSON.stringify(p.faces),
       p.includedFaces ?? 1, !!p.featured, p.active !== false, p.badge || null, p.demoArt || null, sort,

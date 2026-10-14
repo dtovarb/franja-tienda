@@ -45,7 +45,7 @@ Esquema del JSON editable (resumido):
 }
 ```
 
-## Persistencia del prototipo (qué es local)
+## Persistencia en modo demostración (qué es local)
 
 | Dato | Dónde | Limitación |
 |---|---|---|
@@ -56,51 +56,13 @@ Esquema del JSON editable (resumido):
 | Diseños de la tienda (`nevrado.store-designs.v1`) | localStorage + IndexedDB para los archivos subidos | Esquema `nevrado.store-design/v1`; los de la semilla viven en `assets/designs/` |
 | Pedidos de prueba (`nevrado.orders.v1`) | localStorage | Los crea el checkout demo; no hay cobro |
 
-Ninguna pantalla presenta esto como guardado en un servidor: la interfaz dice «guardado en este navegador».
+Ninguna pantalla presenta esto como guardado en un servidor: la interfaz dice «guardado en este navegador». Con servidor, el carrito y los borradores siguen en el navegador hasta confirmar el pedido; catálogo, diseños de la tienda y pedidos pasan a la base.
 
-## Plan de backend
+## Backend
 
-### Modelo de datos (PostgreSQL sugerido)
+Implementado en `api/` (función de Vercel + Supabase + Mercado Pago). Modelo de datos, endpoints, estados de pedido, puesta en producción y seguridad: **[SERVIDOR.md](SERVIDOR.md)**.
 
-```
-users(id, email, password_hash | oauth, role[customer|staff|admin], created_at)
-garment_types(id, name, faces jsonb, cm_per_unit)                 -- tee, oversize, hoodie, tote…
-products(id, sku, garment_type_id, name, description, base_price, active)
-colors(id, name, hex)            product_colors(product_id, color_id)
-sizes(id, label, sort)           product_sizes(product_id, size_id, surcharge)
-variants(id, product_id, color_id, size_id, sku, stock)          -- stock real por variante
-print_areas(garment_type_id, face, x, y, w, h, max_w_cm, max_h_cm)
-techniques(id, name, min_dpi, ideal_dpi, surcharge_per_face, active)
-assets(id uuid, sha256, owner_user_id, storage_key, mime, bytes, width_px, height_px, is_vector, created_at)
-designs(id, owner_user_id, product_id, variant_id, doc jsonb, version, status[draft|final], created_at)
-design_assets(design_id, asset_id)
-carts(id, user_id | session_id)  cart_items(id, cart_id, variant_id, qty, design_id)
-store_designs(id, name, description, price, status[draft|published], asset_id, created_by, created_at)
-store_design_products(store_design_id, product_id)   -- vacío = todas las prendas
-orders(id, user_id, status, subtotal, shipping, total, currency, payment_status, created_at)
-order_items(id, order_id, variant_id, qty, unit_price, design_id, design_version, store_design_ids jsonb,
-            preview_asset_id, print_asset_ids jsonb, production_status)
-production_events(id, order_item_id, status, note, staff_user_id, created_at)
-```
-
-Cada `order_item` congela la versión del diseño, sus originales, vista previa y exportaciones: el taller imprime exactamente lo que el cliente aprobó.
-
-### API (REST)
-
-```
-GET    /api/products                     catálogo (reemplaza data/catalog.js)
-POST   /api/assets/upload-url            URL firmada de subida (PUT directo al bucket)
-POST   /api/assets/:id/complete          valida tipo real, hash, tamaño; sanea/rechaza SVG en servidor
-GET    /api/designs/:id   PUT /api/designs/:id   POST /api/designs
-GET    /api/cart   POST /api/cart/items   PATCH/DELETE /api/cart/items/:id
-POST   /api/checkout                     recalcula precios y stock, crea orden pendiente, crea pago
-POST   /api/payments/webhook             confirma pago (Mercado Pago / Stripe)
-GET    /api/orders  GET /api/orders/:id
-GET    /api/store-designs                diseños publicados (filtrables por producto)
-Admin: CRUD productos/variantes/técnicas, CRUD store-designs (con subida de archivo),
-       cola de producción, cambio de estado,
-       GET /api/admin/order-items/:id/files → URLs firmadas temporales a originales e impresión
-```
+Diferencias con el plan original: los diseños se congelan dentro de cada `order_item` (jsonb) en lugar de una tabla `designs` aparte, el carrito sigue en el navegador hasta confirmar el pedido, y el stock es por talle (como en el panel).
 
 ### Seguridad
 

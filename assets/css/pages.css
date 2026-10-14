@@ -1049,3 +1049,49 @@
   overflow-x: auto;
   max-width: 100%;
 }
+
+/* ---------------- Checkout y estado del pedido (con servidor) ---------------- */
+.checkout,
+.order-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--sp-6);
+  align-items: start;
+}
+.checkout__main,
+.order-view__main { display: grid; gap: var(--sp-5); min-width: 0; }
+.checkout__group {
+  display: grid;
+  gap: var(--sp-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md, 12px);
+  background: var(--c-surface);
+  padding: var(--sp-5);
+  margin: 0;
+  min-width: 0;
+}
+.checkout__group legend { padding: 0 var(--sp-2); }
+.checkout__row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--sp-4); }
+.checkout__quote { min-height: 1.4em; margin: calc(var(--sp-2) * -1) 0 0; font-weight: 600; }
+.checkout__progress { margin: 0; font-size: var(--fs-sm, 0.875rem); }
+.order-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.order-steps li { display: flex; align-items: center; gap: var(--sp-3); color: var(--c-ink-3); }
+.order-steps li span {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--c-line-strong); flex: none; background: var(--c-surface);
+}
+.order-steps li[data-st="done"] { color: var(--c-ink-2); }
+.order-steps li[data-st="done"] span { background: var(--c-ink-2); border-color: var(--c-ink-2); }
+.order-steps li[data-st="now"] { color: var(--c-ink); font-weight: 700; }
+.order-steps li[data-st="now"] span { background: var(--c-magenta); border-color: var(--c-magenta); }
+.order-lines { list-style: none; margin: 0; padding: 0; display: grid; }
+.order-lines li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--sp-4);
+  padding: var(--sp-3) 0; border-bottom: 1px solid var(--c-line);
+}
+.order-lines li .hint { grid-column: 1; }
+.order-lines li .price { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+@media (max-width: 900px) {
+  .checkout, .order-view { grid-template-columns: 1fr; }
+  .checkout__row { grid-template-columns: 1fr; }
+}

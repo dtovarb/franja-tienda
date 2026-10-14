@@ -186,14 +186,14 @@ export async function createOrder({ db, storage, secret }, body) {
     }
     await q.query(
       `insert into orders (id, customer, shipping, subtotal, shipping_cost, total, idempotency_key)
-       values ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7)`,
+       values ($1, $2::text::jsonb, $3::text::jsonb, $4, $5, $6, $7)`,
       [id, JSON.stringify(customer), JSON.stringify({ ...address, quote: shipping }), subtotal, shipping.price, total, idem]
     );
     for (const [pos, l] of lines.entries()) {
       await q.query(
         `insert into order_items (id, order_id, position, product_id, product_name, product_type, color_id, size_id, qty,
            printed_faces, store_design_ids, unit_price, price_lines, design, files)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13::jsonb,$14::jsonb,$15::jsonb)`,
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::text::jsonb,$11::text::jsonb,$12,$13::text::jsonb,$14::text::jsonb,$15::text::jsonb)`,
         [
           crypto.randomUUID(), id, pos, l.product.id, l.product.name, l.product.type, l.colorId, l.size.id, l.qty,
           JSON.stringify(l.analysis.printedFaces), JSON.stringify(l.analysis.storeDesignIds), l.price.unit,

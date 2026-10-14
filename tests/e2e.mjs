@@ -53,8 +53,11 @@ const sha = (buf) => createHash("sha256").update(buf).digest("hex");
 const fixture = (n) => join(FIX, n);
 
 function watch(page, label) {
-  page.on("console", (m) => m.type() === "error" && consoleErrors.push(`${label}: ${m.text()}`));
+  // Los recursos que fallan se controlan por respuesta (abajo), así se puede
+  // aceptar el 404 esperado de api/health: sin servidor, la tienda queda en demo.
+  page.on("console", (m) => m.type() === "error" && !/^Failed to load resource/.test(m.text()) && consoleErrors.push(`${label}: ${m.text()}`));
   page.on("pageerror", (e) => consoleErrors.push(`${label}: ${e.message}`));
+  page.on("response", (r) => r.status() >= 400 && !/\/api\/health$/.test(new URL(r.url()).pathname) && consoleErrors.push(`${label}: ${r.status()} ${r.url()}`));
 }
 
 async function overflowX(page) {

@@ -3,7 +3,6 @@
 tests
 tools
 docs
-supabase
 README.md
 RESUMEN.md
 .env*
