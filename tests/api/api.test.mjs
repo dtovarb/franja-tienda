@@ -106,7 +106,7 @@ async function login() {
 
 test("salud y catálogo desde la base", async () => {
   const h = await jsonOf(await call("GET", "/api/health"));
-  assert.deepEqual(h.body.services, { db: process.env.TEST_DATABASE_URL ? "postgres" : "pglite", storage: "local", auth: "local", payments: "mercadopago", shipping: [] });
+  assert.deepEqual(h.body.services, { db: process.env.TEST_DATABASE_URL ? "postgres" : "pglite", storage: "local", auth: "local", payments: "mercadopago", shipping: [], mail: null });
   const { body } = await jsonOf(await call("GET", "/api/catalog"));
   assert.equal(body.products.length, 6);
   assert.equal(body.storeDesigns.length, 5);
