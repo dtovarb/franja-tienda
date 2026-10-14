@@ -11,7 +11,8 @@ export const FILE_RULES = {
   original: { mimes: ["image/png", "image/jpeg", "image/svg+xml"], max: 25 * 1024 * 1024 },
   // Generados en el navegador a partir del diseño.
   preview: { mimes: ["image/png", "image/jpeg"], max: 15 * 1024 * 1024 },
-  print: { mimes: ["image/png"], max: 60 * 1024 * 1024 },
+  // 50 MB: el máximo por archivo de Supabase en el plan gratuito (ver BUCKETS en storage.js).
+  print: { mimes: ["image/png"], max: 50 * 1024 * 1024 },
   design: { mimes: ["application/json"], max: 2 * 1024 * 1024 },
 };
 

@@ -20,6 +20,7 @@ const buckets = new Map();
 const objects = new Map();
 const users = { "duena@nevrado.test": "clave-duena-123", "otra@ejemplo.com": "clave-otra-123" };
 const seen = [];
+let bucketsDown = false;
 
 async function fakeSupabase(url, opts = {}) {
   const u = new URL(String(url));
@@ -36,11 +37,17 @@ async function fakeSupabase(url, opts = {}) {
   if (p === "/bucket" && method === "POST") {
     assert.ok(isService);
     const b = JSON.parse(opts.body);
-    if (buckets.has(b.id)) return Response.json({ error: "exists" }, { status: 409 });
+    // Como Supabase: ya existe → 400 Duplicate; límite mayor al global (50 MB en el plan gratuito) → 400.
+    if (buckets.has(b.id)) return Response.json({ statusCode: "409", error: "Duplicate", message: "The resource already exists" }, { status: 400 });
+    if (b.file_size_limit > 50 * 1024 * 1024 || bucketsDown) return Response.json({ statusCode: "413", error: "Payload too large", message: "The object exceeded the maximum allowed size" }, { status: 400 });
     buckets.set(b.id, b);
     return Response.json({ name: b.id });
   }
   let m;
+  if ((m = p.match(/^\/bucket\/(\w+)$/)) && method === "GET") {
+    assert.ok(isService);
+    return buckets.has(m[1]) ? Response.json(buckets.get(m[1])) : Response.json({ statusCode: "404", error: "Bucket not found" }, { status: 400 });
+  }
   if ((m = p.match(/^\/object\/upload\/sign\/(\w+)\/(.+)$/))) {
     if (method === "POST") {
       assert.ok(isService);
@@ -162,4 +169,43 @@ test("diseño de la tienda en el balde público", async () => {
   assert.equal(r.status, 201);
   assert.ok(storeDesign.source.url.startsWith(`${SB}/storage/v1/object/public/disenos/tienda/`));
   assert.equal((await fakeSupabase(storeDesign.source.url)).status, 200);
+});
+
+test("balde creado a mano: se usa; balde que no se puede crear: error claro, no 500", async () => {
+  const fresh = () =>
+    createApp(
+      { LOCAL_DB_DIR: "memory", SUPABASE_URL: SB, SUPABASE_ANON_KEY: ANON, SUPABASE_SERVICE_ROLE_KEY: SERVICE, OWNER_EMAILS: "duena@nevrado.test", MP_ACCESS_TOKEN: "" },
+      { fetchImpl: fakeSupabase }
+    );
+  const files = [{ role: "original", sha256: "a".repeat(64), mime: "image/png", bytes: 10 }];
+  const upload = (a) => a.handle(new Request(BASE + "/api/uploads", { method: "POST", headers: { "content-type": "application/json", origin: BASE }, body: JSON.stringify({ files }) }));
+
+  // Los baldes ya existen (de la prueba anterior o creados en el panel de Supabase).
+  bucketsDown = true;
+  assert.equal((await upload(fresh())).status, 200);
+
+  // Si no existen y no se pueden crear, la clienta ve un mensaje claro.
+  const saved = new Map(buckets);
+  buckets.clear();
+  const r = await upload(fresh());
+  const body = await r.json();
+  assert.equal(r.status, 503);
+  assert.match(body.error, /No pudimos guardar los archivos/);
+
+  // Un balde de pedidos público no se acepta.
+  buckets.set("pedidos", { id: "pedidos", public: true });
+  buckets.set("disenos", { id: "disenos", public: true });
+  assert.equal((await upload(fresh())).status, 503);
+
+  bucketsDown = false;
+  buckets.clear();
+  for (const [k, v] of saved) buckets.set(k, v);
+});
+
+test("los límites de archivos entran en el plan gratuito de Supabase (50 MB)", async () => {
+  const { BUCKETS } = await import("../../api/_lib/storage.js");
+  const { FILE_RULES } = await import("../../api/_lib/files.js");
+  const freeLimit = 50 * 1024 * 1024;
+  for (const b of Object.values(BUCKETS)) assert.ok(b.limit <= freeLimit);
+  for (const rule of Object.values(FILE_RULES)) assert.ok(rule.max <= BUCKETS.pedidos.limit);
 });
