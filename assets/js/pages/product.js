@@ -3,7 +3,7 @@ import { getProduct, getColor, stockLabel, validateVariant, defaultVariant } fro
 import { garmentSvg, garmentPhoto, getPrintSpec, faceLabel } from "../data/garments.js";
 import { listReviews, reviewSummary } from "../data/reviews.js";
 import { sizeChartTable, measureHelp } from "../data/size-charts.js";
-import { reviewsBlock } from "./components.js";
+import { reviewsBlock, demoTag, IS_DEMO } from "./components.js";
 import { computePrice, PRICING_RULES } from "../core/pricing.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
 import { getStoreDesign, isAvailableFor, storeDesignImageUrl, designArt } from "../core/store-designs.js";
@@ -48,8 +48,8 @@ if (!product) {
         <div style="display:grid;gap:var(--sp-3)">
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             ${product.badge ? `<span class="tag tag--red">${escapeHtml(product.badge)}</span>` : ""}
-            <span class="tag tag--demo">Producto de demostración</span>
-            <span class="tag" style="color:var(--c-ink-3)">${product.sku}</span>
+            ${demoTag("Producto de demostración")}
+            ${IS_DEMO ? `<span class="tag" style="color:var(--c-ink-3)">${product.sku}</span>` : ""}
           </div>
           <h1 class="display pdp__title">${escapeHtml(product.name)}</h1>
           <p class="lead">${escapeHtml(product.description)}</p>
@@ -136,7 +136,7 @@ if (!product) {
         </dl>
       </form>
     </div>
-    <section class="section reviews" id="opiniones" aria-labelledby="rv-title">
+    ${IS_DEMO ? `<section class="section reviews" id="opiniones" aria-labelledby="rv-title">
       <div class="section-head">
         <div>
           <span class="section-head__num">Opiniones</span>
@@ -147,7 +147,7 @@ if (!product) {
         const list = listReviews({ productId: product.id });
         return reviewsBlock(list, reviewSummary(list));
       })()}
-    </section>`;
+    </section>` : ""}`;
 
   const stage = root.querySelector("[data-stage]");
   const form = root.querySelector("[data-form]");
@@ -178,7 +178,7 @@ if (!product) {
     root.querySelectorAll("[data-face]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.face === state.face)));
     root.querySelector("[data-color-name]").textContent = getColor(state.colorId).name;
     const s = product.sizes.find((x) => x.id === state.sizeId);
-    root.querySelector("[data-stock]").textContent = s ? `${stockLabel(s.stock)} en talle ${s.label} (stock de ejemplo)` : "";
+    root.querySelector("[data-stock]").textContent = s ? `${stockLabel(s.stock)} en talle ${s.label} ${IS_DEMO ? " (stock de ejemplo)" : ""}` : "";
     qtyInput.value = state.qty;
     root.querySelectorAll("[data-qty]").forEach((b) => {
       b.disabled = (b.dataset.qty === "-1" && state.qty <= 1) || (b.dataset.qty === "1" && state.qty >= 50);

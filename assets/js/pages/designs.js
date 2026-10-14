@@ -3,6 +3,7 @@ import { activeProducts, getColor } from "../data/catalog.js";
 import { garmentSvg, luminance } from "../data/garments.js";
 import { listStoreDesigns, storeDesignImageUrl, designArt } from "../core/store-designs.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
+import { demoTag } from "./components.js";
 
 initPage("designs");
 
@@ -29,7 +30,7 @@ async function render() {
       <article class="dcard" data-design-card="${d.id}" style="--i:${i}">
         <div class="dcard__media">
           ${show ? garmentSvg(show.type, "front", col.hex, { art: designArt(urls[i]), colorId: col.id, className: "dcard__svg", title: `${d.name} en ${show.name} ${col.name}` }) : ""}
-          <span class="tag tag--demo">Demo</span>
+          ${demoTag()}
         </div>
         <div class="dcard__body">
           <div class="pcard__row">

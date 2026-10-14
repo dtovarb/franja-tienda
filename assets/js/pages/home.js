@@ -1,6 +1,6 @@
 import { initPage, icon } from "../core/ui.js";
 import { activeProducts, getProduct } from "../data/catalog.js";
-import { productCard, productMockup, reviewsBlock } from "./components.js";
+import { productCard, productMockup, reviewsBlock, demoTag, IS_DEMO } from "./components.js";
 import { listReviews, reviewSummary } from "../data/reviews.js";
 
 initPage("home");
@@ -35,7 +35,7 @@ const tote = getProduct("tote-bag");
 document.querySelector("[data-editorial]").innerHTML = `
   <figure class="ed-card ed-card--a">
     ${productMockup(crew, "rojo", "front")}
-    <figcaption><span class="tag tag--ink">Buzo cuello redondo · rojo</span><span class="tag tag--demo" style="background:#fff">Demo</span></figcaption>
+    <figcaption><span class="tag tag--ink">Buzo cuello redondo · rojo</span>${demoTag("Demo", ' style="background:#fff"')}</figcaption>
   </figure>
   <figure class="ed-card ed-card--b">
     ${productMockup(tote, "crudo", "front")}
@@ -51,5 +51,10 @@ document.querySelector("[data-editorial]").innerHTML = `
   </div>`;
 
 // Opiniones (de ejemplo): resumen de todas y las más recientes
-const allReviews = listReviews();
-document.querySelector("[data-reviews]").innerHTML = reviewsBlock(allReviews.slice(0, 3), reviewSummary(allReviews), { products: activeProducts() });
+// En la tienda real la sección no se muestra hasta que haya opiniones reales.
+if (IS_DEMO) {
+  const allReviews = listReviews();
+  document.querySelector("[data-reviews]").innerHTML = reviewsBlock(allReviews.slice(0, 3), reviewSummary(allReviews), { products: activeProducts() });
+} else {
+  document.getElementById("opiniones")?.remove();
+}

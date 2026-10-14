@@ -51,6 +51,12 @@ Cada mail sale una sola vez por pedido: queda registrado en la tabla `order_emai
 
 El remitente (`MAIL_FROM`, por defecto `nevrado <pedidos@nevrado.com>`) tiene que ser de un dominio verificado en Resend.
 
+## Botón de arrepentimiento
+
+`arrepentimiento.html` (Res. SCI 424/2020) manda `POST /api/arrepentimiento` sin login. El pedido se guarda en `regret_requests` con un código `ARR-XXXXXXXX`, que la clienta ve en pantalla y recibe por mail; a `OWNER_EMAILS` les llega un aviso. Si el número de pedido coincide con el mail de la compra, también queda en el historial del pedido. Un campo oculto frena a los bots. Sin servidor (prototipo) el formulario arma un mail a la dirección de contacto.
+
+Los datos de contacto de la tienda (mail, WhatsApp) están en un solo lugar: `assets/js/data/contact.js`. Los usan el pie, las páginas legales y los mails.
+
 ## Panel (`admin.html`)
 
 Con servidor pide mail y contraseña. Tiene cuatro pestañas:

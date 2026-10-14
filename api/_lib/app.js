@@ -16,6 +16,7 @@ import { quoteShipping, listRates, replaceRates } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
 import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkToken, orderToken, ORDER_STATUSES } from "./orders.js";
 import { defaultSizesFor } from "../../assets/js/data/catalog.js";
+import { createRegret } from "./regret.js";
 
 export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
   const config = readConfig(overrides);
@@ -84,7 +85,7 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const { db } = await ctx();
       const productId = url.searchParams.get("product");
       const rows = await db.query(
-        `select * from reviews where published ${productId ? "and product_id = $1" : ""} order by date desc`,
+        `select * from reviews where published and not demo ${productId ? "and product_id = $1" : ""} order by date desc`,
         productId ? [productId] : []
       );
       return json({
@@ -125,6 +126,13 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const payment = await startPayment(c, req, order, token);
       await mails(c, req, order.id);
       return json({ order: publicOrder(order), token, payment, replay }, replay ? 200 : 201);
+    }],
+
+    ["POST", "/api/arrepentimiento", async (req) => {
+      const c = await ctx();
+      checkOrigin(req);
+      const body = await readJson(req, 16 * 1024);
+      return json(await createRegret({ db: c.db, mailer: c.mailer, config }, body), 201);
     }],
 
     ["GET", /^\/api\/orders\/([0-9a-f-]{36})$/, async (req, url, [id]) => {

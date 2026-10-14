@@ -218,4 +218,24 @@ create table if not exists order_emails (
 alter table order_emails enable row level security;
 `,
   },
+  {
+    // Botón de arrepentimiento (Res. SCI 424/2020). Ver api/_lib/regret.js.
+    id: "0004_arrepentimiento",
+    sql: `
+create table if not exists regret_requests (
+  code text primary key,
+  name text not null,
+  email text not null,
+  phone text,
+  order_number int,
+  order_id uuid references orders(id) on delete set null,
+  details text,
+  status text not null default 'recibido' check (status in ('recibido','resuelto')),
+  mail_customer text,
+  mail_owner text,
+  created_at timestamptz not null default now()
+);
+alter table regret_requests enable row level security;
+`,
+  },
 ];

@@ -1102,3 +1102,96 @@
 }
 .ship-option:has(input:checked) { border-color: var(--c-magenta); box-shadow: inset 4px 0 0 var(--c-magenta); }
 .checkout__quote p { margin: 0; }
+
+/* ---------- Páginas legales y botón de arrepentimiento ---------- */
+.legal {
+  max-width: 72ch;
+  display: grid;
+  gap: var(--sp-6);
+  padding-bottom: var(--sp-6);
+}
+.legal section {
+  display: grid;
+  gap: var(--sp-3);
+  scroll-margin-top: 100px;
+}
+.legal p,
+.legal li {
+  line-height: 1.6;
+}
+.legal ul,
+.regret__info ol {
+  display: grid;
+  gap: var(--sp-2);
+  padding-left: 1.2em;
+}
+.legal ul { list-style: disc; }
+.regret__info ol { list-style: decimal; }
+.legal a,
+.regret a {
+  color: var(--c-ciruela);
+}
+.legal__toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--c-surface-2);
+  font-size: var(--fs-sm);
+}
+.legal__notice {
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+  padding: var(--sp-4);
+  border-left: 3px solid var(--c-rosa);
+  background: var(--c-surface);
+}
+.regret {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--sp-7);
+  align-items: start;
+  padding-bottom: var(--sp-6);
+}
+.regret__form {
+  display: grid;
+  gap: var(--sp-4);
+  max-width: 560px;
+}
+.regret__form .btn {
+  justify-self: start;
+}
+.regret__info {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  background: var(--c-surface-2);
+}
+.regret__trap {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.regret__done {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--sp-3);
+  max-width: 60ch;
+  padding: var(--sp-6);
+  background: var(--c-surface);
+  border: 1.5px solid var(--c-line);
+}
+.regret__done .tag {
+  justify-self: start;
+}
+@media (max-width: 760px) {
+  .regret {
+    grid-template-columns: 1fr;
+    gap: var(--sp-5);
+  }
+  .regret__form .btn {
+    justify-self: stretch;
+  }
+}

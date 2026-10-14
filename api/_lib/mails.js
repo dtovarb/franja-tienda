@@ -17,6 +17,7 @@
  */
 import { loadColors } from "./catalog.js";
 import { orderToken } from "./orders.js";
+import { CONTACT } from "../../assets/js/data/contact.js";
 
 const FACES = { front: "frente", back: "espalda" };
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -184,7 +185,7 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
     "",
     `${content.cta}: ${ctaLink}`,
     "",
-    ...(kind === "aviso_duena" ? [] : ["Este mail es tu comprobante de compra; no es una factura.", ""]),
+    ...(kind === "aviso_duena" ? [] : ["Este mail es tu comprobante de compra; no es una factura.", `¿Dudas? WhatsApp ${CONTACT.whatsappLabel} · ${CONTACT.email}`, ""]),
     "nevrado · Córdoba, Argentina",
   ].join("\n");
 
@@ -228,7 +229,7 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
     <p style="margin:0 0 28px"><a href="${esc(ctaLink)}" style="display:inline-block;background:#7d3a5e;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px">${esc(content.cta)}</a></p>
   </td></tr>
   <tr><td colspan="5" style="padding:16px 28px;border-top:1px solid #e4e0dc;font-size:12px;color:#5b5256;line-height:1.5">
-    ${kind === "aviso_duena" ? "" : "Este mail es tu comprobante de compra; no es una factura.<br>"}nevrado · Córdoba, Argentina
+    ${kind === "aviso_duena" ? "" : `Este mail es tu comprobante de compra; no es una factura.<br>¿Dudas? WhatsApp ${esc(CONTACT.whatsappLabel)} · ${esc(CONTACT.email)}<br>`}nevrado · Córdoba, Argentina
   </td></tr>
 </table>
 </td></tr></table>

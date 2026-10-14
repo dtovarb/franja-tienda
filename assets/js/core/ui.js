@@ -5,6 +5,7 @@
 import { SERVER } from "./api.js";
 import { cartCount, onCartChange } from "./cart.js";
 import { escapeHtml } from "./format.js";
+import { CONTACT, whatsappUrl, CONSUMER_COMPLAINTS_URL } from "../data/contact.js";
 
 /* ---------------- Íconos (SVG sprite, trazo 2px) ---------------- */
 const ICONS = {
@@ -41,6 +42,7 @@ const ICONS = {
   eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>',
   package: '<path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/><path d="m3 7 9 4 9-4M12 11v10"/>',
+  chat: '<path d="M4 20l1.5-4A8 8 0 1 1 9 19.2L4 20z"/>',
 };
 
 export function icon(name, cls = "icon") {
@@ -73,11 +75,14 @@ export function renderHeader(active) {
   if (!el) return;
   el.className = "site-header";
   el.innerHTML = `
-    <div class="demo-bar">${
-      SERVER
-        ? `<strong>Tienda en preparación</strong> · fotos de referencia${SERVER.services.payments ? "" : " · cobro online todavía sin activar"}`
-        : "<strong>Prototipo</strong> · productos y precios de demostración · no se procesan pagos"
-    }</div>
+    ${
+      // Con el servidor y el cobro activos la tienda es la real: sin banda.
+      !SERVER
+        ? '<div class="demo-bar"><strong>Prototipo</strong> · productos y precios de demostración · no se procesan pagos</div>'
+        : !SERVER.services.payments
+          ? '<div class="demo-bar"><strong>Tienda en preparación</strong> · cobro online todavía sin activar</div>'
+          : ""
+    }
     <div class="container site-header__inner">
       <a class="logo" href="index.html" aria-label="nevrado, ir al inicio"><img src="assets/img/nevrado-logo.svg" alt="nevrado" width="128" height="30"><small>taller de prendas</small></a>
       <nav class="nav" id="main-nav" aria-label="Principal">
@@ -117,7 +122,7 @@ export function updateCartCount(animate) {
   });
 }
 
-export function renderFooter() {
+export function renderFooter({ whatsapp = true } = {}) {
   const el = document.getElementById("site-footer");
   if (!el) return;
   el.className = "site-footer";
@@ -126,7 +131,7 @@ export function renderFooter() {
     <div class="container footer-grid">
       <div>
         <p class="footer-brand"><img src="assets/img/nevrado-logo-fondo-oscuro.svg" alt="nevrado" width="320" height="75"></p>
-        <p class="muted" style="color:#b7b7b7;margin-top:12px;max-width:34ch">Prendas que imprimimos y terminamos en nuestro taller. Vos traés la idea.</p>
+        <p class="muted" style="color:#b7b7b7;margin-top:12px;max-width:34ch">Prendas que imprimimos y terminamos en nuestro taller de ${CONTACT.city.split(",")[0]}. Vos traés la idea.</p>
       </div>
       <div>
         <h2>Tienda</h2>
@@ -135,33 +140,41 @@ export function renderFooter() {
           <li><a href="catalogo.html?diseñar=1">Diseñar una prenda</a></li>
           <li><a href="disenos.html">Diseños listos</a></li>
           <li><a href="carrito.html">Carrito</a></li>
-          <li><a href="admin.html">Panel de la tienda${SERVER ? "" : " (demo)"}</a></li>
-          ${SERVER ? '<li><a href="pedido.html">Mis pedidos</a></li>' : ""}
+          ${SERVER ? '<li><a href="pedido.html">Mis pedidos</a></li>' : '<li><a href="admin.html">Panel de la tienda (demo)</a></li>'}
         </ul>
       </div>
       <div>
         <h2>Info</h2>
         <ul role="list">
           <li><a href="index.html#como-funciona">Cómo funciona</a></li>
-          <li><a href="index.html#archivos">Archivos e impresión</a></li>
           <li><a href="index.html#taller">El taller</a></li>
           <li><a href="preguntas.html">Preguntas frecuentes</a></li>
-          <li><a href="index.html#opiniones">Opiniones</a></li>
+          <li><a href="terminos.html">Términos y condiciones</a></li>
+          <li><a href="privacidad.html">Privacidad</a></li>
         </ul>
       </div>
       <div>
-        <h2>Contacto (ejemplo)</h2>
+        <h2>Contacto</h2>
         <ul role="list">
-          <li><a href="mailto:hola@nevrado.example">hola@nevrado.example</a></li>
-          <li>+54 11 0000-0000</li>
-          <li>Lun a vie · 10 a 18 h</li>
+          <li><a href="${whatsappUrl()}" target="_blank" rel="noopener">WhatsApp ${CONTACT.whatsappLabel}</a></li>
+          <li><a href="mailto:${CONTACT.email}">${CONTACT.email}</a></li>
+          <li>${CONTACT.city}</li>
         </ul>
       </div>
     </div>
+    <div class="container footer-consumer">
+      <a class="footer-regret" href="arrepentimiento.html">Botón de arrepentimiento</a>
+      <a class="footer-complaints" href="${CONSUMER_COMPLAINTS_URL}" target="_blank" rel="noopener">Defensa de las y los Consumidores. Para reclamos <u>ingrese aquí</u></a>
+    </div>
     <div class="container footer-legal">
-      <span>© ${new Date().getFullYear()} nevrado · prototipo de demostración.</span>
-      <span>Datos de contacto, productos y precios ficticios.</span>
-    </div>`;
+      <span>© ${new Date().getFullYear()} nevrado · ${CONTACT.city}${SERVER ? "" : " · prototipo de demostración"}</span>
+      <span>Envíos a todo el país · Pagos con Mercado Pago</span>
+    </div>
+    ${
+      whatsapp
+        ? `<a class="wa-float" href="${whatsappUrl("Hola nevrado, tengo una consulta")}" target="_blank" rel="noopener" aria-label="Escribinos por WhatsApp">${icon("chat")}<span>WhatsApp</span></a>`
+        : ""
+    }`;
 }
 
 /* ---------------- Toasts ---------------- */
@@ -211,7 +224,7 @@ export function confirmDialog({ title, body = "", confirmLabel = "Confirmar", ca
 export function initPage(active) {
   injectSprite();
   renderHeader(active);
-  renderFooter();
+  renderFooter({ whatsapp: active !== "admin" });
 }
 
 export { injectSprite };

@@ -182,3 +182,66 @@ test("sin RESEND_API_KEY no se manda nada y el pedido se crea igual", async () =
   await order(app);
   assert.equal(sent.length, 0);
 });
+
+test("botón de arrepentimiento: guarda el pedido, da el código y avisa a las dos partes", async () => {
+  sent = [];
+  payments = {};
+  const app = makeApp(path.join(tmp, "arrep"));
+  const { order: o } = await order(app);
+  sent = [];
+
+  // Sin nombre o con mail inválido no se guarda.
+  assert.equal((await call(app, "POST", "/api/arrepentimiento", { body: { name: "", email: "flor@example.com" } })).status, 422);
+  assert.equal((await call(app, "POST", "/api/arrepentimiento", { body: { name: "Flor", email: "flor" } })).status, 422);
+  // Desde otro sitio, no.
+  const foreign = await call(app, "POST", "/api/arrepentimiento", { body: { name: "Flor", email: "flor@example.com" }, headers: { origin: "https://otro.test" } });
+  assert.equal(foreign.status, 403);
+
+  const r = await call(app, "POST", "/api/arrepentimiento", {
+    body: { name: "Flor <b>Prueba</b>", email: "Flor@Example.com", order: String(o.number), details: "Me equivoqué de talle" },
+  });
+  const body = await r.json();
+  assert.equal(r.status, 201, JSON.stringify(body));
+  assert.match(body.code, /^ARR-[A-Z2-9]{8}$/);
+  assert.equal(body.mailed, true);
+
+  const { db } = await app.init();
+  const [row] = await db.query("select * from regret_requests where code = $1", [body.code]);
+  assert.equal(row.order_id, o.id, "se asocia al pedido porque el mail coincide");
+  assert.equal(row.email, "flor@example.com");
+  assert.equal(row.mail_customer, "enviado");
+  assert.equal(row.mail_owner, "enviado");
+  const events = await db.query("select * from order_events where order_id = $1 and kind = 'arrepentimiento'", [o.id]);
+  assert.equal(events.length, 1);
+
+  assert.equal(sent.length, 2);
+  const [toCustomer, toOwner] = sent;
+  assert.deepEqual(toCustomer.to, ["flor@example.com"]);
+  assert.ok(toCustomer.subject.includes(body.code));
+  assert.ok(toCustomer.text.includes(body.code));
+  assert.ok(!toCustomer.html.includes("<b>Prueba</b>"));
+  assert.deepEqual(toOwner.to, ["duena@nevrado.test"]);
+  assert.match(toOwner.text, /Me equivoqué de talle/);
+
+  // Con un número de pedido que no es de ese mail, se guarda igual pero sin asociar.
+  const other = await (await call(app, "POST", "/api/arrepentimiento", { body: { name: "Otra", email: "otra@example.com", order: String(o.number) } })).json();
+  const [row2] = await db.query("select order_id from regret_requests where code = $1", [other.code]);
+  assert.equal(row2.order_id, null);
+
+  // Campo trampa completo (bot): responde igual pero no guarda ni manda nada.
+  sent = [];
+  const bot = await (await call(app, "POST", "/api/arrepentimiento", { body: { name: "Bot", email: "bot@example.com", website: "http://spam" } })).json();
+  assert.equal((await db.query("select 1 from regret_requests where code = $1", [bot.code])).length, 0);
+  assert.equal(sent.length, 0);
+});
+
+test("botón de arrepentimiento: si el mail falla, el pedido queda guardado", async () => {
+  sent = [];
+  const app = makeApp(path.join(tmp, "arrep-falla"));
+  failNext = true;
+  const body = await (await call(app, "POST", "/api/arrepentimiento", { body: { name: "Flor", email: "flor@example.com" } })).json();
+  assert.equal(body.mailed, false);
+  const { db } = await app.init();
+  const [row] = await db.query("select * from regret_requests where code = $1", [body.code]);
+  assert.match(row.mail_customer, /^error/);
+});
