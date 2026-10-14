@@ -3,6 +3,14 @@ import { garmentSvg, luminance } from "../data/garments.js";
 import { demoArt } from "../data/art.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
 import { icon } from "../core/ui.js";
+import { SERVER } from "../core/api.js";
+
+/**
+ * Sin servidor el sitio es el prototipo y todo va rotulado como ejemplo.
+ * Con servidor es la tienda real: sin rótulos de demo ni opiniones simuladas.
+ */
+export const IS_DEMO = !SERVER;
+export const demoTag = (label = "Demo", extra = "") => (IS_DEMO ? `<span class="tag tag--demo"${extra}>${label}</span>` : "");
 
 export function productMockup(product, colorId, face = "front", { withArt = false, className = "" } = {}) {
   const color = getColor(colorId || product.colors[0]);
@@ -11,7 +19,7 @@ export function productMockup(product, colorId, face = "front", { withArt = fals
     art,
     className,
     colorId: color.id,
-    title: `${product.name} color ${color.name}, mockup de demostración`,
+    title: `${product.name} color ${color.name}`,
   });
 }
 
@@ -36,9 +44,9 @@ export function productCard(product, { index = 0 } = {}) {
       ${productMockup(product, product.colors[0], "front", { className: "pcard__svg" })}
       <div class="pcard__tags">
         ${product.badge ? `<span class="tag tag--red">${escapeHtml(product.badge)}</span>` : ""}
-        <span class="tag tag--demo">Demo</span>
+        ${demoTag()}
       </div>
-      <span class="pcard__sku mono">${product.sku}</span>
+      ${IS_DEMO ? `<span class="pcard__sku mono">${product.sku}</span>` : ""}
     </a>
     <div class="pcard__body">
       <div class="pcard__row">
@@ -57,7 +65,7 @@ export function productCard(product, { index = 0 } = {}) {
         </div>
         <span class="mono">Talles ${sizeRange(product)}</span>
       </div>
-      <p class="pcard__stock pcard__stock--${av.cls}"><span class="dot" aria-hidden="true"></span>${av.label} <span class="muted">(ejemplo)</span></p>
+      <p class="pcard__stock pcard__stock--${av.cls}"><span class="dot" aria-hidden="true"></span>${av.label}${IS_DEMO ? ' <span class="muted">(ejemplo)</span>' : ""}</p>
       <a class="btn btn--primary btn--block" href="${href}" data-card-link>Personalizar ${icon("arrowRight")}</a>
     </div>
   </article>`;
