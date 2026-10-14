@@ -20,7 +20,11 @@ REF = {"tee": (500, 860, 120), "oversize": (500, 890, 130), "hoodie": (500, 784,
 TEES = {"blanco": ("678c8f25-descarga_11.jpg", (37, 704, 15)),
         "negro": ("d1adedbf-descarga_12.jpg", (40, 692, 18)),
         "arena": ("11af7b29-983825481302129358.jpg", (33, 700, 15)),
-        "grafito": ("x1-reichstadt.jpg", (64, 666, 238))}
+        "grafito": ("x1-reichstadt.jpg", (64, 666, 238)),
+        "rosa-palo": ("t-rosapalo.png", (47, 458, 47)),
+        "nude": ("t-nude.png", (43, 448, 49)),
+        "marron-claro": ("t-marron.png", (49, 457, 56)),
+        "gris": ("t-gris.png", (43, 447, 57))}
 JOBS = []
 for t in ("tee", "oversize"):
     for c, (f, bb) in TEES.items():

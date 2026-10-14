@@ -23,6 +23,10 @@ export const GARMENT_COLORS = {
   blanco: { id: "blanco", name: "Blanco", hex: "#eceae7" },
   negro: { id: "negro", name: "Negro", hex: "#171717" },
   grafito: { id: "grafito", name: "Grafito", hex: "#4c4f54" },
+  gris: { id: "gris", name: "Gris", hex: "#bab2b2" },
+  "rosa-palo": { id: "rosa-palo", name: "Rosa palo", hex: "#cf9b90" },
+  nude: { id: "nude", name: "Nude", hex: "#e4cec4" },
+  "marron-claro": { id: "marron-claro", name: "Marrón claro", hex: "#9c7b6b" },
   melange: { id: "melange", name: "Gris melange", hex: "#a3a3a1" },
   arena: { id: "arena", name: "Arena", hex: "#ceb797" },
   marino: { id: "marino", name: "Azul marino", hex: "#202636" },
@@ -56,7 +60,7 @@ export const SEED_PRODUCTS = [
     description:
       "La base de todo. Cuello redondo con ribete, costuras reforzadas en hombros y una caída que funciona sola o debajo de un buzo.",
     basePrice: 18900,
-    colors: ["blanco", "negro", "arena", "grafito"],
+    colors: ["blanco", "negro", "arena", "grafito", "gris", "rosa-palo", "nude", "marron-claro"],
     sizes: [size("S"), size("M"), size("L"), size("XL", 0, "low"), size("XXL", 1500)],
     faces: ["front", "back"],
     includedFaces: 1,
@@ -73,7 +77,7 @@ export const SEED_PRODUCTS = [
     description:
       "Corte amplio y cuerpo recto. Más superficie de estampa en la espalda para piezas grandes.",
     basePrice: 23500,
-    colors: ["negro", "blanco", "arena", "grafito"],
+    colors: ["negro", "blanco", "arena", "grafito", "gris", "rosa-palo", "nude", "marron-claro"],
     sizes: [size("S"), size("M"), size("L", 0, "low"), size("XL"), size("XXL", 2000, "out")],
     faces: ["front", "back"],
     includedFaces: 1,

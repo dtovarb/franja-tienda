@@ -384,7 +384,9 @@ export const GARMENTS = {
 const PHOTO_DIR = "assets/img/prendas/";
 const PHOTOS = new Set([
   "tee-blanco", "tee-negro", "tee-arena", "tee-grafito",
+  "tee-rosa-palo", "tee-nude", "tee-marron-claro", "tee-gris",
   "oversize-blanco", "oversize-negro", "oversize-arena", "oversize-grafito",
+  "oversize-rosa-palo", "oversize-nude", "oversize-marron-claro", "oversize-gris",
   "crewneck-marino", "crewneck-blanco", "crewneck-bordo", "crewneck-marron",
   "crewneck-rosa", "crewneck-negro", "crewneck-rojo",
   "hoodie-blanco", "hoodie-negro",

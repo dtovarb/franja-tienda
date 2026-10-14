@@ -769,7 +769,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
       for (const u of urls) if (!(await fetch(u)).ok) bad.push(u);
       return { n: urls.length, bad };
     });
-    assert(missing.n === 69 && !missing.bad.length, `fotos ${missing.n}, faltan ${missing.bad.join(",")}`);
+    assert(missing.n === 93 && !missing.bad.length, `fotos ${missing.n}, faltan ${missing.bad.join(",")}`);
     await page.screenshot({ path: join(SHOTS, "desktop-producto-foto.png") });
     return `${missing.n / 3} prendas con foto (frente); espalda ilustrada`;
   });
