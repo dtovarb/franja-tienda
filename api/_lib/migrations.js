@@ -199,4 +199,23 @@ alter table staff_users enable row level security;
 alter table webhook_events enable row level security;
 `,
   },
+  {
+    // Mails de los pedidos: uno por pedido y tipo (ver api/_lib/mails.js).
+    id: "0003_mails",
+    sql: `
+create table if not exists order_emails (
+  order_id uuid not null references orders(id) on delete cascade,
+  kind text not null,
+  recipients text not null,
+  status text not null check (status in ('enviando','enviado','error')),
+  attempts int not null default 1,
+  provider_id text,
+  error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (order_id, kind)
+);
+alter table order_emails enable row level security;
+`,
+  },
 ];

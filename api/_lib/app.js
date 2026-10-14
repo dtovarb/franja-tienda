@@ -9,6 +9,7 @@ import { createStorage, BUCKETS } from "./storage.js";
 import { createAuth, checkOrigin } from "./auth.js";
 import { createMercadoPago } from "./mercadopago.js";
 import { createCarriers } from "./carriers.js";
+import { createMailer, sendOrderMails } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
 import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates } from "./shipping.js";
@@ -31,6 +32,7 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
         auth: createAuth(config, { db, fetchImpl }),
         mp: createMercadoPago(config, fetchImpl),
         carriers: createCarriers(config, fetchImpl),
+        mailer: createMailer(config, fetchImpl),
       };
     })().catch((err) => {
       ready = null;
@@ -62,12 +64,12 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
           ready: !!(c.storage && c.auth),
           services: {
             db: c.db.kind, storage: c.storage?.kind || null, auth: c.auth?.provider || null, payments: c.mp ? "mercadopago" : null,
-            shipping: c.carriers.map((x) => x.id),
+            shipping: c.carriers.map((x) => x.id), mail: c.mailer ? "resend" : null,
           },
         });
       } catch (err) {
         if (!(err instanceof DbUnavailable)) console.error(err);
-        return json({ ok: true, ready: false, services: { db: null, storage: null, auth: null, payments: null, shipping: [] } });
+        return json({ ok: true, ready: false, services: { db: null, storage: null, auth: null, payments: null, shipping: [], mail: null } });
       }
     }],
 
@@ -121,6 +123,7 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const secret = config.sessionSecret;
       const { order, token, replay } = await createOrder({ db: c.db, storage: c.storage, secret, carriers: c.carriers }, body);
       const payment = await startPayment(c, req, order, token);
+      await mails(c, req, order.id);
       return json({ order: publicOrder(order), token, payment, replay }, replay ? 200 : 201);
     }],
 
@@ -156,7 +159,9 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       await c.db.query("insert into webhook_events (id, provider, payload) values ($1,'mercadopago',$2::text::jsonb) on conflict (id) do nothing", [
         `${dataId}:${payment.status}`, JSON.stringify({ id: payment.id, status: payment.status, ref: payment.external_reference }),
       ]);
-      return json(await applyPayment(c.db, payment));
+      const result = await applyPayment(c.db, payment);
+      if (result.orderId) await mails(c, req, result.orderId);
+      return json(result);
     }],
 
     /* ------------------------------ Login ------------------------------ */
@@ -214,11 +219,12 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
     }],
 
     ["PATCH", /^\/api\/admin\/orders\/([0-9a-f-]{36})$/, async (req, url, [id]) => {
-      const { db, auth } = await ctx();
-      const user = await auth.require(req);
+      const c = await ctx();
+      const user = await c.auth.require(req);
       const body = await readJson(req, 8192);
-      await changeStatus(db, id, body.status, { actor: user.email, note: body.note });
-      return json({ order: await getOrder(db, id) });
+      await changeStatus(c.db, id, body.status, { actor: user.email, note: body.note });
+      await mails(c, req, id);
+      return json({ order: await getOrder(c.db, id) });
     }],
 
     ["GET", "/api/admin/products", async (req) => {
@@ -328,6 +334,16 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
   }
 
   /** Crea la preferencia de pago, si Mercado Pago está configurado. */
+  /** Manda los mails que correspondan al pedido. Un error acá nunca frena el pedido ni el pago. */
+  async function mails(c, req, orderId) {
+    if (!c.mailer) return;
+    try {
+      await sendOrderMails({ db: c.db, mailer: c.mailer, config }, await getOrder(c.db, orderId), baseUrl(req));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function startPayment(c, req, order, token) {
     if (!c.mp) {
       if (order.payment_status !== "sin_configurar") {

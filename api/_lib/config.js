@@ -20,6 +20,10 @@
  *                                 MICORREO_ACCOUNT_PASSWORD (cuenta MiCorreo).
  *   ANDREANI_CONTRATO, ANDREANI_CLIENTE (+ ANDREANI_USER, ANDREANI_PASSWORD)
  *                                 Andreani, para clientes con contrato.
+ *   RESEND_API_KEY                mails de los pedidos (Resend). Sin ella no se
+ *                                 manda ningún mail.
+ *   MAIL_FROM                     remitente (por defecto nevrado <pedidos@nevrado.com>)
+ *   MAIL_REPLY_TO                 a dónde van las respuestas de las clientas (opcional)
  *
  * Sin DATABASE_URL, fuera de Vercel, se usa una base local (PGlite) en
  * .data/db y los archivos van a .data/archivos: sirve para desarrollar y
@@ -60,6 +64,10 @@ export function readConfig(overrides = {}) {
       accountEmail: e.MICORREO_ACCOUNT_EMAIL || null,
       accountPassword: e.MICORREO_ACCOUNT_PASSWORD || null,
     },
+    resendApiKey: e.RESEND_API_KEY || null,
+    resendApi: (e.RESEND_API_URL || "https://api.resend.com").replace(/\/$/, ""),
+    mailFrom: e.MAIL_FROM || "nevrado <pedidos@nevrado.com>",
+    mailReplyTo: e.MAIL_REPLY_TO || null,
     andreani: {
       api: (e.ANDREANI_API_URL || "https://apis.andreani.com").replace(/\/$/, ""),
       contract: e.ANDREANI_CONTRATO || null,

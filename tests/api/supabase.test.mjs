@@ -96,7 +96,7 @@ before(() => {
 
 test("salud con Supabase y sin Mercado Pago", async () => {
   const h = await (await call("GET", "/api/health")).json();
-  assert.deepEqual(h.services, { db: "pglite", storage: "supabase", auth: "supabase", payments: null, shipping: [] });
+  assert.deepEqual(h.services, { db: "pglite", storage: "supabase", auth: "supabase", payments: null, shipping: [], mail: null });
 });
 
 test("login: solo mails de OWNER_EMAILS, con la contraseña de Supabase", async () => {
