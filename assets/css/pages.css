@@ -503,6 +503,9 @@
   background: var(--c-ink);
   color: var(--c-white);
 }
+.collection-desc {
+  margin: calc(-1 * var(--sp-3)) 0 var(--sp-6);
+}
 .empty {
   padding: var(--sp-7) 0;
   text-align: center;

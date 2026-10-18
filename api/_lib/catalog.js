@@ -50,6 +50,7 @@ const designRow = (r) => ({
   price: r.price,
   status: r.status,
   productIds: r.product_ids,
+  collectionId: r.collection_id || null,
   source: r.source,
   createdAt: isoDate(r.created_at),
   updatedAt: isoDate(r.updated_at),
@@ -155,6 +156,15 @@ export async function createProduct(q, body, defaultSizesFor) {
 
 export async function saveStoreDesign(q, id, body, { source } = {}) {
   const name = text(body.name, 60, "el nombre", { required: true });
+  // Sin `collectionId` en el cuerpo, al editar se conserva la que tenía.
+  let collectionId = typeof body.collectionId === "string" && body.collectionId ? body.collectionId : null;
+  if (id && body.collectionId === undefined) {
+    const [cur] = await q.query("select collection_id from store_designs where id=$1", [id]);
+    collectionId = cur?.collection_id || null;
+  } else if (collectionId) {
+    const [col] = await q.query("select id from design_collections where id=$1", [collectionId]);
+    if (!col) throw new HttpError(422, "Esa colección no existe.");
+  }
   const description = text(body.description ?? "", 200, "La descripción");
   const price = int(body.price ?? 0, 0, "El precio del diseño");
   const status = body.status === "draft" ? "draft" : "published";
@@ -167,16 +177,16 @@ export async function saveStoreDesign(q, id, body, { source } = {}) {
     const [cur] = await q.query("select * from store_designs where id=$1 and deleted_at is null", [id]);
     if (!cur) throw new HttpError(404, "Ese diseño no existe.");
     await q.query(
-      `update store_designs set name=$2, description=$3, price=$4, status=$5, product_ids=$6::text::jsonb, source=$7::text::jsonb, updated_at=now() where id=$1`,
-      [id, name, description, price, status, JSON.stringify(productIds), JSON.stringify(source || cur.source)]
+      `update store_designs set name=$2, description=$3, price=$4, status=$5, product_ids=$6::text::jsonb, source=$7::text::jsonb, collection_id=$8, updated_at=now() where id=$1`,
+      [id, name, description, price, status, JSON.stringify(productIds), JSON.stringify(source || cur.source), collectionId]
     );
   } else {
     if (!source) throw new HttpError(422, "Falta el archivo del diseño.");
     id = `sd-${crypto.randomUUID().slice(0, 8)}`;
     const [{ n }] = await q.query("select coalesce(max(sort),0)+1 as n from store_designs");
     await q.query(
-      `insert into store_designs (id, name, description, price, status, product_ids, source, sort) values ($1,$2,$3,$4,$5,$6::text::jsonb,$7::text::jsonb,$8)`,
-      [id, name, description, price, status, JSON.stringify(productIds), JSON.stringify(source), n]
+      `insert into store_designs (id, name, description, price, status, product_ids, source, sort, collection_id) values ($1,$2,$3,$4,$5,$6::text::jsonb,$7::text::jsonb,$8,$9)`,
+      [id, name, description, price, status, JSON.stringify(productIds), JSON.stringify(source), n, collectionId]
     );
   }
   return (await storeDesignsByIds(q, [id]))[0];
@@ -185,6 +195,35 @@ export async function saveStoreDesign(q, id, body, { source } = {}) {
 export async function deleteStoreDesign(q, id) {
   const rows = await q.query("update store_designs set deleted_at=now() where id=$1 and deleted_at is null returning id", [id]);
   if (!rows.length) throw new HttpError(404, "Ese diseño no existe.");
+}
+
+/* ------------------------- Colecciones de diseños ------------------------- */
+const collectionRow = (r) => ({ id: r.id, name: r.name, description: r.description });
+
+export async function loadDesignCollections(q) {
+  return (await q.query("select id, name, description from design_collections order by sort, created_at")).map(collectionRow);
+}
+
+export async function saveDesignCollection(q, id, body) {
+  const name = text(body.name, 40, "el nombre", { required: true });
+  const description = text(body.description ?? "", 200, "La descripción");
+  if (id) {
+    const rows = await q.query("update design_collections set name=$2, description=$3, updated_at=now() where id=$1 returning *", [id, name, description]);
+    if (!rows.length) throw new HttpError(404, "Esa colección no existe.");
+    return collectionRow(rows[0]);
+  }
+  const [{ n }] = await q.query("select coalesce(max(sort),0)+1 as n from design_collections");
+  const [row] = await q.query(
+    "insert into design_collections (id, name, description, sort) values ($1,$2,$3,$4) returning *",
+    [`col-${crypto.randomUUID().slice(0, 8)}`, name, description, n]
+  );
+  return collectionRow(row);
+}
+
+/** Borra la colección; sus diseños siguen en la tienda, sin colección. */
+export async function deleteDesignCollection(q, id) {
+  const rows = await q.query("delete from design_collections where id=$1 returning id", [id]);
+  if (!rows.length) throw new HttpError(404, "Esa colección no existe.");
 }
 
 /* ------------------------- Recargos por zona ------------------------- */

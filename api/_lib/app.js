@@ -11,7 +11,7 @@ import { createMercadoPago } from "./mercadopago.js";
 import { createCarriers } from "./carriers.js";
 import { createMailer, sendOrderMails } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
-import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZonePrices, saveZonePrices } from "./catalog.js";
+import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZonePrices, saveZonePrices, loadDesignCollections, saveDesignCollection, deleteDesignCollection } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
 import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkToken, orderToken, ORDER_STATUSES } from "./orders.js";
@@ -92,9 +92,11 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       t.push(Date.now());
       const zonePrices = await loadZonePrices(db).catch((err) => (console.error("catálogo: recargos", err), { ...DEFAULT_ZONE_PRICES }));
       t.push(Date.now());
-      if (t[4] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms`);
+      const designCollections = await loadDesignCollections(db).catch((err) => (console.error("catálogo: colecciones", err), []));
+      t.push(Date.now());
+      if (t[5] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms, colecciones ${t[5] - t[4]} ms`);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
-      return json({ colors, products, storeDesigns, zonePrices }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
+      return json({ colors, products, storeDesigns, zonePrices, designCollections }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
     }],
 
     ["GET", "/api/reviews", async (req, url) => {
@@ -301,6 +303,30 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const { db, auth } = await ctx();
       await auth.require(req);
       await deleteStoreDesign(db, id);
+      return json({ ok: true });
+    }],
+
+    ["GET", "/api/admin/design-collections", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      return json({ designCollections: await loadDesignCollections(db) });
+    }],
+    ["POST", "/api/admin/design-collections", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      const body = await readJson(req, 8192);
+      return json({ designCollection: await saveDesignCollection(db, null, body) }, 201);
+    }],
+    ["PATCH", /^\/api\/admin\/design-collections\/([A-Za-z0-9_-]{1,60})$/, async (req, url, [id]) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      const body = await readJson(req, 8192);
+      return json({ designCollection: await saveDesignCollection(db, id, body) });
+    }],
+    ["DELETE", /^\/api\/admin\/design-collections\/([A-Za-z0-9_-]{1,60})$/, async (req, url, [id]) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      await deleteDesignCollection(db, id);
       return json({ ok: true });
     }],
 

@@ -18,6 +18,7 @@ import { GARMENTS, garmentSvg, faceLabel, faceHint } from "../data/garments.js";
 import { ZONE_PRICES, PRICED_ZONES } from "../core/pricing.js";
 import {
   listStoreDesigns, getStoreDesign, saveStoreDesign, deleteStoreDesign, resetStoreDesigns, storeDesignImageUrl,
+  listCollections, saveCollection, deleteCollection, resetCollections,
 } from "../core/store-designs.js";
 import { listOrders, setOrderStatus, clearOrders, ORDER_STATUSES } from "../core/orders.js";
 import { processUpload, UploadError } from "../editor/upload.js";
@@ -41,6 +42,9 @@ const demoData = {
     return saveStoreDesign({ ...current, ...fields, source });
   },
   deleteDesign: async (id) => deleteStoreDesign(id),
+  collections: async () => listCollections(),
+  saveCollection: async (current, fields) => saveCollection({ ...current, ...fields }),
+  deleteCollection: async (id) => deleteCollection(id),
   products: async () => PRODUCTS,
   async saveProduct(id, fields) {
     Object.assign(getProduct(id), fields);
@@ -93,6 +97,14 @@ const serverData = {
     return r.storeDesign;
   },
   deleteDesign: (id) => api(`admin/store-designs/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  collections: async () => (await api("admin/design-collections")).designCollections,
+  async saveCollection(current, fields) {
+    const r = current.id
+      ? await api(`admin/design-collections/${encodeURIComponent(current.id)}`, { method: "PATCH", body: fields })
+      : await api("admin/design-collections", { method: "POST", body: fields });
+    return r.designCollection;
+  },
+  deleteCollection: (id) => api(`admin/design-collections/${encodeURIComponent(id)}`, { method: "DELETE" }),
   products: async () => (await api("admin/products")).products,
   saveProduct: async (id, fields) => (await api(`admin/products/${encodeURIComponent(id)}`, { method: "PATCH", body: fields })).product,
   createProduct: async (fields) => (await api("admin/products", { method: "POST", body: fields })).product,
@@ -101,8 +113,9 @@ const serverData = {
 };
 
 const data = SERVER ? serverData : demoData;
-const state = { designs: [], products: [], zonePrices: { ...ZONE_PRICES } };
+const state = { designs: [], collections: [], products: [], zonePrices: { ...ZONE_PRICES } };
 const findDesign = (id) => state.designs.find((d) => d.id === id);
+const findCollection = (id) => state.collections.find((c) => c.id === id);
 const findProduct = (id) => state.products.find((p) => p.id === id);
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -143,11 +156,14 @@ const errText = (err, fallback) => (err instanceof UploadError ? err.message : e
 /* ======================= Diseños ======================= */
 const designsPanel = $("[data-panel=disenos]");
 let editingDesign = null; // null = cerrado, {} = nuevo, {…} = editando
+let editingCollection = null; // igual que editingDesign
 
 async function renderDesigns() {
-  const list = (state.designs = await data.designs());
+  [state.designs, state.collections] = await Promise.all([data.designs(), data.collections()]);
+  const list = state.designs;
   const urls = await Promise.all(list.map(storeDesignImageUrl));
   designsPanel.innerHTML = `
+    ${collectionsBlock()}
     <div class="admin-head">
       <div>
         <h2 class="h3">Diseños de la tienda</h2>
@@ -165,7 +181,7 @@ async function renderDesigns() {
             <img class="admin-thumb" src="${urls[i] || ""}" alt="">
             <div class="admin-row__main">
               <p><b>${escapeHtml(d.name)}</b> <span class="tag ${d.status === "published" ? "tag--magenta" : "tag--demo"}">${d.status === "published" ? "Publicado" : "Borrador"}</span></p>
-              <p class="hint">${d.price ? formatPrice(d.price) : "Sin costo"} por prenda · ${escapeHtml(productNames(d.productIds))}</p>
+              <p class="hint">${d.price ? formatPrice(d.price) : "Sin costo"} por prenda · ${escapeHtml(productNames(d.productIds))} · ${escapeHtml(findCollection(d.collectionId)?.name || "Sin colección")}</p>
             </div>
             <div class="admin-row__actions">
               <button class="btn btn--sm" type="button" data-edit-design="${d.id}">${icon("edit")}Editar</button>
@@ -178,7 +194,92 @@ async function renderDesigns() {
         : `<div class="empty"><p class="h3">No hay diseños cargados.</p><p class="muted">Subí el primero con «Nuevo diseño».</p></div>`
     }`;
   if (editingDesign) renderDesignForm();
+  if (editingCollection) renderCollectionForm();
   updateCounts();
+}
+
+/* ----- Colecciones ----- */
+function collectionsBlock() {
+  const count = (id) => state.designs.filter((d) => d.collectionId === id).length;
+  return `
+    <div class="admin-head">
+      <div>
+        <h2 class="h3">Colecciones</h2>
+        <p class="muted">En <a href="disenos.html">Diseños</a> la clienta elige una colección y ve solo sus diseños. Los diseños sin colección se ven en «Todos». Una colección sin diseños publicados no aparece.</p>
+      </div>
+      <button class="btn" type="button" data-new-collection>${icon("plus")}Nueva colección</button>
+    </div>
+    <div data-collection-form-host></div>
+    ${
+      state.collections.length
+        ? `<ul class="admin-list admin-collections" role="list">${state.collections
+            .map(
+              (c) => `
+          <li class="admin-row" data-collection-row="${c.id}">
+            <div class="admin-row__main">
+              <p><b>${escapeHtml(c.name)}</b></p>
+              <p class="hint">${count(c.id) === 1 ? "1 diseño" : `${count(c.id)} diseños`}${c.description ? ` · ${escapeHtml(c.description)}` : ""}</p>
+            </div>
+            <div class="admin-row__actions">
+              <button class="btn btn--sm" type="button" data-edit-collection="${c.id}">${icon("edit")}Editar</button>
+              <button class="btn btn--sm btn--ghost" type="button" data-delete-collection="${c.id}">${icon("trash")}Eliminar</button>
+            </div>
+          </li>`
+            )
+            .join("")}</ul>`
+        : `<p class="muted admin-collections">Todavía no hay colecciones: todos los diseños se ven juntos.</p>`
+    }`;
+}
+
+function renderCollectionForm() {
+  const c = editingCollection;
+  const host = $("[data-collection-form-host]", designsPanel);
+  host.innerHTML = `
+    <form class="admin-form" data-collection-form novalidate>
+      <h3 class="h3">${c.id ? `Editar «${escapeHtml(c.name)}»` : "Nueva colección"}</h3>
+      <div class="admin-grid">
+        <div class="field">
+          <label for="c-name">Nombre</label>
+          <input class="input" id="c-name" name="name" maxlength="40" required value="${escapeHtml(c.name || "")}">
+        </div>
+        <div class="field">
+          <label for="c-desc">Descripción (opcional)</label>
+          <input class="input" id="c-desc" name="description" maxlength="200" value="${escapeHtml(c.description || "")}">
+          <p class="hint">Se muestra arriba de los diseños cuando eligen la colección.</p>
+        </div>
+      </div>
+      <div class="notice notice--danger form-errors" role="alert" data-collection-errors></div>
+      <div class="admin-form__actions">
+        <button class="btn btn--primary" type="submit">${c.id ? "Guardar cambios" : "Crear colección"}</button>
+        <button class="btn btn--ghost" type="button" data-cancel-collection>Cancelar</button>
+      </div>
+    </form>`;
+  const form = $("[data-collection-form]", host);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errEl = $("[data-collection-errors]", form);
+    const name = form.name.value.trim();
+    if (!name) {
+      errEl.textContent = "Poné un nombre.";
+      return;
+    }
+    const btn = form.querySelector("[type=submit]");
+    btn.disabled = true;
+    try {
+      const saved = await data.saveCollection(editingCollection, { name, description: form.description.value.trim() });
+      editingCollection = null;
+      toast(`Colección «${saved.name}» guardada${SERVER ? "" : " en este navegador"}.`, "success");
+      renderDesigns();
+    } catch (err) {
+      errEl.textContent = errText(err, "No se pudo guardar la colección.");
+      btn.disabled = false;
+    }
+  });
+  $("[data-cancel-collection]", form).addEventListener("click", () => {
+    editingCollection = null;
+    host.innerHTML = "";
+  });
+  form.name.focus();
 }
 
 function renderDesignForm() {
@@ -208,6 +309,14 @@ function renderDesignForm() {
           <label for="d-file">Archivo ${isNew ? "" : "(opcional: reemplaza el actual)"}</label>
           <input class="input" id="d-file" name="file" type="file" accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml" ${isNew ? "required" : ""}>
           <p class="hint">JPG, PNG o SVG, mismo control que las subidas de clientas. Se guarda el original sin cambios.</p>
+        </div>
+        <div class="field">
+          <label for="d-collection">Colección</label>
+          <select class="input" id="d-collection" name="collectionId">
+            <option value="">Sin colección (solo en «Todos»)</option>
+            ${state.collections.map((c) => `<option value="${escapeHtml(c.id)}" ${d.collectionId === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}
+          </select>
+          <p class="hint">Las colecciones se crean arriba, en «Nueva colección».</p>
         </div>
         <div class="field">
           <label for="d-status">Estado</label>
@@ -263,7 +372,7 @@ async function submitDesign(form) {
   try {
     const saved = await data.saveDesign(
       editingDesign,
-      { name, description: form.description.value.trim(), price, status: form.status.value, productIds },
+      { name, description: form.description.value.trim(), price, status: form.status.value, productIds, collectionId: form.collectionId.value || null },
       file
     );
     editingDesign = null;
@@ -276,6 +385,37 @@ async function submitDesign(form) {
 }
 
 designsPanel.addEventListener("click", async (e) => {
+  if (e.target.closest("[data-new-collection]")) {
+    editingCollection = {};
+    renderCollectionForm();
+    return;
+  }
+  const editCol = e.target.closest("[data-edit-collection]");
+  if (editCol) {
+    editingCollection = structuredClone(findCollection(editCol.dataset.editCollection));
+    renderCollectionForm();
+    return;
+  }
+  const delCol = e.target.closest("[data-delete-collection]");
+  if (delCol) {
+    const c = findCollection(delCol.dataset.deleteCollection);
+    const ok = await confirmDialog({
+      title: `¿Eliminar la colección «${c.name}»?`,
+      body: "Sus diseños no se borran: siguen en la tienda, sin colección (se ven en «Todos»).",
+      confirmLabel: "Eliminar",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await data.deleteCollection(c.id);
+      toast("Colección eliminada.", "info");
+    } catch (err) {
+      toast(errText(err, "No se pudo eliminar la colección."), "error");
+    }
+    if (editingCollection?.id === c.id) editingCollection = null;
+    renderDesigns();
+    return;
+  }
   if (e.target.closest("[data-new-design]")) {
     editingDesign = { status: "published", productIds: [], price: 3000 };
     renderDesignForm();
@@ -292,7 +432,7 @@ designsPanel.addEventListener("click", async (e) => {
   if (tog) {
     const d = findDesign(tog.dataset.toggleDesign);
     try {
-      await data.saveDesign(d, { name: d.name, description: d.description, price: d.price, productIds: d.productIds, status: d.status === "published" ? "draft" : "published" });
+      await data.saveDesign(d, { name: d.name, description: d.description, price: d.price, productIds: d.productIds, collectionId: d.collectionId || null, status: d.status === "published" ? "draft" : "published" });
       toast(d.status === "published" ? `«${d.name}» ya no se ve en la tienda.` : `«${d.name}» publicado.`, "info");
     } catch (err) {
       toast(errText(err, "No se pudo cambiar el diseño."), "error");
@@ -626,8 +766,10 @@ $("[data-reset]")?.addEventListener("click", async () => {
   if (!ok) return;
   resetProducts();
   resetStoreDesigns();
+  resetCollections();
   clearOrders();
   editingDesign = null;
+  editingCollection = null;
   creatingProduct = false;
   renderAll();
   toast("Datos de demostración restablecidos.", "success");

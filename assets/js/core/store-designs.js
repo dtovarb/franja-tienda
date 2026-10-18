@@ -24,6 +24,7 @@ const seed = (id, name, description, price, file, extra = {}) => ({
   price,
   status: "published",
   productIds: [], // vacío = disponible en todas las prendas
+  collectionId: null, // null = sin colección (se ve solo en «Todos»)
   source: { kind: "url", url: `assets/designs/${file}`, name: file },
   createdAt: "2026-10-13T00:00:00.000Z",
   updatedAt: "2026-10-13T00:00:00.000Z",
@@ -77,6 +78,39 @@ export function deleteStoreDesign(id) {
 
 export function resetStoreDesigns() {
   removeKey(KEY);
+}
+
+/* ------------------------- Colecciones ------------------------- */
+/**
+ * Colecciones de diseños: la página Diseños filtra por colección. Cada
+ * diseño está en una colección o en ninguna (`collectionId`).
+ * Prototipo: en el localStorage; con servidor, la tabla design_collections.
+ */
+const COLLECTIONS_KEY = "design-collections.v1";
+
+export function listCollections() {
+  if (CATALOG) return structuredClone(CATALOG.designCollections || []);
+  return readJSON(COLLECTIONS_KEY, []);
+}
+
+export function saveCollection(col) {
+  const list = listCollections();
+  const next = { id: col.id || uid("col"), name: col.name, description: col.description || "" };
+  const i = list.findIndex((c) => c.id === next.id);
+  if (i >= 0) list[i] = next;
+  else list.push(next);
+  writeJSON(COLLECTIONS_KEY, list);
+  return next;
+}
+
+/** Borra la colección; sus diseños quedan sin colección. */
+export function deleteCollection(id) {
+  writeJSON(COLLECTIONS_KEY, listCollections().filter((c) => c.id !== id));
+  writeJSON(KEY, all().map((d) => (d.collectionId === id ? { ...d, collectionId: null } : d)));
+}
+
+export function resetCollections() {
+  removeKey(COLLECTIONS_KEY);
 }
 
 /** URL para mostrar el diseño (archivo del sitio o original guardado en este navegador). */

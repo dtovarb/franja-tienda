@@ -266,4 +266,22 @@ ${Object.values(GARMENTS)
 delete from product_sizes where product_id = 'remera-clasica' and size_id = 'XXL';
 `,
   },
+  {
+    // Colecciones de diseños: la tienda filtra Diseños por colección y el
+    // panel las crea y las borra. Un diseño está en una colección o en
+    // ninguna; al borrar la colección sus diseños quedan sin colección.
+    id: "0007_colecciones",
+    sql: `
+create table if not exists design_collections (
+  id text primary key,
+  name text not null,
+  description text not null default '',
+  sort int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table design_collections enable row level security;
+alter table store_designs add column if not exists collection_id text references design_collections(id) on delete set null;
+`,
+  },
 ];
