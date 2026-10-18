@@ -333,6 +333,30 @@ test("panel: productos, diseños de la tienda y tarifas de envío", async () => 
   assert.ok(!cat.storeDesigns.some((d) => d.id === sd.id));
   assert.equal((await call("DELETE", `/api/admin/store-designs/${sd.id}`, { cookie })).status, 200);
 
+  // Colecciones: se crean, se asignan a un diseño y al borrarlas el diseño queda sin colección.
+  assert.equal((await call("POST", "/api/admin/design-collections", { body: { name: "Verano" } })).status, 401);
+  assert.equal((await call("POST", "/api/admin/design-collections", { cookie, body: { name: " " } })).status, 422);
+  r = await jsonOf(await call("POST", "/api/admin/design-collections", { cookie, body: { name: "Verano", description: "Para el calor." } }));
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const col = r.body.designCollection;
+  r = await jsonOf(await call("PATCH", `/api/admin/design-collections/${col.id}`, { cookie, body: { name: "Verano 27" } }));
+  assert.equal(r.body.designCollection.name, "Verano 27");
+  assert.equal((await call("PATCH", "/api/admin/store-designs/sd-ola", { cookie, body: { name: "Ola", collectionId: "col-nada" } })).status, 422);
+  r = await jsonOf(await call("PATCH", "/api/admin/store-designs/sd-ola", { cookie, body: { name: "Ola", price: 3000, collectionId: col.id } }));
+  assert.equal(r.body.storeDesign.collectionId, col.id);
+  // Editar sin mandar la colección la conserva.
+  r = await jsonOf(await call("PATCH", "/api/admin/store-designs/sd-ola", { cookie, body: { name: "Ola", price: 3000 } }));
+  assert.equal(r.body.storeDesign.collectionId, col.id);
+  cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.deepEqual(cat.designCollections.map((c) => c.name), ["Verano 27"]);
+  assert.equal(cat.storeDesigns.find((d) => d.id === "sd-ola").collectionId, col.id);
+  assert.equal(cat.storeDesigns.find((d) => d.id === "sd-sol").collectionId, null);
+  assert.equal((await call("DELETE", `/api/admin/design-collections/${col.id}`, { cookie })).status, 200);
+  assert.equal((await call("DELETE", `/api/admin/design-collections/${col.id}`, { cookie })).status, 404);
+  cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.deepEqual(cat.designCollections, []);
+  assert.equal(cat.storeDesigns.find((d) => d.id === "sd-ola").collectionId, null);
+
   // Tarifas: cambiar el precio de una de ejemplo la vuelve real.
   const rates = (await jsonOf(await call("GET", "/api/admin/shipping-rates", { cookie }))).body.rates;
   rates[1].price = 5200;
