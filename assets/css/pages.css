@@ -1029,6 +1029,11 @@
   text-transform: uppercase;
   color: var(--c-ink-3);
 }
+.size-note {
+  margin-top: 6px;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+}
 .size-help {
   display: grid;
   gap: 4px;

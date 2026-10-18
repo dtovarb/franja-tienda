@@ -113,7 +113,7 @@ test("salud y catálogo desde la base", async () => {
   const tee = body.products.find((p) => p.id === "remera-clasica");
   assert.equal(tee.basePrice, 18900);
   assert.ok(tee.colors.includes("rosa-palo"));
-  assert.deepEqual(tee.sizes.map((s) => s.id), ["S", "M", "L", "XL", "XXL"]);
+  assert.deepEqual(tee.sizes.map((s) => s.id), ["S", "M", "L", "XL"]);
   const rv = await jsonOf(await call("GET", "/api/reviews?product=gorra"));
   // Las opiniones de ejemplo del seed no se publican en la tienda real.
   assert.deepEqual(rv.body.reviews, []);

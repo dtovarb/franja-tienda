@@ -4,6 +4,8 @@
  * superficie plana. Fuente: la tabla de referencia que eligió la tienda
  * (remanija.com.ar/tabla-de-talles.html, 13/10/2026). El buzo cuello redondo
  * usa la tabla de buzo medio cierre, como indica esa página.
+ * La remera clásica usa las medidas propias de la tienda (18/10/2026), con
+ * columnas A–D y su nota. Se vende de S a XL.
  *
  * La ficha y las preguntas frecuentes muestran solo los talles que la prenda
  * tiene a la venta.
@@ -15,15 +17,23 @@ export const MEASURE_NOTES = {
   manga: "Desde el hombro hasta el puño.",
 };
 
-const COLS = { ancho: "Ancho", largo: "Largo", manga: "Manga" };
+const COLS = { ancho: "Ancho", largo: "Largo", manga: "Manga", hombro: "Hombro" };
 
-const rows = (cols, data) => ({ cols, rows: data.map(([size, ...v]) => ({ size, ...Object.fromEntries(cols.map((c, i) => [c, v[i]])) })) });
+const rows = (cols, data, extra = {}) => ({ cols, ...extra, rows: data.map(([size, ...v]) => ({ size, ...Object.fromEntries(cols.map((c, i) => [c, v[i]])) })) });
 
 export const SIZE_CHARTS = {
-  tee: rows(["ancho", "largo"], [
-    ["XS", 50, 69], ["S", 54, 72], ["M", 57, 73], ["L", 57, 74], ["XL", 59, 75],
-    ["XXL", 61, 77], ["3XL", 64, 76], ["4XL", 66, 86], ["5XL", 68, 88],
-  ]),
+  tee: rows(["largo", "ancho", "hombro", "manga"], [
+    ["S", 69, 52, 13.4, 21], ["M", 71, 54, 14.2, 21], ["L", 73, 56, 15, 22], ["XL", 75, 59, 16, 23],
+  ], {
+    labels: { largo: "Largo (A)", ancho: "Ancho (B)", hombro: "Hombro (C)", manga: "Manga (D)" },
+    help: {
+      largo: "Largo total.",
+      ancho: "Ancho de pecho.",
+      hombro: "Costura de hombro.",
+      manga: "Largo de manga.",
+    },
+    note: "Medidas del talle en centímetros, tomadas sobre la prenda. Pueden variar hasta 2 cm.",
+  }),
   oversize: rows(["ancho", "largo"], [
     ["XXS", 51, 78], ["XS", 54.6, 80], ["S", 57.6, 82.6], ["M", 61.5, 84.5],
     ["L", 65.6, 86.3], ["XL", 68.5, 88], ["XXL", 71.6, 89.8],
@@ -47,8 +57,10 @@ export function sizeChartFor(product) {
   if (!chart) return null;
   const sold = product.sizes.map((s) => s.id.toUpperCase().replace(/^2XL$/, "XXL"));
   const list = chart.rows.filter((r) => sold.includes(r.size));
-  return list.length ? { cols: chart.cols, rows: list } : null;
+  return list.length ? { ...chart, rows: list } : null;
 }
+
+const label = (chart, c) => chart.labels?.[c] ?? COLS[c];
 
 /** Tabla HTML (sin título) de un producto, o "" si no tiene. */
 export function sizeChartTable(product, caption) {
@@ -56,14 +68,14 @@ export function sizeChartTable(product, caption) {
   if (!chart) return "";
   return `<div class="table-wrap"><table class="size-table" data-size-chart="${product.id}">
     <caption class="sr-only">${caption}</caption>
-    <thead><tr><th scope="col">Talle</th>${chart.cols.map((c) => `<th scope="col">${COLS[c]} (cm)</th>`).join("")}</tr></thead>
-    <tbody>${chart.rows.map((r) => `<tr><th scope="row">${r.size}</th>${chart.cols.map((c) => `<td>${cm(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>
-  </table></div>`;
+    <thead><tr><th scope="col">Talle</th>${chart.cols.map((c) => `<th scope="col">${label(chart, c)}${chart.labels ? "" : " (cm)"}</th>`).join("")}</tr></thead>
+    <tbody>${chart.rows.map((r) => `<tr><th scope="row">${r.size}</th>${chart.cols.map((c) => `<td>${cm(r[c])}${chart.labels ? " cm" : ""}</td>`).join("")}</tr>`).join("")}</tbody>
+  </table></div>${chart.note ? `<p class="size-note">${chart.note}</p>` : ""}`;
 }
 
 /** Cómo medir, para las columnas que usa la tabla. */
 export function measureHelp(product) {
   const chart = sizeChartFor(product);
   if (!chart) return "";
-  return `<ul class="size-help">${chart.cols.map((c) => `<li><b>${COLS[c]}:</b> ${MEASURE_NOTES[c]}</li>`).join("")}</ul>`;
+  return `<ul class="size-help">${chart.cols.map((c) => `<li><b>${label(chart, c)}:</b> ${chart.help?.[c] ?? MEASURE_NOTES[c]}</li>`).join("")}</ul>`;
 }
