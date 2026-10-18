@@ -1,17 +1,30 @@
 /* ============================================================
-   nevrado: tokens de diseño (paleta Arcilla)
-   Cinco tonos en el orden de la bandera lésbica:
-   terracota, durazno, blanco, rosa polvo, ciruela.
+   nevrado: tokens de diseño (paleta Pastel de bandera)
+   Los cinco tonos de la bandera lésbica llevados a pastel para
+   los fondos de bloque (coral, durazno, crema, rosa, lila) y la
+   ciruela de siempre como color fuerte: texto, botones, pie.
    Los colores de marca NO se usan como colores de prenda:
    los colores de indumentaria viven en assets/js/data/catalog.js
    ============================================================ */
 :root {
   /* Paleta de marca */
-  --c-terracota: #a0533a;   /* acentos fuertes (5.2:1 sobre hueso) */
-  --c-durazno: #f2bc98;     /* etiquetas y fondos de bloque, nunca texto */
+  --c-terracota: #a0533a;   /* acentos fuertes (5.2:1 sobre crema) */
+  --c-durazno: #f2bc98;     /* etiquetas, nunca texto */
   --c-blanco: #ffffff;
-  --c-rosa: #d9a3bc;        /* rosa polvo: etiquetas y fondos, nunca texto */
-  --c-ciruela: #7d3a5e;     /* logo, CTA, estados activos, foco (7.5:1) */
+  --c-rosa: #d9a3bc;        /* rosa polvo: etiquetas, nunca texto */
+  --c-ciruela: #7d3a5e;     /* logo, títulos, CTA, foco (7.5:1) */
+  --c-terracota-texto: #8a4330; /* terracota para texto chico sobre pasteles (>= 4.9:1) */
+
+  /* Pasteles para fondos de bloque (siempre con texto ciruela o tinta) */
+  --p-coral: #f6b9a3;
+  --p-durazno: #ffdcc2;
+  --p-crema: #fff1e2;
+  --p-rosa: #f9cfe0;
+  --p-lila: #e9cfe6;
+  --p-coral-2: #fbd9cd;     /* versiones más claras, para tarjetas */
+  --p-durazno-2: #ffeadb;
+  --p-rosa-2: #fce3ed;
+  --p-lila-2: #f4e6f2;
 
   /* Alias que usa el resto del CSS */
   --c-red: var(--c-terracota);
@@ -29,15 +42,15 @@
   --c-pink-tint: #f7ecf1;
 
   /* Neutros cálidos */
-  --c-bg: #faf7f2;          /* fondo principal: blanco hueso */
-  --c-ink: #1e1a1c;         /* texto principal */
-  --c-ink-2: #4a4346;       /* texto secundario */
-  --c-ink-3: #6e6669;       /* texto terciario (>= 4.5:1 sobre hueso) */
-  --c-line: #e4e0dc;
-  --c-line-strong: #1e1a1c;
-  --c-surface: #ffffff;     /* tarjetas sobre el hueso */
-  --c-surface-2: #f3efe9;   /* superficies neutras para prendas */
-  --c-surface-3: #e9e4dd;
+  --c-bg: #fff8f1;          /* fondo principal: crema */
+  --c-ink: #3a1f2d;         /* texto principal: ciruela muy oscura */
+  --c-ink-2: #5c4250;       /* texto secundario */
+  --c-ink-3: #7a6270;       /* texto terciario (>= 4.5:1 sobre crema) */
+  --c-line: #eedfd6;
+  --c-line-strong: #7d3a5e;
+  --c-surface: #fffdfa;     /* tarjetas sobre la crema */
+  --c-surface-2: #fbefe6;   /* superficies neutras para prendas */
+  --c-surface-3: #f3e2d7;
 
   /* Estados */
   --c-success: #1d7a46;
@@ -49,11 +62,12 @@
   --c-focus: #7d3a5e;
 
   /* Tipografía */
-  --ff-display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --ff-display: "Fraunces", "Georgia", "Times New Roman", serif;
+  --ff-logo: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
   --ff-ui: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
   --ff-mono: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --fs-stretch-display: 80%;
-  --fw-display: 850;
+  --fs-stretch-display: 100%;
+  --fw-display: 800;
 
   --fs-xs: 0.75rem;
   --fs-sm: 0.875rem;
@@ -76,8 +90,10 @@
   --sp-9: 7rem;
 
   /* Forma */
-  --radius-sm: 4px;
-  --radius-md: 8px;
+  --radius-sm: 10px;
+  --radius-md: 18px;
+  --radius-lg: 32px;
+  --radius-arch: 999px 999px var(--radius-md) var(--radius-md); /* arco arriba */
   --radius-pill: 999px;
   --border: 1px solid var(--c-line);
   --border-strong: 2px solid var(--c-line-strong);
@@ -93,8 +109,9 @@
   --header-h: 64px;
   --tap: 44px; /* tamaño táctil mínimo */
 
-  --shadow-sheet: 0 -8px 30px rgba(0, 0, 0, 0.12);
-  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.14);
+  --shadow-sheet: 0 -8px 30px rgba(58, 31, 45, 0.12);
+  --shadow-pop: 0 12px 30px rgba(58, 31, 45, 0.14);
+  --shadow-soft: 0 6px 18px rgba(125, 58, 94, 0.1);
 }
 
 @media (prefers-reduced-motion: reduce) {
