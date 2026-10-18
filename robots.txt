@@ -2,3 +2,5 @@ User-agent: *
 Disallow: /admin.html
 Disallow: /pedido.html
 Disallow: /api/
+
+Sitemap: https://www.nevrado.com/sitemap.xml
