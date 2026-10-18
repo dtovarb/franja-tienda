@@ -1,7 +1,7 @@
 import { initPage } from "../core/ui.js";
 import { activeProducts, getColor } from "../data/catalog.js";
 import { garmentSvg, luminance } from "../data/garments.js";
-import { listStoreDesigns, listCollections, storeDesignImageUrl, designArt } from "../core/store-designs.js";
+import { listStoreDesigns, listCollections, storeDesignImageUrl, modelPhotoUrl, designArt } from "../core/store-designs.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
 import { demoTag } from "./components.js";
 
@@ -38,7 +38,7 @@ async function render() {
     host.innerHTML = `<div class="empty"><p class="h3">Todavía no hay diseños publicados.</p><a class="btn btn--primary" href="catalogo.html?diseñar=1">Diseñar desde cero</a></div>`;
     return;
   }
-  const urls = await Promise.all(designs.map(storeDesignImageUrl));
+  const [urls, photos] = await Promise.all([Promise.all(designs.map(storeDesignImageUrl)), Promise.all(designs.map(modelPhotoUrl))]);
   host.innerHTML = designs
     .map((d, i) => {
       const fits = products.filter((p) => !d.productIds?.length || d.productIds.includes(p.id));
@@ -46,8 +46,9 @@ async function render() {
       const col = show ? lightestColor(show) : null;
       return `
       <article class="dcard" data-design-card="${d.id}" style="--i:${i}">
-        <div class="dcard__media">
+        <div class="dcard__media${photos[i] ? " has-photo" : ""}">
           ${show ? garmentSvg(show.type, "front", col.hex, { art: designArt(urls[i]), colorId: col.id, className: "dcard__svg", title: `${d.name} en ${show.name} ${col.name}` }) : ""}
+          ${photos[i] ? modelPhotoLayer(photos[i], d.name) : ""}
           ${demoTag()}
         </div>
         <div class="dcard__body">
@@ -69,6 +70,24 @@ async function render() {
     })
     .join("");
 }
+
+/**
+ * Foto del diseño puesto: aparece al pasar el mouse por la tarjeta. En
+ * pantallas táctiles (sin mouse) el botón la muestra y la vuelve a ocultar.
+ */
+function modelPhotoLayer(url, name) {
+  return `<img class="dcard__photo" src="${escapeHtml(url)}" alt="${escapeHtml(name)} puesto" loading="lazy" decoding="async">
+    <button class="dcard__flip" type="button" data-photo-toggle aria-pressed="false">Verla puesta</button>`;
+}
+
+host.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-photo-toggle]");
+  if (!b) return;
+  const on = b.getAttribute("aria-pressed") !== "true";
+  b.setAttribute("aria-pressed", String(on));
+  b.textContent = on ? "Ver el diseño" : "Verla puesta";
+  b.closest(".dcard__media").classList.toggle("is-photo", on);
+});
 
 filtersEl.addEventListener("click", (e) => {
   const b = e.target.closest("[data-collection]");

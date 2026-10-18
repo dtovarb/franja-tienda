@@ -11,7 +11,7 @@ import { createMercadoPago } from "./mercadopago.js";
 import { createCarriers } from "./carriers.js";
 import { createMailer, sendOrderMails } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
-import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZonePrices, saveZonePrices, loadDesignCollections, saveDesignCollection, deleteDesignCollection } from "./catalog.js";
+import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZonePrices, saveZonePrices, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
 import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkToken, orderToken, ORDER_STATUSES } from "./orders.js";
@@ -94,9 +94,11 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       t.push(Date.now());
       const designCollections = await loadDesignCollections(db).catch((err) => (console.error("catálogo: colecciones", err), []));
       t.push(Date.now());
-      if (t[5] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms, colecciones ${t[5] - t[4]} ms`);
+      const announcement = await loadAnnouncement(db).catch((err) => (console.error("catálogo: cintillo", err), null));
+      t.push(Date.now());
+      if (t[6] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms, colecciones ${t[5] - t[4]} ms, cintillo ${t[6] - t[5]} ms`);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
-      return json({ colors, products, storeDesigns, zonePrices, designCollections }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
+      return json({ colors, products, storeDesigns, zonePrices, designCollections, announcement }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
     }],
 
     ["GET", "/api/reviews", async (req, url) => {
@@ -290,14 +292,17 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const body = await readJson(req, 64 * 1024);
       const source = await storeDesignSource(c, body.file);
       if (!source) throw new HttpError(422, "Falta el archivo del diseño.");
-      return json({ storeDesign: await c.db.tx((q) => saveStoreDesign(q, null, body, { source })) }, 201);
+      const modelPhoto = (await modelPhotoSource(c, body.photo)) || null;
+      return json({ storeDesign: await c.db.tx((q) => saveStoreDesign(q, null, body, { source, modelPhoto })) }, 201);
     }],
     ["PATCH", /^\/api\/admin\/store-designs\/([A-Za-z0-9_-]{1,60})$/, async (req, url, [id]) => {
       const c = await ctx();
       await c.auth.require(req);
       const body = await readJson(req, 64 * 1024);
       const source = await storeDesignSource(c, body.file);
-      return json({ storeDesign: await c.db.tx((q) => saveStoreDesign(q, id, body, { source })) });
+      // Foto con modelo: nueva si viene `photo`, se quita con `removePhoto`, si no queda la que estaba.
+      const modelPhoto = body.photo ? await modelPhotoSource(c, body.photo) : body.removePhoto ? null : undefined;
+      return json({ storeDesign: await c.db.tx((q) => saveStoreDesign(q, id, body, { source, modelPhoto })) });
     }],
     ["DELETE", /^\/api\/admin\/store-designs\/([A-Za-z0-9_-]{1,60})$/, async (req, url, [id]) => {
       const { db, auth } = await ctx();
@@ -328,6 +333,18 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       await auth.require(req);
       await deleteDesignCollection(db, id);
       return json({ ok: true });
+    }],
+
+    ["GET", "/api/admin/announcement", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      return json({ announcement: await loadAnnouncement(db) });
+    }],
+    ["PUT", "/api/admin/announcement", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      const body = await readJson(req, 16 * 1024);
+      return json({ announcement: await saveAnnouncement(db, body.announcement) });
     }],
 
     ["GET", "/api/admin/shipping-rates", async (req) => {
@@ -432,6 +449,26 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
     if (problem) throw new HttpError(422, problem);
     const name = String(file.name || "diseno").slice(0, 120);
     return { kind: "url", url: storage.publicUrl("disenos", key), name, sha256: file.sha256, mime: file.mime, bytes: file.bytes };
+  }
+
+  /** Foto de un diseño puesto en una persona: JPG o PNG ya subido al balde de diseños. */
+  async function modelPhotoSource({ storage }, file) {
+    if (!file) return null;
+    if (!["image/jpeg", "image/png"].includes(file.mime)) throw new HttpError(422, "La foto con modelo tiene que ser JPG o PNG.");
+    checkDeclared({ ...file, role: "original" });
+    const key = storageKeyFor("tienda", file.sha256, file.mime);
+    const problem = inspectBytes(await storage.read("disenos", key), file);
+    if (problem) throw new HttpError(422, problem);
+    const side = (v) => (Number.isInteger(v) && v > 0 && v <= 10000 ? v : null);
+    return {
+      url: storage.publicUrl("disenos", key),
+      name: String(file.name || "foto").slice(0, 120),
+      sha256: file.sha256,
+      mime: file.mime,
+      bytes: file.bytes,
+      width: side(file.width),
+      height: side(file.height),
+    };
   }
 
   async function handle(request) {

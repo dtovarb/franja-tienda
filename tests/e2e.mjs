@@ -123,7 +123,7 @@ console.log("\nEscritorio 1440×900");
     assert(await page.locator(".hero__title").isVisible(), "sin hero");
     const n = await page.locator("[data-featured] .pcard").count();
     assert(n === 4, `destacados: ${n}`);
-    assert(!(await page.locator(".hero__garment svg, .ed-card svg svg").count()), "las prendas del inicio no deberían tener estampa");
+    assert(!(await page.locator(".ed-card svg svg").count()), "las prendas del inicio no deberían tener estampa");
     assert(!/buzo canguro/i.test(await page.textContent("[data-editorial]")), "el lookbook no debería tener el buzo canguro");
     assert(await page.locator(".site-footer").isVisible(), "sin footer");
     assert((await page.locator("[data-cart-count]").textContent()) === "0", "carrito no vacío");

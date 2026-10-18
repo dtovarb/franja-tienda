@@ -284,4 +284,19 @@ alter table design_collections enable row level security;
 alter table store_designs add column if not exists collection_id text references design_collections(id) on delete set null;
 `,
   },
+  {
+    // Ajustes del sitio que se editan desde el panel (por ahora, el cintillo
+    // de anuncios) y la foto opcional de cada diseño puesto en una persona,
+    // que la tienda muestra al pasar el mouse por la tarjeta.
+    id: "0008_cintillo_y_fotos",
+    sql: `
+create table if not exists site_settings (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table site_settings enable row level security;
+alter table store_designs add column if not exists model_photo jsonb;
+`,
+  },
 ];

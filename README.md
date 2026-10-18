@@ -60,7 +60,7 @@ Recorre el flujo completo en escritorio (1440×900), móvil táctil (390×844) y
 
 ## Panel de la tienda
 
-`admin.html` (enlace en el pie) administra diseños de la tienda, productos (precio, visibilidad, destacados, colores, recargos y stock por talle) y pedidos. Con servidor pide login y suma pedidos reales con sus archivos y las tarifas de envío. En modo demostración **no tiene login y guarda todo en el navegador**; «Restablecer datos de demostración» vuelve al estado inicial.
+`admin.html` (enlace en el pie) administra diseños de la tienda (con foto opcional del diseño puesto), el cintillo de anuncios, productos (precio, visibilidad, destacados, colores, recargos y stock por talle) y pedidos. Con servidor pide login y suma pedidos reales con sus archivos y las tarifas de envío. En modo demostración **no tiene login y guarda todo en el navegador**; «Restablecer datos de demostración» vuelve al estado inicial.
 
 ## Fotos de prendas
 

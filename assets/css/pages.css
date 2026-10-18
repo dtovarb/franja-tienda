@@ -2,122 +2,119 @@
    Páginas: inicio, catálogo, producto, carrito
    ============================================================ */
 
-/* ---------- HERO ---------- */
+/* ---------- HERO: la prenda adelante ---------- */
 .hero {
   position: relative;
-  padding-block: var(--sp-7) var(--sp-8);
+  padding-block: var(--sp-6) var(--sp-8);
   overflow: hidden;
 }
 .hero__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: var(--sp-6);
-  align-items: end;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: var(--sp-7);
+  align-items: center;
 }
 .hero__copy {
   display: grid;
   gap: var(--sp-5);
-  align-content: end;
-  position: relative;
-  z-index: 2;
+  align-content: center;
 }
 .hero__title {
-  font-size: var(--fs-hero);
-  margin-right: -12%;
-}
-.hero__title .line {
-  display: block;
+  font-size: clamp(2.75rem, 1.4rem + 4.6vw, 5.75rem);
+  line-height: 0.92;
+  max-width: 9ch;
 }
 .hero__title .accent {
   color: var(--c-magenta);
-}
-.hero__title .underline {
-  position: relative;
-  display: inline-block;
-}
-.hero__title .underline::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0.02em;
-  height: 0.09em;
-  background: linear-gradient(to right,
-    var(--c-red) 0 20%, var(--c-orange) 20% 40%, var(--c-white) 40% 60%,
-    var(--c-pink) 60% 80%, var(--c-magenta) 80% 100%);
-  outline: 1px solid var(--c-ink);
 }
 .hero__ctas {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-3);
 }
-.hero__meta {
+.hero__facts {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-5);
-  padding-top: var(--sp-4);
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  padding: var(--sp-4) 0 0;
   border-top: var(--border);
-}
-.hero__meta div {
-  display: grid;
-  gap: 2px;
-}
-.hero__meta b {
-  font-family: var(--ff-display);
-  font-stretch: 75%;
-  font-weight: 800;
-  font-size: var(--fs-xl);
+  list-style: none;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
+  color: var(--c-ink-2);
 }
-.hero__visual {
+.hero__facts li::before {
+  content: "✦ ";
+  color: var(--c-magenta);
+}
+
+.hero__show {
+  display: grid;
+  gap: var(--sp-4);
+}
+.hero__stage {
   position: relative;
-  aspect-ratio: 4 / 5;
-  background: var(--c-red);
   isolation: isolate;
+  /* 4:5 que entre en la pantalla junto con los diseños de abajo */
+  width: min(100%, max(360px, calc(min(66vh, 680px) * 0.8)));
+  margin-left: auto;
 }
-.hero__visual::before {
-  /* bloque de color desplazado: composición asimétrica */
+.hero__stage::before {
+  /* bloque terracota desplazado detrás de la prenda */
   content: "";
   position: absolute;
-  inset: 12% -14% -8% 22%;
-  background: var(--c-surface-2);
+  inset: -4% 30% 20% -16%;
+  background: var(--c-red);
   z-index: -1;
 }
-.hero__visual .hero__garment {
+.hero__frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  background: var(--c-surface-2);
+  overflow: hidden;
+  box-shadow: var(--shadow-pop);
+}
+.hero__mock-wrap {
   position: absolute;
-  width: 92%;
-  left: 2%;
-  top: 6%;
-  transform: rotate(-6deg);
-  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.25));
+  inset: 0;
+  display: block;
 }
-.hero__visual .hero__garment--2 {
-  width: 48%;
-  left: auto;
-  right: -8%;
-  top: auto;
-  bottom: -6%;
-  transform: rotate(9deg);
+.hero__mock {
+  width: 100%;
+  height: 100%;
+  transition: transform 600ms var(--ease);
 }
-.hero__visual .hero__garment[data-photo] {
-  border: 10px solid #fff;
-  background: #fff;
+.hero__frame:hover .hero__mock {
+  transform: scale(1.03);
 }
-.hero__caption {
+/* Con foto puesta: la foto ocupa todo y el mockup queda de recuadro. */
+.hero__photo {
   position: absolute;
-  left: 0;
-  bottom: 0;
-  transform: translateY(100%);
-  padding-top: 8px;
-  color: var(--c-ink-3);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+}
+.hero__frame--photo .hero__mock-wrap {
+  inset: var(--sp-4) auto auto var(--sp-4);
+  width: 30%;
+  aspect-ratio: 1;
+  background: var(--c-surface-2);
+  border: 4px solid var(--c-white);
+  box-shadow: var(--shadow-pop);
+}
+.hero__frame--photo:hover .hero__mock {
+  transform: none;
 }
 .hero__sticker {
   position: absolute;
-  top: 6%;
-  right: 4%;
-  width: 104px;
-  height: 104px;
+  top: -18px;
+  right: -12px;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
   background: var(--c-orange);
   color: var(--c-ink);
@@ -132,20 +129,121 @@
   transform: rotate(12deg);
   border: 2px solid var(--c-ink);
   z-index: 3;
+  pointer-events: none;
+}
+.hero__info {
+  position: absolute;
+  left: var(--sp-4);
+  right: var(--sp-4);
+  bottom: var(--sp-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-white);
+  border: var(--border-strong);
+  z-index: 2;
+}
+.hero__info p {
+  margin: 0;
+}
+.hero__kicker {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  color: var(--c-ink-3);
+}
+.hero__name {
+  font-family: var(--ff-display);
+  font-stretch: var(--fs-stretch-display);
+  font-weight: var(--fw-display);
+  font-size: var(--fs-xl);
+  line-height: 1.1;
+}
+.hero__price {
+  font-size: var(--fs-sm);
+}
+.hero__picks {
+  display: flex;
+  gap: var(--sp-3);
+  justify-content: flex-end;
+}
+.hero__pick {
+  width: 68px;
+  height: 68px;
+  padding: 8px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.hero__pick img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.hero__pick:hover {
+  border-color: var(--c-ink);
+  transform: translateY(-2px);
+}
+.hero__pick[aria-pressed="true"] {
+  border: 2px solid var(--c-magenta);
+  box-shadow: 0 0 0 2px var(--c-magenta-tint);
 }
 @media (max-width: 900px) {
+  .hero {
+    padding-top: var(--sp-5);
+  }
   .hero__grid {
     grid-template-columns: 1fr;
+    gap: var(--sp-4);
+  }
+  /* En el celu la prenda va enseguida del título, antes del texto. */
+  .hero__copy {
+    display: contents;
+  }
+  .hero__show {
+    order: 1;
+    margin-block: var(--sp-3) var(--sp-2);
+  }
+  .hero__copy .lead,
+  .hero__ctas,
+  .hero__facts {
+    order: 2;
   }
   .hero__title {
-    margin-right: 0;
+    max-width: 12ch;
   }
-  .hero__visual {
-    width: min(100%, 460px);
-    margin: var(--sp-5) 0 var(--sp-6) auto;
+  .hero__stage {
+    width: 100%;
   }
-  .hero__visual::before {
-    inset: 10% 6% -6% -10%;
+  .hero__stage::before {
+    inset: -3% 10% 18% -3%;
+  }
+  .hero__sticker {
+    width: 76px;
+    height: 76px;
+    top: -14px;
+    right: -6px;
+    font-size: 0.625rem;
+  }
+  .hero__picks {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 520px) {
+  .hero__info {
+    position: static;
+    margin-top: calc(-1 * var(--sp-2));
+  }
+  .hero__frame--photo .hero__mock-wrap {
+    width: 34%;
+  }
+  .hero__pick {
+    width: 56px;
+    height: 56px;
   }
 }
 
@@ -724,6 +822,57 @@
   width: 100%;
   height: 100%;
   padding: 4%;
+}
+/* Foto del diseño puesto: tapa el mockup al pasar el mouse (o con el botón, en táctil). */
+.dcard__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  opacity: 0;
+  transition: opacity 320ms var(--ease);
+  pointer-events: none;
+}
+.dcard__media.is-photo .dcard__photo {
+  opacity: 1;
+}
+@media (hover: hover) {
+  .dcard__media.has-photo:hover .dcard__photo {
+    opacity: 1;
+  }
+}
+.dcard__flip {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--c-ink);
+  border-radius: var(--radius-pill);
+  background: var(--c-white);
+  color: var(--c-ink);
+  font-family: var(--ff-mono);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.dcard__flip:hover {
+  border-color: var(--c-magenta);
+  color: var(--c-magenta);
+}
+@media (hover: hover) {
+  /* con mouse alcanza con pasar por encima: el botón queda como pista */
+  .dcard__media.has-photo:hover .dcard__flip {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dcard__photo {
+    transition: none;
+  }
 }
 .dcard__body {
   display: grid;

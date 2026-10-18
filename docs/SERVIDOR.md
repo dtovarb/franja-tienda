@@ -59,11 +59,12 @@ Los datos de contacto de la tienda (mail, WhatsApp) están en un solo lugar: `as
 
 ## Panel (`admin.html`)
 
-Con servidor pide mail y contraseña. Tiene cuatro pestañas:
+Con servidor pide mail y contraseña. Tiene cinco pestañas:
 
-- **Diseños**: alta, edición, publicar/ocultar y baja de los diseños de la tienda (el archivo va al balde público).
+- **Diseños**: alta, edición, publicar/ocultar y baja de los diseños de la tienda (el archivo va al balde público). Cada diseño puede llevar una **foto con modelo** (`store_designs.model_photo`): el panel la achica a 1600 px en JPG, va al balde público y la tienda la muestra al pasar el mouse por la tarjeta del diseño y en el hero del inicio.
 - **Productos**: precio, visibilidad, destacados, colores, recargos y stock por talle, y los recargos por zona de estampa (el precio base incluye el frente).
 - **Pedidos**: datos de la clienta y envío, vista previa, descarga del original, la vista previa, el archivo de impresión y el diseño editable (enlaces firmados de 15 minutos), cambio de estado con nota (por ejemplo, el número de seguimiento) y enlace para mandarle a la clienta.
+- **Sitio**: el **cintillo de anuncios** de arriba de todo (hasta 5 mensajes que rotan, enlace opcional, color, encendido/apagado). Se guarda en `site_settings` (clave `announcement`) y viaja en `/api/catalog`, que se cachea 30 s: el cambio se ve en la tienda en menos de un minuto.
 - **Envíos**: tabla por rango de código postal. Define el envío gratis (CP 5000) y es el respaldo si las empresas de correo no responden. Las dos zonas pagas tienen **importes de ejemplo** y el panel las marca así.
 
 ## Envíos
