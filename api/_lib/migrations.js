@@ -259,4 +259,11 @@ ${Object.values(GARMENTS)
   .join("\n")}
 `,
   },
+  {
+    // La remera clásica se vende de S a XL (sin XXL desde el 18/10/2026).
+    id: "0006_remera_sin_xxl",
+    sql: `
+delete from product_sizes where product_id = 'remera-clasica' and size_id = 'XXL';
+`,
+  },
 ];

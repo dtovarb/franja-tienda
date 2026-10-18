@@ -5,7 +5,7 @@
  * (remanija.com.ar/tabla-de-talles.html, 13/10/2026). El buzo cuello redondo
  * usa la tabla de buzo medio cierre, como indica esa página.
  * La remera clásica usa las medidas propias de la tienda (18/10/2026), con
- * columnas A–D y su nota. El hombro y la manga de XXL son estimados.
+ * columnas A–D y su nota. Se vende de S a XL.
  *
  * La ficha y las preguntas frecuentes muestran solo los talles que la prenda
  * tiene a la venta.
@@ -24,7 +24,6 @@ const rows = (cols, data, extra = {}) => ({ cols, ...extra, rows: data.map(([siz
 export const SIZE_CHARTS = {
   tee: rows(["largo", "ancho", "hombro", "manga"], [
     ["S", 69, 52, 13.4, 21], ["M", 71, 54, 14.2, 21], ["L", 73, 56, 15, 22], ["XL", 75, 59, 16, 23],
-    ["XXL", 77, 61, 17, 24],
   ], {
     labels: { largo: "Largo (A)", ancho: "Ancho (B)", hombro: "Hombro (C)", manga: "Manga (D)" },
     help: {
