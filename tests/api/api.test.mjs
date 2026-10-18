@@ -366,6 +366,50 @@ test("panel: productos, diseños de la tienda y tarifas de envío", async () => 
   assert.equal((await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: "5800" } }))).body.options[0].price, 5200);
 });
 
+test("panel: cintillo de anuncios y foto con modelo de un diseño", async () => {
+  const cookie = await login();
+  let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.equal(cat.announcement.enabled, false);
+  assert.equal((await call("PUT", "/api/admin/announcement", { body: { announcement: { enabled: true } } })).status, 401);
+  // Enlaces raros o encendido sin mensajes: no.
+  let r = await jsonOf(await call("PUT", "/api/admin/announcement", { cookie, body: { announcement: { enabled: true, messages: [{ text: "Hola", link: "javascript:alert(1)" }] } } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(await call("PUT", "/api/admin/announcement", { cookie, body: { announcement: { enabled: true, messages: [{ text: "  " }] } } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(
+    await call("PUT", "/api/admin/announcement", {
+      cookie,
+      body: { announcement: { enabled: true, style: "franjas", messages: [{ text: "Envío gratis en Córdoba", link: "preguntas.html" }, { text: "" }, { text: "Nuevos diseños", link: "https://www.nevrado.com/disenos.html" }] } },
+    })
+  );
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.deepEqual(cat.announcement, {
+    enabled: true,
+    style: "franjas",
+    messages: [{ text: "Envío gratis en Córdoba", link: "preguntas.html" }, { text: "Nuevos diseños", link: "https://www.nevrado.com/disenos.html" }],
+  });
+
+  // Foto con modelo: se sube, se conserva al editar sin mandarla y se quita.
+  const jpg = await readFile(new URL("../fixtures/foto.jpg", import.meta.url));
+  const photo = { sha256: sha(jpg), mime: "image/jpeg", bytes: jpg.byteLength, name: "puesta.jpg", width: 1200, height: 1500 };
+  const up = await jsonOf(await call("POST", "/api/admin/uploads", { cookie, body: { file: photo } }));
+  await app.handle(new Request(BASE + up.body.target.url, { method: "PUT", headers: up.body.target.headers, body: jpg }));
+  assert.equal((await call("PATCH", "/api/admin/store-designs/sd-lunas", { cookie, body: { name: "Dos lunas", photo: { ...photo, mime: "image/svg+xml" } } })).status, 422);
+  r = await jsonOf(await call("PATCH", "/api/admin/store-designs/sd-lunas", { cookie, body: { name: "Dos lunas", price: 3000, photo } }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.storeDesign.modelPhoto.width, 1200);
+  const img = await app.handle(new Request(BASE + r.body.storeDesign.modelPhoto.url));
+  assert.equal(sha(Buffer.from(await img.arrayBuffer())), photo.sha256);
+  r = await jsonOf(await call("PATCH", "/api/admin/store-designs/sd-lunas", { cookie, body: { name: "Dos lunas", price: 3000 } }));
+  assert.ok(r.body.storeDesign.modelPhoto, "editar sin foto conserva la que había");
+  cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.ok(cat.storeDesigns.find((d) => d.id === "sd-lunas").modelPhoto.url);
+  assert.equal(cat.storeDesigns.find((d) => d.id === "sd-sol").modelPhoto, null);
+  r = await jsonOf(await call("PATCH", "/api/admin/store-designs/sd-lunas", { cookie, body: { name: "Dos lunas", price: 3000, removePhoto: true } }));
+  assert.equal(r.body.storeDesign.modelPhoto, null);
+});
+
 test("sin cuentas en Vercel la API responde 'sin configurar' y la tienda sigue en demo", async () => {
   const off = createApp({ VERCEL: "1", DATABASE_URL: "", POSTGRES_URL: "", SESSION_SECRET: "" });
   const h = await (await off.handle(new Request(BASE + "/api/health"))).json();

@@ -2,7 +2,9 @@
  * Componentes de interfaz compartidos: íconos, header, footer, toasts y
  * diálogos de confirmación.
  */
-import { SERVER } from "./api.js";
+import { SERVER, CATALOG } from "./api.js";
+import { readJSON } from "./storage.js";
+import { normalizeAnnouncement, safeLink } from "./announcement.js";
 import { cartCount, onCartChange } from "./cart.js";
 import { escapeHtml } from "./format.js";
 import { CONTACT, whatsappUrl, instagramUrl, CONSUMER_COMPLAINTS_URL } from "../data/contact.js";
@@ -60,6 +62,60 @@ function injectSprite() {
   );
 }
 
+/* ---------------- Cintillo de anuncios ---------------- */
+export const ANNOUNCEMENT_KEY = "announcement.v1";
+/** Ejemplo del modo demostración (con servidor manda lo que se guardó en el panel). */
+export const DEMO_ANNOUNCEMENT = {
+  enabled: true,
+  style: "ciruela",
+  messages: [
+    { text: "Envío gratis en Córdoba Capital centro", link: "preguntas.html" },
+    { text: "Nuevos diseños de la casa", link: "disenos.html" },
+  ],
+};
+
+export function getAnnouncement() {
+  if (CATALOG) return CATALOG.announcement || null;
+  return normalizeAnnouncement(readJSON(ANNOUNCEMENT_KEY, DEMO_ANNOUNCEMENT)).value;
+}
+
+/** HTML del cintillo (vacío si está apagado). Con varios mensajes, rotan. */
+export function announcementBar(a = getAnnouncement()) {
+  if (!a?.enabled || !a.messages?.length) return "";
+  const many = a.messages.length > 1;
+  const items = a.messages
+    .map((m, i) => {
+      const link = safeLink(m.link);
+      const ext = link && link.startsWith("https://") ? ' target="_blank" rel="noopener"' : "";
+      const inner = `${escapeHtml(m.text)}${link ? ' <span aria-hidden="true">→</span>' : ""}`;
+      return `<li class="announce__item"${many && i ? " hidden" : ""}>${link ? `<a href="${escapeHtml(link)}"${ext}>${inner}</a>` : `<span>${inner}</span>`}</li>`;
+    })
+    .join("");
+  return `<div class="announce announce--${escapeHtml(a.style || "ciruela")}" role="region" aria-label="Anuncios"${many ? " data-announce-rotate" : ""}>
+      <ul class="announce__list" role="list">${items}</ul>
+    </div>`;
+}
+
+/** Rota los mensajes cada 5 s; se frena con el mouse o el foco encima. */
+function startAnnouncementRotation(root) {
+  const bar = root.querySelector("[data-announce-rotate]");
+  if (!bar) return;
+  const items = [...bar.querySelectorAll(".announce__item")];
+  let i = 0;
+  let paused = false;
+  const pause = (v) => () => (paused = v);
+  bar.addEventListener("mouseenter", pause(true));
+  bar.addEventListener("mouseleave", pause(false));
+  bar.addEventListener("focusin", pause(true));
+  bar.addEventListener("focusout", pause(false));
+  setInterval(() => {
+    if (paused || document.hidden) return;
+    items[i].hidden = true;
+    i = (i + 1) % items.length;
+    items[i].hidden = false;
+  }, 5000);
+}
+
 /* ---------------- Header / Footer ---------------- */
 const NAV = [
   { href: "index.html", label: "Inicio", key: "home" },
@@ -93,6 +149,12 @@ export function renderHeader(active) {
         <a class="cart-link" href="carrito.html" aria-label="Carrito">${icon("bag")}<span class="cart-label">Carrito</span><span class="cart-count" data-cart-count>0</span></a>
       </div>
     </div>`;
+  // El cintillo va arriba del header y se va con el scroll (el header queda fijo).
+  document.querySelector(".announce")?.remove();
+  if (active !== "admin") {
+    el.insertAdjacentHTML("beforebegin", announcementBar());
+    startAnnouncementRotation(el.parentElement);
+  }
   const toggle = el.querySelector(".menu-toggle");
   const nav = el.querySelector(".nav");
   toggle.addEventListener("click", () => {

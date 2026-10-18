@@ -121,6 +121,19 @@ export async function storeDesignImageUrl(design) {
   return null;
 }
 
+/**
+ * Foto del diseño puesto en una persona (opcional, se carga en el panel).
+ * Con servidor es { url, … } en el balde público; en la demostración, un
+ * archivo guardado en este navegador ({ assetId }).
+ */
+export async function modelPhotoUrl(design) {
+  const p = design?.modelPhoto;
+  if (!p) return null;
+  if (p.url) return p.url;
+  if (p.assetId) return assetDisplayUrl(p.assetId);
+  return null;
+}
+
 /** Diseños de la tienda (vigentes) referenciados por una lista de ids, sin repetir. */
 export function storeDesignsByIds(ids = []) {
   return [...new Set(ids)].map(getStoreDesign).filter(Boolean);

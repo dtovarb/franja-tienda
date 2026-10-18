@@ -282,3 +282,57 @@
 .admin-collections {
   margin-bottom: var(--sp-7);
 }
+
+/* Foto con modelo en el formulario de diseño */
+.admin-photo__row {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: flex-start;
+}
+.admin-photo__img {
+  width: 96px;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--c-surface-2);
+  flex: none;
+}
+.admin-photo__fields {
+  display: grid;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+}
+
+/* Cintillo de anuncios (pestaña Sitio) */
+.admin-announce {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-announce__row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--sp-2);
+  align-items: center;
+}
+.admin-announce__preview {
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  min-height: 36px;
+}
+.admin-announce__preview .hint {
+  padding: var(--sp-2) var(--sp-3);
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .admin-announce__row {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+  .admin-announce__row > .field:last-child {
+    grid-column: 2;
+  }
+}

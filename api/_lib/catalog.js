@@ -7,6 +7,7 @@ import { GARMENTS } from "../../assets/js/data/garments.js";
 import { HttpError } from "./http.js";
 import { insertProduct } from "./seed.js";
 import { DEFAULT_ZONE_PRICES, PRICED_ZONES } from "../../assets/js/core/pricing.js";
+import { EMPTY_ANNOUNCEMENT, normalizeAnnouncement } from "../../assets/js/core/announcement.js";
 
 export async function loadColors(q) {
   const rows = await q.query("select id, name, hex from garment_colors order by sort, id");
@@ -52,6 +53,7 @@ const designRow = (r) => ({
   productIds: r.product_ids,
   collectionId: r.collection_id || null,
   source: r.source,
+  modelPhoto: r.model_photo || null,
   createdAt: isoDate(r.created_at),
   updatedAt: isoDate(r.updated_at),
 });
@@ -154,7 +156,10 @@ export async function createProduct(q, body, defaultSizesFor) {
   return getProduct(q, id);
 }
 
-export async function saveStoreDesign(q, id, body, { source } = {}) {
+/**
+ * `modelPhoto`: undefined = deja la que había, null = la quita, objeto = la reemplaza.
+ */
+export async function saveStoreDesign(q, id, body, { source, modelPhoto } = {}) {
   const name = text(body.name, 60, "el nombre", { required: true });
   // Sin `collectionId` en el cuerpo, al editar se conserva la que tenía.
   let collectionId = typeof body.collectionId === "string" && body.collectionId ? body.collectionId : null;
@@ -177,20 +182,22 @@ export async function saveStoreDesign(q, id, body, { source } = {}) {
     const [cur] = await q.query("select * from store_designs where id=$1 and deleted_at is null", [id]);
     if (!cur) throw new HttpError(404, "Ese diseño no existe.");
     await q.query(
-      `update store_designs set name=$2, description=$3, price=$4, status=$5, product_ids=$6::text::jsonb, source=$7::text::jsonb, collection_id=$8, updated_at=now() where id=$1`,
-      [id, name, description, price, status, JSON.stringify(productIds), JSON.stringify(source || cur.source), collectionId]
+      `update store_designs set name=$2, description=$3, price=$4, status=$5, product_ids=$6::text::jsonb, source=$7::text::jsonb, collection_id=$8, model_photo=$9::text::jsonb, updated_at=now() where id=$1`,
+      [id, name, description, price, status, JSON.stringify(productIds), JSON.stringify(source || cur.source), collectionId, jsonOrNull(modelPhoto === undefined ? cur.model_photo : modelPhoto)]
     );
   } else {
     if (!source) throw new HttpError(422, "Falta el archivo del diseño.");
     id = `sd-${crypto.randomUUID().slice(0, 8)}`;
     const [{ n }] = await q.query("select coalesce(max(sort),0)+1 as n from store_designs");
     await q.query(
-      `insert into store_designs (id, name, description, price, status, product_ids, source, sort, collection_id) values ($1,$2,$3,$4,$5,$6::text::jsonb,$7::text::jsonb,$8,$9)`,
-      [id, name, description, price, status, JSON.stringify(productIds), JSON.stringify(source), n, collectionId]
+      `insert into store_designs (id, name, description, price, status, product_ids, source, sort, collection_id, model_photo) values ($1,$2,$3,$4,$5,$6::text::jsonb,$7::text::jsonb,$8,$9,$10::text::jsonb)`,
+      [id, name, description, price, status, JSON.stringify(productIds), JSON.stringify(source), n, collectionId, jsonOrNull(modelPhoto)]
     );
   }
   return (await storeDesignsByIds(q, [id]))[0];
 }
+
+const jsonOrNull = (v) => (v ? JSON.stringify(v) : null);
 
 export async function deleteStoreDesign(q, id) {
   const rows = await q.query("update store_designs set deleted_at=now() where id=$1 and deleted_at is null returning id", [id]);
@@ -245,4 +252,20 @@ export async function saveZonePrices(q, prices) {
     );
   }
   return loadZonePrices(q);
+}
+
+/* ------------------------- Cintillo de anuncios ------------------------- */
+export async function loadAnnouncement(q) {
+  const [row] = await q.query("select value from site_settings where key = 'announcement'");
+  return row ? normalizeAnnouncement(row.value).value : { ...EMPTY_ANNOUNCEMENT };
+}
+
+export async function saveAnnouncement(q, body) {
+  const { value, errors } = normalizeAnnouncement(body);
+  if (errors.length) throw new HttpError(422, errors.join(" "));
+  await q.query(
+    "insert into site_settings (key, value) values ('announcement', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()",
+    [JSON.stringify(value)]
+  );
+  return value;
 }

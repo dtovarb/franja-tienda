@@ -10,21 +10,23 @@
  *   - Sin servidor (demostración): sin login, todo en este navegador.
  * La diferencia está en `data` (abajo) y en la pestaña de pedidos.
  */
-import { initPage, icon, toast, confirmDialog } from "../core/ui.js";
+import { initPage, icon, toast, confirmDialog, getAnnouncement, ANNOUNCEMENT_KEY, announcementBar } from "../core/ui.js";
+import { ANNOUNCEMENT_STYLES, MAX_MESSAGES, MAX_TEXT, normalizeAnnouncement } from "../core/announcement.js";
+import { writeJSON, removeKey } from "../core/storage.js";
 import {
   PRODUCTS, GARMENT_COLORS, getProduct, getColor, saveProducts, resetProducts, defaultSizesFor, stockLabel,
 } from "../data/catalog.js";
 import { GARMENTS, garmentSvg, faceLabel, faceHint } from "../data/garments.js";
 import { ZONE_PRICES, PRICED_ZONES } from "../core/pricing.js";
 import {
-  listStoreDesigns, getStoreDesign, saveStoreDesign, deleteStoreDesign, resetStoreDesigns, storeDesignImageUrl,
+  listStoreDesigns, getStoreDesign, saveStoreDesign, deleteStoreDesign, resetStoreDesigns, storeDesignImageUrl, modelPhotoUrl,
   listCollections, saveCollection, deleteCollection, resetCollections,
 } from "../core/store-designs.js";
 import { listOrders, setOrderStatus, clearOrders, ORDER_STATUSES } from "../core/orders.js";
 import { processUpload, UploadError } from "../editor/upload.js";
 import { formatPrice, escapeHtml, uid } from "../core/format.js";
 import { SERVER, api, putToTarget } from "../core/api.js";
-import { getAsset } from "../core/asset-store.js";
+import { getAsset, putAsset, sha256Hex } from "../core/asset-store.js";
 
 initPage("admin");
 
@@ -34,12 +36,51 @@ const designSource = async (file) => {
   return { asset: a, source: { kind: "asset", assetId: a.id, name: a.name, type: a.type, width: a.width, height: a.height, isVector: a.isVector } };
 };
 
+/**
+ * Foto con modelo: se achica en el navegador (lado mayor 1600 px, JPG) para
+ * que la tienda cargue rápido. Acepta JPG, PNG o WebP.
+ */
+const PHOTO_MAX_SIDE = 1600;
+const PHOTO_MIN_SIDE = 500;
+const REMOVE_PHOTO = "remove";
+async function preparePhoto(file) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error("La foto con modelo tiene que ser JPG, PNG o WebP.");
+  let bmp;
+  try {
+    bmp = await createImageBitmap(file);
+  } catch {
+    throw new Error("No se pudo leer la foto con modelo. Probá exportarla de nuevo como JPG.");
+  }
+  if (Math.min(bmp.width, bmp.height) < PHOTO_MIN_SIDE) throw new Error(`La foto con modelo mide ${bmp.width}×${bmp.height} px: es muy chica (mínimo ${PHOTO_MIN_SIDE} px de lado).`);
+  const k = Math.min(1, PHOTO_MAX_SIDE / Math.max(bmp.width, bmp.height));
+  const width = Math.round(bmp.width * k);
+  const height = Math.round(bmp.height * k);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const g = canvas.getContext("2d");
+  g.fillStyle = "#fff"; // un PNG con transparencia queda sobre blanco
+  g.fillRect(0, 0, width, height);
+  g.drawImage(bmp, 0, 0, width, height);
+  bmp.close?.();
+  const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.86));
+  const name = `${file.name.replace(/\.[^.]+$/, "") || "foto"}.jpg`;
+  return { blob, meta: { sha256: await sha256Hex(blob), mime: "image/jpeg", bytes: blob.size, name, width, height } };
+}
+
 /** Demostración: todo en este navegador. */
 const demoData = {
   designs: async () => listStoreDesigns(),
-  async saveDesign(current, fields, file) {
+  async saveDesign(current, fields, file, photo) {
     const source = file ? (await designSource(file)).source : current.source;
-    return saveStoreDesign({ ...current, ...fields, source });
+    let modelPhoto = current.modelPhoto || null;
+    if (photo === REMOVE_PHOTO) modelPhoto = null;
+    else if (photo) {
+      const { blob, meta } = photo;
+      await putAsset({ id: meta.sha256, blob, name: meta.name, type: meta.mime, size: meta.bytes, width: meta.width, height: meta.height, isVector: false });
+      modelPhoto = { assetId: meta.sha256, name: meta.name, width: meta.width, height: meta.height };
+    }
+    return saveStoreDesign({ ...current, ...fields, source, modelPhoto });
   },
   deleteDesign: async (id) => deleteStoreDesign(id),
   collections: async () => listCollections(),
@@ -77,12 +118,19 @@ const demoData = {
   async saveZonePrices(prices) {
     return Object.assign(ZONE_PRICES, prices); // solo esta sesión
   },
+  announcement: async () => getAnnouncement(),
+  async saveAnnouncement(a) {
+    const { value, errors } = normalizeAnnouncement(a);
+    if (errors.length) throw new Error(errors.join(" "));
+    writeJSON(ANNOUNCEMENT_KEY, value);
+    return value;
+  },
 };
 
 /** Con servidor: la base de la tienda. Los archivos de diseños van al balde público. */
 const serverData = {
   designs: async () => (await api("admin/store-designs")).storeDesigns,
-  async saveDesign(current, fields, file) {
+  async saveDesign(current, fields, file, photo) {
     let fileMeta;
     if (file) {
       const { asset } = await designSource(file); // mismos controles que las subidas de clientas
@@ -90,7 +138,13 @@ const serverData = {
       const { target } = await api("admin/uploads", { method: "POST", body: { file: fileMeta } });
       await putToTarget(target, (await getAsset(asset.id)).blob);
     }
-    const body = { ...fields, file: fileMeta };
+    let photoMeta;
+    if (photo && photo !== REMOVE_PHOTO) {
+      photoMeta = photo.meta;
+      const { target } = await api("admin/uploads", { method: "POST", body: { file: photoMeta } });
+      await putToTarget(target, photo.blob);
+    }
+    const body = { ...fields, file: fileMeta, photo: photoMeta, removePhoto: photo === REMOVE_PHOTO };
     const r = current.id
       ? await api(`admin/store-designs/${encodeURIComponent(current.id)}`, { method: "PATCH", body })
       : await api("admin/store-designs", { method: "POST", body });
@@ -110,6 +164,8 @@ const serverData = {
   createProduct: async (fields) => (await api("admin/products", { method: "POST", body: fields })).product,
   zonePrices: async () => (await api("admin/zone-prices")).zonePrices,
   saveZonePrices: async (zonePrices) => (await api("admin/zone-prices", { method: "PUT", body: { zonePrices } })).zonePrices,
+  announcement: async () => (await api("admin/announcement")).announcement,
+  saveAnnouncement: async (announcement) => (await api("admin/announcement", { method: "PUT", body: { announcement } })).announcement,
 };
 
 const data = SERVER ? serverData : demoData;
@@ -120,7 +176,7 @@ const findProduct = (id) => state.products.find((p) => p.id === id);
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const TABS = SERVER ? ["disenos", "productos", "pedidos", "envios"] : ["disenos", "productos", "pedidos"];
+const TABS = SERVER ? ["disenos", "productos", "pedidos", "sitio", "envios"] : ["disenos", "productos", "pedidos", "sitio"];
 
 /* ======================= Pestañas ======================= */
 function selectTab(name, { focus = false } = {}) {
@@ -180,7 +236,7 @@ async function renderDesigns() {
           <li class="admin-row" data-design-row="${d.id}">
             <img class="admin-thumb" src="${urls[i] || ""}" alt="">
             <div class="admin-row__main">
-              <p><b>${escapeHtml(d.name)}</b> <span class="tag ${d.status === "published" ? "tag--magenta" : "tag--demo"}">${d.status === "published" ? "Publicado" : "Borrador"}</span></p>
+              <p><b>${escapeHtml(d.name)}</b> <span class="tag ${d.status === "published" ? "tag--magenta" : "tag--demo"}">${d.status === "published" ? "Publicado" : "Borrador"}</span>${d.modelPhoto ? ' <span class="tag tag--pink">Con foto puesta</span>' : ""}</p>
               <p class="hint">${d.price ? formatPrice(d.price) : "Sin costo"} por prenda · ${escapeHtml(productNames(d.productIds))} · ${escapeHtml(findCollection(d.collectionId)?.name || "Sin colección")}</p>
             </div>
             <div class="admin-row__actions">
@@ -310,6 +366,17 @@ function renderDesignForm() {
           <input class="input" id="d-file" name="file" type="file" accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml" ${isNew ? "required" : ""}>
           <p class="hint">JPG, PNG o SVG, mismo control que las subidas de clientas. Se guarda el original sin cambios.</p>
         </div>
+        <div class="field admin-grid__wide admin-photo">
+          <label for="d-photo">Foto con modelo (opcional)</label>
+          <div class="admin-photo__row">
+            ${d.modelPhoto ? '<img class="admin-photo__img" data-photo-preview alt="Foto actual">' : ""}
+            <div class="admin-photo__fields">
+              <input class="input" id="d-photo" name="photo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+              ${d.modelPhoto ? '<label class="check"><input type="checkbox" name="removePhoto"> Quitar la foto actual</label>' : ""}
+              <p class="hint">Una persona usando la prenda con este diseño. En la tienda aparece al pasar el mouse por el diseño, y en el inicio. Queda mejor vertical (4:5) y con el estampado a la altura del pecho. Antes de subirla la achicamos a 1600 px.</p>
+            </div>
+          </div>
+        </div>
         <div class="field">
           <label for="d-collection">Colección</label>
           <select class="input" id="d-collection" name="collectionId">
@@ -340,6 +407,8 @@ function renderDesignForm() {
       </div>
     </form>`;
   const form = $("[data-design-form]", host);
+  const preview = $("[data-photo-preview]", form);
+  if (preview) modelPhotoUrl(d).then((u) => u && (preview.src = u));
   form.allProducts.addEventListener("change", () => ($("[data-product-checks]", form).hidden = form.allProducts.checked));
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -370,10 +439,13 @@ async function submitDesign(form) {
   const btn = form.querySelector("[type=submit]");
   btn.disabled = true;
   try {
+    const photoFile = form.photo.files[0];
+    const photo = photoFile ? await preparePhoto(photoFile) : form.removePhoto?.checked ? REMOVE_PHOTO : undefined;
     const saved = await data.saveDesign(
       editingDesign,
       { name, description: form.description.value.trim(), price, status: form.status.value, productIds, collectionId: form.collectionId.value || null },
-      file
+      file,
+      photo
     );
     editingDesign = null;
     toast(`Diseño «${saved.name}» guardado${SERVER ? "" : " en este navegador"}.`, "success");
@@ -694,6 +766,104 @@ productsPanel.addEventListener("submit", (e) => {
   if (e.target.matches("[data-zone-prices-form]")) saveZonePricesForm(e.target);
 });
 
+/* ======================= Sitio: cintillo de anuncios ======================= */
+const sitePanel = $("[data-panel=sitio]");
+
+async function renderSite() {
+  const a = (await data.announcement()) || { enabled: false, style: "ciruela", messages: [] };
+  const rows = [...a.messages];
+  while (rows.length < MAX_MESSAGES) rows.push({ text: "", link: "" });
+  sitePanel.innerHTML = `
+    <div class="admin-head">
+      <div>
+        <h2 class="h3">Cintillo de anuncios</h2>
+        <p class="muted">La franja de arriba de todo de la tienda, para ofertas, envíos o novedades. Con más de un mensaje, van rotando cada 5 segundos.</p>
+      </div>
+    </div>
+    <form class="admin-form" data-announce-form novalidate>
+      <label class="check"><input type="checkbox" name="enabled" ${a.enabled ? "checked" : ""}> Mostrar el cintillo en la tienda</label>
+      <fieldset class="field">
+        <legend>Mensajes</legend>
+        <p class="hint">Hasta ${MAX_MESSAGES} mensajes de ${MAX_TEXT} caracteres. Los vacíos no se muestran. El enlace es opcional: una página de la tienda (por ejemplo <code>disenos.html</code> o <code>catalogo.html</code>) o una dirección que empiece con https://.</p>
+        <ol class="admin-announce" role="list">
+          ${rows
+            .map(
+              (m, i) => `<li class="admin-announce__row">
+              <span class="mono muted">${String(i + 1).padStart(2, "0")}</span>
+              <div class="field"><label class="sr-only" for="an-text-${i}">Mensaje ${i + 1}</label>
+                <input class="input" id="an-text-${i}" name="text" maxlength="${MAX_TEXT}" placeholder="${i ? "" : "Ej.: 3 cuotas sin interés en remeras"}" value="${escapeHtml(m.text)}"></div>
+              <div class="field"><label class="sr-only" for="an-link-${i}">Enlace del mensaje ${i + 1}</label>
+                <input class="input" id="an-link-${i}" name="link" placeholder="Enlace (opcional)" value="${escapeHtml(m.link)}"></div>
+            </li>`
+            )
+            .join("")}
+        </ol>
+      </fieldset>
+      <div class="field">
+        <label for="an-style">Color</label>
+        <select class="input" id="an-style" name="style">
+          ${Object.entries(ANNOUNCEMENT_STYLES).map(([k, v]) => `<option value="${k}" ${a.style === k ? "selected" : ""}>${v}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field">
+        <span class="label">Vista previa</span>
+        <div class="admin-announce__preview" data-announce-preview></div>
+      </div>
+      <div class="notice notice--danger form-errors" role="alert" data-announce-errors></div>
+      <div class="admin-form__actions">
+        <button class="btn btn--primary" type="submit">Guardar cintillo</button>
+      </div>
+    </form>`;
+  const form = $("[data-announce-form]", sitePanel);
+  const read = () => ({
+    enabled: form.enabled.checked,
+    style: form.style.value,
+    messages: $$("input[name=text]", form).map((t, i) => ({ text: t.value, link: $$("input[name=link]", form)[i].value })),
+  });
+  const preview = () => {
+    const v = normalizeAnnouncement({ ...read(), enabled: true }).value;
+    $("[data-announce-preview]", form).innerHTML = v.messages.length
+      ? announcementBar({ ...v, messages: v.messages.slice(0, 1) }) + (form.enabled.checked ? "" : '<p class="hint">Apagado: no se ve en la tienda.</p>')
+      : '<p class="hint">Escribí un mensaje para verlo.</p>';
+  };
+  form.addEventListener("input", preview);
+  form.addEventListener("change", preview);
+  preview();
+}
+
+sitePanel.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target.closest("[data-announce-form]");
+  if (!form) return;
+  const errEl = $("[data-announce-errors]", form);
+  const raw = {
+    enabled: form.enabled.checked,
+    style: form.style.value,
+    messages: $$("input[name=text]", form).map((t, i) => ({ text: t.value, link: $$("input[name=link]", form)[i].value })),
+  };
+  const { errors } = normalizeAnnouncement(raw);
+  if (errors.length) {
+    errEl.innerHTML = errors.map(escapeHtml).join("<br>");
+    return;
+  }
+  errEl.textContent = "";
+  const btn = form.querySelector("[type=submit]");
+  btn.disabled = true;
+  try {
+    const saved = await data.saveAnnouncement(raw);
+    toast(
+      saved.enabled
+        ? `Cintillo guardado${SERVER ? ". En la tienda se ve en un minuto como mucho." : " en este navegador."}`
+        : `Cintillo apagado${SERVER ? ". Deja de verse en un minuto como mucho." : "."}`,
+      "success"
+    );
+    renderSite();
+  } catch (err) {
+    errEl.textContent = errText(err, "No se pudo guardar el cintillo.");
+    btn.disabled = false;
+  }
+});
+
 /* ======================= Pedidos ======================= */
 const ordersPanel = $("[data-panel=pedidos]");
 
@@ -767,6 +937,7 @@ $("[data-reset]")?.addEventListener("click", async () => {
   resetProducts();
   resetStoreDesigns();
   resetCollections();
+  removeKey(ANNOUNCEMENT_KEY);
   clearOrders();
   editingDesign = null;
   editingCollection = null;
@@ -778,6 +949,7 @@ $("[data-reset]")?.addEventListener("click", async () => {
 async function renderAll() {
   await renderProducts(); // primero: los diseños nombran productos
   await renderDesigns();
+  await renderSite();
   if (SERVER) (await import("./admin-server.js")).renderServerPanels({ ordersPanel, updateTabs: selectTab });
   else renderOrders();
 }
