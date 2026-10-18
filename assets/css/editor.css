@@ -47,10 +47,9 @@
 }
 .ed-top__name {
   font-family: var(--ff-display);
-  font-stretch: 78%;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.125rem;
-  text-transform: uppercase;
+  color: var(--c-ciruela);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

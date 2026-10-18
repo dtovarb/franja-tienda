@@ -193,7 +193,7 @@ export function renderFooter({ whatsapp = true } = {}) {
     <div class="container footer-grid">
       <div>
         <p class="footer-brand"><img src="assets/img/nevrado-logo-fondo-oscuro.svg" alt="nevrado" width="320" height="75"></p>
-        <p class="muted" style="color:#b7b7b7;margin-top:12px;max-width:34ch">Prendas que imprimimos y terminamos en nuestro taller de ${CONTACT.city.split(",")[0]}. Vos traés la idea.</p>
+        <p class="muted" style="color:rgba(255,255,255,.8);margin-top:12px;max-width:34ch">Prendas que imprimimos y terminamos en nuestro taller de ${CONTACT.city.split(",")[0]}. Vos traés la idea.</p>
       </div>
       <div>
         <h2>Tienda</h2>

@@ -21,7 +21,7 @@
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
-  <link rel="preload" href="assets/fonts/archivo-var-wdth.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/fraunces-soft-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/css/fonts.css">
   <link rel="stylesheet" href="assets/css/tokens.css">
   <link rel="stylesheet" href="assets/css/base.css">
@@ -61,25 +61,35 @@
   <header id="site-header"></header>
 
   <main id="main">
-    <!-- HERO: la prenda adelante -->
+    <!-- HERO: bloque rosa con la prenda adelante -->
     <section class="hero container" aria-labelledby="hero-title">
-      <div class="hero__grid">
-        <div class="hero__copy">
-          <p class="eyebrow">Taller propio en Córdoba · Estampado a pedido</p>
-          <h1 id="hero-title" class="display hero__title">Diseños que se usan<span class="accent">.</span></h1>
-          <p class="lead">Elegí un diseño de la casa o subí el tuyo. Lo estampamos en nuestro taller y te llega en 5 a 7 días hábiles, con el envío incluido.</p>
-          <div class="hero__ctas">
-            <a class="btn btn--primary btn--lg" href="disenos.html" data-icon="arrowRight">Ver diseños</a>
-            <a class="btn btn--lg" href="catalogo.html?diseñar=1">Diseñar la mía</a>
+      <div class="hero__block">
+        <div class="hero__grid">
+          <div class="hero__copy">
+            <p class="eyebrow">Taller propio en Córdoba · Estampado a pedido</p>
+            <h1 id="hero-title" class="display hero__title">Diseños que se usan<span class="accent">.</span></h1>
+            <p class="lead">Elegí un diseño de la casa o subí el tuyo. Lo estampamos en nuestro taller y te llega en 5 a 7 días hábiles, con el envío incluido.</p>
+            <div class="hero__ctas">
+              <a class="btn btn--primary btn--lg" href="disenos.html" data-icon="arrowRight">Ver diseños</a>
+              <a class="btn btn--lg" href="catalogo.html?diseñar=1">Diseñar la mía</a>
+            </div>
+            <ul class="hero__facts" role="list">
+              <li>Remeras, buzos, gorras y totes</li>
+              <li>Envíos a todo el país</li>
+              <li>Pagás con Mercado Pago</li>
+            </ul>
           </div>
-          <ul class="hero__facts mono" role="list">
-            <li>Remeras, buzos, gorras y totes</li>
-            <li>Envíos a todo el país</li>
-            <li>Pagás con Mercado Pago</li>
-          </ul>
+          <div class="hero__show" data-hero-show></div>
         </div>
-        <div class="hero__show" data-hero-show></div>
       </div>
+    </section>
+
+    <!-- PRENDAS POR TIPO -->
+    <section class="section container" aria-labelledby="cats-title">
+      <div class="section-head section-head--center">
+        <h2 id="cats-title" class="display squiggle squiggle--center">Elegí tu prenda</h2>
+      </div>
+      <ul class="cats" role="list" data-cats></ul>
     </section>
 
     <div class="marquee" aria-hidden="true">
@@ -88,79 +98,79 @@
 
     <!-- DESTACADOS -->
     <section class="section container" aria-labelledby="feat-title">
-      <div class="section-head">
-        <div>
-          <span class="section-head__num">01 / Prendas base</span>
-          <h2 id="feat-title" class="display">Elegí el lienzo</h2>
-        </div>
-        <a class="btn" href="catalogo.html">Ver todo el catálogo</a>
+      <div class="section-head section-head--center">
+        <p class="eyebrow">Prendas base</p>
+        <h2 id="feat-title" class="display squiggle squiggle--center">Elegí el lienzo</h2>
+        <p class="lead">Todas se pueden estampar adelante y atrás.</p>
       </div>
       <div class="grid-products" data-featured></div>
+      <p class="section-more"><a class="btn" href="catalogo.html">Ver todo el catálogo</a></p>
+    </section>
+
+    <!-- DISEÑOS DE LA CASA -->
+    <section class="section container" aria-labelledby="picks-title" data-picks-section hidden>
+      <div class="band band--durazno picks">
+        <div class="band__copy">
+          <h2 id="picks-title" class="display squiggle">Diseños de la casa</h2>
+          <p class="lead">Elegí uno y la prenda donde lo querés. Lo podés pedir así o cambiarlo en el editor.</p>
+          <a class="btn btn--primary" href="disenos.html" data-icon="arrowRight">Ver todos</a>
+        </div>
+        <ul class="picks__list" role="list" data-picks></ul>
+      </div>
     </section>
 
     <!-- CÓMO FUNCIONA -->
     <section class="section container" id="como-funciona" aria-labelledby="how-title">
-      <div class="section-head">
-        <div>
-          <span class="section-head__num">02 / Personalización</span>
-          <h2 id="how-title" class="display">Cómo funciona</h2>
+      <div class="band band--lila">
+        <div class="section-head section-head--center">
+          <p class="eyebrow">Personalización</p>
+          <h2 id="how-title" class="display squiggle squiggle--center">Cómo funciona</h2>
+          <p class="lead">Cuatro pasos, sin crear cuenta. Tu diseño queda guardado en este navegador hasta que hagas el pedido.</p>
         </div>
-        <p class="lead" style="max-width:40ch">Cuatro pasos, sin crear cuenta. Tu diseño queda guardado en este navegador hasta que hagas el pedido.</p>
+        <ol class="steps" role="list">
+          <li class="step"><span class="step__num">1</span><h3 class="h3">Elegí la prenda</h3><p>Tipo, color, talle y cantidad. El precio se actualiza a medida que elegís.</p></li>
+          <li class="step"><span class="step__num">2</span><h3 class="h3">Diseñala</h3><p>Subí imágenes JPG, PNG o SVG, sumá textos y acomodá todo dentro del área de impresión, en frente y espalda.</p></li>
+          <li class="step"><span class="step__num">3</span><h3 class="h3">Revisá los archivos</h3><p>Vista previa, diseño editable y archivo de impresión sin fondo. Te avisamos si una imagen tiene poca resolución.</p></li>
+          <li class="step"><span class="step__num">4</span><h3 class="h3">La producimos</h3><p>Pagás con Mercado Pago, la estampamos en el taller y te llega en 5 a 7 días hábiles, con el envío incluido.</p></li>
+        </ol>
       </div>
-      <ol class="steps" role="list">
-        <li class="step"><span class="step__num">01</span><h3 class="h3">Elegí la prenda</h3><p>Tipo, color, talle y cantidad. El precio se actualiza a medida que elegís.</p></li>
-        <li class="step"><span class="step__num">02</span><h3 class="h3">Diseñala</h3><p>Subí imágenes JPG, PNG o SVG, sumá textos y acomodá todo dentro del área de impresión, en frente y espalda.</p></li>
-        <li class="step"><span class="step__num">03</span><h3 class="h3">Revisá los archivos</h3><p>Vista previa, diseño editable y archivo de impresión sin fondo. Te avisamos si una imagen tiene poca resolución.</p></li>
-        <li class="step"><span class="step__num">04</span><h3 class="h3">La producimos</h3><p>Pagás con Mercado Pago, la estampamos en el taller y te llega en 5 a 7 días hábiles, con el envío incluido.</p></li>
-      </ol>
     </section>
 
     <!-- EDITORIAL -->
     <section class="section container" aria-labelledby="ed-title">
-      <div class="section-head">
-        <div>
-          <span class="section-head__num">03 / Lookbook</span>
-          <h2 id="ed-title" class="display">Ropa para compartir</h2>
-        </div>
+      <div class="section-head section-head--center">
+        <p class="eyebrow">Lookbook</p>
+        <h2 id="ed-title" class="display squiggle squiggle--center">Ropa para compartir</h2>
       </div>
       <div class="editorial" data-editorial></div>
     </section>
 
     <!-- ARCHIVOS / TALLER -->
-    <section class="section container" id="archivos" aria-labelledby="files-title">
-      <div class="split">
-        <div>
-          <span class="section-head__num">04 / Archivos e impresión</span>
-          <h2 id="files-title" class="display h1" style="margin-bottom:var(--sp-4)">Tu archivo, intacto</h2>
-          <p class="lead">Guardamos la imagen que subiste tal como llegó. Lo que preparamos para imprimir es otro archivo, separado, que se genera a partir de tu diseño.</p>
-        </div>
+    <section class="section container duo" aria-label="Archivos y taller">
+      <div class="band band--crema" id="archivos">
+        <p class="eyebrow">Archivos e impresión</p>
+        <h2 class="display h2 squiggle">Tu archivo, intacto</h2>
+        <p class="lead">Guardamos la imagen que subiste tal como llegó. Lo que preparamos para imprimir es otro archivo, separado, que se genera a partir de tu diseño.</p>
         <ul class="file-list" role="list">
-          <li><span class="mono">01</span><div><b>Archivo original</b><p>La imagen que subiste, sin comprimir ni modificar.</p></div></li>
-          <li><span class="mono">02</span><div><b>Diseño editable</b><p>Textos, posiciones, escalas y rotaciones, para volver a editar o reconstruir el diseño.</p></div></li>
-          <li><span class="mono">03</span><div><b>Vista previa</b><p>Cómo queda la prenda, para que la revises antes de pedirla.</p></div></li>
-          <li><span class="mono">04</span><div><b>Archivo de impresión</b><p>Solo el área estampada, fondo transparente, a la medida física y resolución de producción.</p></div></li>
+          <li><span class="file-list__dot">1</span><div><b>Archivo original</b><p>La imagen que subiste, sin comprimir ni modificar.</p></div></li>
+          <li><span class="file-list__dot">2</span><div><b>Diseño editable</b><p>Textos, posiciones, escalas y rotaciones, para volver a editar o reconstruir el diseño.</p></div></li>
+          <li><span class="file-list__dot">3</span><div><b>Vista previa</b><p>Cómo queda la prenda, para que la revises antes de pedirla.</p></div></li>
+          <li><span class="file-list__dot">4</span><div><b>Archivo de impresión</b><p>Solo el área estampada, fondo transparente, a la medida física y resolución de producción.</p></div></li>
         </ul>
       </div>
-    </section>
-
-    <section class="section container" id="taller" aria-labelledby="taller-title">
-      <div class="split">
-        <div>
-          <span class="section-head__num">05 / Taller</span>
-          <h2 id="taller-title" class="display h1">Imprimimos nosotros</h2>
-        </div>
-        <div style="display:grid;gap:var(--sp-4)">
-          <p class="lead">No tercerizamos la impresión. Cada prenda se estampa y se revisa en el taller, por eso podemos mirar tu archivo antes de producirlo.</p>
-          <p class="muted">Estamos en Córdoba y enviamos a todo el país por Andreani y Correo Argentino.</p>
-        </div>
+      <div class="band band--coral" id="taller">
+        <p class="eyebrow">Taller</p>
+        <h2 class="display h2 squiggle">Imprimimos nosotros</h2>
+        <p class="lead">No tercerizamos la impresión. Cada prenda se estampa y se revisa en el taller, por eso podemos mirar tu archivo antes de producirlo.</p>
+        <p>Estamos en Córdoba y enviamos a todo el país por Andreani y Correo Argentino.</p>
       </div>
     </section>
 
     <section class="section container reviews" id="opiniones" aria-labelledby="rv-title">
       <div class="section-head">
         <div>
-          <span class="section-head__num">06 / Opiniones</span>
-          <h2 id="rv-title" class="display">Lo que nos dicen</h2>
+          <p class="eyebrow">Opiniones</p>
+          <h2 id="rv-title" class="display squiggle">Lo que nos dicen</h2>
         </div>
         <a class="btn" href="preguntas.html">Preguntas frecuentes</a>
       </div>

@@ -1,6 +1,6 @@
 import { initPage, icon } from "../core/ui.js";
 import { activeProducts, getProduct, getColor } from "../data/catalog.js";
-import { garmentSvg, luminance } from "../data/garments.js";
+import { garmentSvg, luminance, GARMENTS } from "../data/garments.js";
 import { listStoreDesigns, storeDesignImageUrl, modelPhotoUrl, designArt } from "../core/store-designs.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
 import { productCard, productMockup, reviewsBlock, demoTag, IS_DEMO } from "./components.js";
@@ -23,6 +23,7 @@ async function renderHero() {
     .sort((a, b) => !!b.d.modelPhoto - !!a.d.modelPhoto || a.i - b.i)
     .map((x) => x.d)
     .slice(0, 4);
+  renderPicks(listStoreDesigns({ publishedOnly: true }).slice(0, 3));
   if (!designs.length) {
     // Sin diseños publicados: la prenda sola.
     const tee = getProduct("remera-oversize") || products[0];
@@ -81,9 +82,53 @@ async function renderHero() {
   });
 }
 
+// Diseños de la casa: hasta tres, sobre la remera más clara.
+async function renderPicks(designs) {
+  const host = document.querySelector("[data-picks]");
+  if (!host || !designs.length) return;
+  const products = activeProducts();
+  const urls = await Promise.all(designs.map(storeDesignImageUrl));
+  const items = designs
+    .map((d, i) => {
+      const fits = products.filter((p) => !d.productIds?.length || d.productIds.includes(p.id));
+      const show = fits.find((p) => p.type === "tee") || fits[0];
+      if (!show) return "";
+      const col = show.colors.map(getColor).sort((a, b) => luminance(b.hex) - luminance(a.hex))[0];
+      const href = `producto.html?id=${encodeURIComponent(show.id)}&diseno=${encodeURIComponent(d.id)}`;
+      const from = Math.min(...fits.map((p) => p.basePrice)) + (d.price || 0);
+      return `<li class="pick" style="--i:${i}">
+        <a class="pick__media" href="${href}">${garmentSvg(show.type, "front", col.hex, { art: designArt(urls[i]), colorId: col.id, className: "pick__svg", title: `${d.name} en ${show.name}` })}</a>
+        <p class="pick__name"><a href="${href}">${escapeHtml(d.name)}</a></p>
+        <p class="pick__price">desde <b class="price">${formatPrice(from)}</b></p>
+      </li>`;
+    })
+    .join("");
+  if (!items) return;
+  host.innerHTML = items;
+  document.querySelector("[data-picks-section]").hidden = false;
+}
+
+// Prendas por tipo: un círculo por cada tipo del catálogo.
+{
+  const products = activeProducts();
+  const types = [...new Set(products.map((p) => p.type))];
+  document.querySelector("[data-cats]").innerHTML = types
+    .map((t, i) => {
+      const p = products.find((x) => x.type === t);
+      const col = p.colors.map(getColor).sort((a, b) => luminance(b.hex) - luminance(a.hex))[0];
+      return `<li class="cat" style="--i:${i}">
+        <a href="catalogo.html?tipo=${encodeURIComponent(t)}">
+          <span class="cat__media">${productMockup(p, col.id, "front", { className: "cat__svg" })}</span>
+          <span class="cat__name">${escapeHtml(GARMENTS[t].name)}</span>
+        </a>
+      </li>`;
+    })
+    .join("");
+}
+
 // Marquee
 const words = ["Remeras", "Buzos", "Gorras", "Totes", "Estampado en taller propio", "Diseño frente y espalda", "Archivos a 300 DPI"];
-const run = words.map((w) => `<span>${w}<i>✦</i></span>`).join("");
+const run = words.map((w) => `<span>${w}<i class="flor"></i></span>`).join("");
 document.querySelector("[data-marquee]").innerHTML = run + run;
 
 // Destacados
