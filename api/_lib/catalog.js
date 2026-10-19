@@ -8,6 +8,7 @@ import { HttpError } from "./http.js";
 import { insertProduct } from "./seed.js";
 import { DEFAULT_ZONE_PRICES, PRICED_ZONES } from "../../assets/js/core/pricing.js";
 import { EMPTY_ANNOUNCEMENT, normalizeAnnouncement } from "../../assets/js/core/announcement.js";
+import { emptyHomeImages, normalizeHomeImages } from "../../assets/js/core/home-images.js";
 
 export async function loadColors(q) {
   const rows = await q.query("select id, name, hex from garment_colors order by sort, id");
@@ -268,4 +269,33 @@ export async function saveAnnouncement(q, body) {
     [JSON.stringify(value)]
   );
   return value;
+}
+
+/* ------------------------- Fotos del inicio ------------------------- */
+export async function loadHomeImages(q) {
+  const [row] = await q.query("select value from site_settings where key = 'home_images'");
+  return row ? normalizeHomeImages(row.value).value : emptyHomeImages();
+}
+
+export async function saveHomeImages(q, body) {
+  const { value, errors } = normalizeHomeImages(body);
+  if (errors.length) throw new HttpError(422, errors.join(" "));
+  await q.query(
+    "insert into site_settings (key, value) values ('home_images', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()",
+    [JSON.stringify(value)]
+  );
+  return value;
+}
+
+/**
+ * Cintillo y fotos del inicio en UNA consulta, para el catálogo público
+ * (cada consulta de más se nota al arrancar en frío).
+ */
+export async function loadSiteSettings(q) {
+  const rows = await q.query("select key, value from site_settings where key in ('announcement', 'home_images')");
+  const get = (k) => rows.find((r) => r.key === k)?.value;
+  return {
+    announcement: get("announcement") ? normalizeAnnouncement(get("announcement")).value : { ...EMPTY_ANNOUNCEMENT },
+    homeImages: get("home_images") ? normalizeHomeImages(get("home_images")).value : emptyHomeImages(),
+  };
 }

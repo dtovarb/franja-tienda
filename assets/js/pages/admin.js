@@ -10,9 +10,10 @@
  *   - Sin servidor (demostración): sin login, todo en este navegador.
  * La diferencia está en `data` (abajo) y en la pestaña de pedidos.
  */
-import { initPage, icon, toast, confirmDialog, getAnnouncement, ANNOUNCEMENT_KEY, announcementBar } from "../core/ui.js";
+import { initPage, icon, toast, confirmDialog, getAnnouncement, ANNOUNCEMENT_KEY, announcementBar, getHomeImages, HOME_IMAGES_KEY } from "../core/ui.js";
+import { HOME_IMAGE_SLOTS, MAX_CAPTION, normalizeHomeImages } from "../core/home-images.js";
 import { ANNOUNCEMENT_STYLES, MAX_MESSAGES, MAX_TEXT, normalizeAnnouncement } from "../core/announcement.js";
-import { writeJSON, removeKey } from "../core/storage.js";
+import { readJSON, writeJSON, removeKey } from "../core/storage.js";
 import {
   PRODUCTS, GARMENT_COLORS, getProduct, getColor, saveProducts, resetProducts, defaultSizesFor, stockLabel,
 } from "../data/catalog.js";
@@ -44,14 +45,14 @@ const PHOTO_MAX_SIDE = 1600;
 const PHOTO_MIN_SIDE = 500;
 const REMOVE_PHOTO = "remove";
 async function preparePhoto(file) {
-  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error("La foto con modelo tiene que ser JPG, PNG o WebP.");
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error("La foto tiene que ser JPG, PNG o WebP.");
   let bmp;
   try {
     bmp = await createImageBitmap(file);
   } catch {
-    throw new Error("No se pudo leer la foto con modelo. Probá exportarla de nuevo como JPG.");
+    throw new Error("No se pudo leer la foto. Probá exportarla de nuevo como JPG.");
   }
-  if (Math.min(bmp.width, bmp.height) < PHOTO_MIN_SIDE) throw new Error(`La foto con modelo mide ${bmp.width}×${bmp.height} px: es muy chica (mínimo ${PHOTO_MIN_SIDE} px de lado).`);
+  if (Math.min(bmp.width, bmp.height) < PHOTO_MIN_SIDE) throw new Error(`La foto mide ${bmp.width}×${bmp.height} px: es muy chica (mínimo ${PHOTO_MIN_SIDE} px de lado).`);
   const k = Math.min(1, PHOTO_MAX_SIDE / Math.max(bmp.width, bmp.height));
   const width = Math.round(bmp.width * k);
   const height = Math.round(bmp.height * k);
@@ -125,6 +126,29 @@ const demoData = {
     writeJSON(ANNOUNCEMENT_KEY, value);
     return value;
   },
+  homeImages: async () => normalizeHomeImages(readJSON(HOME_IMAGES_KEY, null)).value,
+  /** `changes`: por lugar, { caption, link, photo?: preparePhoto(), removePhoto? }. */
+  async saveHomeImages(changes) {
+    const cur = await this.homeImages();
+    const next = {};
+    for (const [key, list] of Object.entries(cur)) {
+      next[key] = [];
+      for (let i = 0; i < list.length; i++) {
+        const ch = changes[key][i];
+        let photo = list[i].photo;
+        if (ch.photo) {
+          const { blob, meta } = ch.photo;
+          await putAsset({ id: meta.sha256, blob, name: meta.name, type: meta.mime, size: meta.bytes, width: meta.width, height: meta.height, isVector: false });
+          photo = { assetId: meta.sha256, name: meta.name, width: meta.width, height: meta.height };
+        } else if (ch.removePhoto) photo = null;
+        next[key].push({ caption: ch.caption, link: ch.link, photo });
+      }
+    }
+    const { value, errors } = normalizeHomeImages(next);
+    if (errors.length) throw new Error(errors.join(" "));
+    writeJSON(HOME_IMAGES_KEY, value);
+    return value;
+  },
 };
 
 /** Con servidor: la base de la tienda. Los archivos de diseños van al balde público. */
@@ -166,6 +190,23 @@ const serverData = {
   saveZonePrices: async (zonePrices) => (await api("admin/zone-prices", { method: "PUT", body: { zonePrices } })).zonePrices,
   announcement: async () => (await api("admin/announcement")).announcement,
   saveAnnouncement: async (announcement) => (await api("admin/announcement", { method: "PUT", body: { announcement } })).announcement,
+  homeImages: async () => (await api("admin/home-images")).homeImages,
+  async saveHomeImages(changes) {
+    const homeImages = {};
+    for (const [key, list] of Object.entries(changes)) {
+      homeImages[key] = [];
+      for (const ch of list) {
+        let photo;
+        if (ch.photo) {
+          photo = ch.photo.meta;
+          const { target } = await api("admin/uploads", { method: "POST", body: { file: photo } });
+          await putToTarget(target, ch.photo.blob);
+        }
+        homeImages[key].push({ caption: ch.caption, link: ch.link, photo, removePhoto: !!ch.removePhoto });
+      }
+    }
+    return (await api("admin/home-images", { method: "PUT", body: { homeImages } })).homeImages;
+  },
 };
 
 const data = SERVER ? serverData : demoData;
@@ -813,7 +854,9 @@ async function renderSite() {
       <div class="admin-form__actions">
         <button class="btn btn--primary" type="submit">Guardar cintillo</button>
       </div>
-    </form>`;
+    </form>
+    <div data-home-images></div>`;
+  renderHomeImages();
   const form = $("[data-announce-form]", sitePanel);
   const read = () => ({
     enabled: form.enabled.checked,
@@ -831,8 +874,98 @@ async function renderSite() {
   preview();
 }
 
+/* ======================= Sitio: fotos del inicio ======================= */
+const SLOT_HINTS = {
+  hero: "La foto grande de arriba de todo, a la derecha del título. Si la cargás, reemplaza a los diseños que van pasando ahí. El texto aparece en una tarjeta sobre la foto con un botón al enlace (si no ponés enlace, va a Diseños).",
+  lookbook: "Los tres arcos de «Ropa para compartir». Cada foto reemplaza a la prenda de muestra de ese arco; el texto va en la etiqueta de abajo.",
+};
+
+async function renderHomeImages() {
+  const host = $("[data-home-images]", sitePanel);
+  if (!host) return;
+  const imgs = await data.homeImages();
+  const slotRow = (key, i, it, many) => {
+    const id = `hi-${key}-${i}`;
+    return `<li class="admin-home__slot" data-slot="${key}" data-i="${i}">
+      <div class="admin-home__thumb">${it.photo ? `<img data-thumb alt="Foto actual">` : `<span class="hint">Sin foto: se ve la de muestra</span>`}</div>
+      <div class="admin-home__fields">
+        ${many ? `<p class="label">Arco ${i + 1}</p>` : ""}
+        <div class="field"><label for="${id}-file">${it.photo ? "Cambiar foto" : "Subir foto"}</label>
+          <input class="input" id="${id}-file" name="photo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"></div>
+        ${it.photo ? `<label class="check"><input type="checkbox" name="removePhoto"> Quitar esta foto (vuelve la de muestra)</label>` : ""}
+        <div class="field"><label for="${id}-cap">Texto (opcional)</label>
+          <input class="input" id="${id}-cap" name="caption" maxlength="${MAX_CAPTION}" value="${escapeHtml(it.caption)}" placeholder="${key === "hero" ? "Ej.: Nueva colección" : "Ej.: Remera Sol · blanca"}"></div>
+        <div class="field"><label for="${id}-link">Enlace (opcional)</label>
+          <input class="input" id="${id}-link" name="link" value="${escapeHtml(it.link)}" placeholder="Ej.: disenos.html"></div>
+      </div>
+    </li>`;
+  };
+  host.innerHTML = `
+    <div class="admin-head admin-head--sep">
+      <div>
+        <h2 class="h3">Fotos del inicio</h2>
+        <p class="muted">Cambiá las fotos de la portada y del lookbook. Quedan mejor verticales (4:5); antes de subirlas las achicamos a 1600 px. Las fotos de «Diseños de la casa» son la «Foto con modelo» de cada diseño, en la pestaña Diseños.</p>
+      </div>
+    </div>
+    <form class="admin-form" data-home-form novalidate>
+      ${Object.entries(HOME_IMAGE_SLOTS)
+        .map(
+          ([key, slot]) => `<fieldset class="field">
+            <legend>${escapeHtml(slot.title)}</legend>
+            <p class="hint">${SLOT_HINTS[key] || ""}</p>
+            <ol class="admin-home" role="list">${imgs[key].map((it, i) => slotRow(key, i, it, slot.count > 1)).join("")}</ol>
+          </fieldset>`
+        )
+        .join("")}
+      <div class="notice notice--danger form-errors" role="alert" data-home-errors></div>
+      <div class="admin-form__actions">
+        <button class="btn btn--primary" type="submit">Guardar fotos</button>
+      </div>
+    </form>`;
+  for (const [key, list] of Object.entries(imgs)) {
+    list.forEach((it, i) => {
+      const img = $(`[data-slot="${key}"][data-i="${i}"] [data-thumb]`, host);
+      if (img && it.photo) modelPhotoUrl({ modelPhoto: it.photo }).then((u) => u && (img.src = u));
+    });
+  }
+}
+
+async function saveHomeImagesForm(form) {
+  const errEl = $("[data-home-errors]", form);
+  errEl.textContent = "";
+  const btn = form.querySelector("[type=submit]");
+  btn.disabled = true;
+  try {
+    const changes = {};
+    for (const li of $$("[data-slot]", form)) {
+      const key = li.dataset.slot;
+      const file = $("[name=photo]", li).files[0];
+      (changes[key] ||= [])[Number(li.dataset.i)] = {
+        caption: $("[name=caption]", li).value,
+        link: $("[name=link]", li).value,
+        photo: file ? await preparePhoto(file) : undefined,
+        removePhoto: !!$("[name=removePhoto]", li)?.checked,
+      };
+    }
+    // Mismas reglas que el servidor, antes de subir nada.
+    const { errors } = normalizeHomeImages(changes);
+    if (errors.length) {
+      errEl.innerHTML = errors.map(escapeHtml).join("<br>");
+      btn.disabled = false;
+      return;
+    }
+    await data.saveHomeImages(changes);
+    toast(`Fotos del inicio guardadas${SERVER ? ". En la tienda se ven en un minuto como mucho." : " en este navegador."}`, "success");
+    renderHomeImages();
+  } catch (err) {
+    errEl.textContent = errText(err, "No se pudieron guardar las fotos.");
+    btn.disabled = false;
+  }
+}
+
 sitePanel.addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (e.target.closest("[data-home-form]")) return saveHomeImagesForm(e.target.closest("[data-home-form]"));
   const form = e.target.closest("[data-announce-form]");
   if (!form) return;
   const errEl = $("[data-announce-errors]", form);
