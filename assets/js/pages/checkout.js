@@ -51,7 +51,7 @@ export function renderCheckout(root, { onBack }) {
         </fieldset>
         <fieldset class="checkout__group">
           <legend class="h3">Envío</legend>
-          <p class="hint">Enviamos a todo el país por Andreani o Correo Argentino. No hay retiro: en el centro de Córdoba Capital el envío es gratis.</p>
+          <p class="hint">Enviamos a todo el país por Andreani o Correo Argentino, a domicilio (no hay retiro). El costo depende de la zona.</p>
           ${field("postalCode", "Código postal", 'autocomplete="postal-code" inputmode="numeric" maxlength="10" required', "4 números, por ejemplo 5000.")}
           <div class="checkout__quote" data-quote aria-live="polite"></div>
           <div class="checkout__row">
@@ -308,9 +308,9 @@ function rememberOrder(order, token) {
 function shippingOptions(q) {
   if (q.options.length === 1) {
     const o = q.options[0];
-    return `<p><b>${o.price ? `${escapeHtml(o.service)}: ${formatPrice(o.price)}` : `${escapeHtml(o.service)}: envío gratis`}</b>${
-      o.price ? `<br><span class="hint">${escapeHtml(o.carrier)}, a domicilio.</span>` : ""
-    }</p>`;
+    return o.price
+      ? `<p><b>${escapeHtml(o.service)}: ${formatPrice(o.price)}</b><br><span class="hint">${escapeHtml(o.carrier)}, a domicilio.</span></p>`
+      : `<p><b>Envío gratis</b><br><span class="hint">${escapeHtml(o.service)}, a domicilio.</span></p>`;
   }
   return `<fieldset class="ship-options"><legend class="sr-only">Cómo te lo mandamos</legend>${q.options
     .map(

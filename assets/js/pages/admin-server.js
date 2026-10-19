@@ -269,14 +269,23 @@ async function loadDetail(host) {
 
 /* ======================= Envíos ======================= */
 async function renderShipping(panel) {
-  const { rates } = await api("admin/shipping-rates");
+  const [{ rates }, { shipping }] = await Promise.all([api("admin/shipping-rates"), api("admin/shipping-settings")]);
   panel.innerHTML = `
+    <form class="admin-form" data-free-form novalidate>
+      <h2 class="h3">Envío gratis</h2>
+      <label class="check">
+        <input type="checkbox" name="freeShipping" ${shipping.freeShipping ? "checked" : ""}>
+        <span>Envío gratis a todo el país</span>
+      </label>
+      <p class="hint">Para campañas de envío gratis. Mientras esté prendido no se calcula el envío: todos los pedidos van con envío $0. Apagalo cuando termine la campaña y vuelve a cotizarse por código postal.</p>
+      <div class="admin-form__actions"><button class="btn btn--primary" type="submit">Guardar</button></div>
+    </form>
     <div class="admin-head">
       <div>
         <h2 class="h3">Tarifas de envío</h2>
         <p class="muted">${
           SHIPPING_LIVE
-            ? "Los precios salen en vivo de Correo Argentino y Andreani. Esta tabla se usa para el envío gratis (precio 0) y como respaldo si las empresas no responden."
+            ? "Los precios salen en vivo de Correo Argentino y Andreani. Esta tabla se usa como respaldo si las empresas no responden (una zona con precio 0 tiene envío gratis)."
             : "Mientras no estén conectadas las cuentas de Correo Argentino y Andreani, el envío sale de esta tabla."
         } Gana la primera fila, de arriba hacia abajo, cuyo rango incluya el código postal. Los importes marcados «de ejemplo» no son tarifas reales.</p>
       </div>
@@ -294,6 +303,16 @@ async function renderShipping(panel) {
         <button class="btn btn--ghost" type="button" data-add-rate>${icon("plus")}Agregar zona</button>
       </div>
     </form>`;
+  $("[data-free-form]", panel).addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const freeShipping = e.currentTarget.elements.freeShipping.checked;
+    try {
+      await api("admin/shipping-settings", { method: "PUT", body: { shipping: { freeShipping } } });
+      toast(freeShipping ? "Envío gratis prendido. La tienda lo muestra en menos de un minuto." : "Envío gratis apagado: el envío vuelve a calcularse.", "success");
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "No se pudo guardar.", "error");
+    }
+  });
   const form = $("[data-rates-form]", panel);
   form.addEventListener("click", (e) => {
     if (e.target.closest("[data-add-rate]")) $("[data-rates]", form).insertAdjacentHTML("beforeend", rateRow({ id: "", name: "", cp_from: 1000, cp_to: 9999, price: 0 }));

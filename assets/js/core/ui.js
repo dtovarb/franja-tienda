@@ -70,7 +70,7 @@ export const DEMO_ANNOUNCEMENT = {
   enabled: true,
   style: "ciruela",
   messages: [
-    { text: "Envío gratis en Córdoba Capital centro", link: "preguntas.html" },
+    { text: "Envíos a todo el país", link: "preguntas.html#envios" },
     { text: "Nuevos diseños de la casa", link: "disenos.html" },
   ],
 };
@@ -225,7 +225,7 @@ export function renderFooter({ whatsapp = true } = {}) {
       <div>
         <h2>Contacto</h2>
         <ul role="list">
-          <li><a href="${whatsappUrl()}" target="_blank" rel="noopener">WhatsApp ${CONTACT.whatsappLabel}</a></li>
+          <li><a href="${whatsappUrl()}" target="_blank" rel="noopener">WhatsApp</a></li>
           <li><a href="mailto:${CONTACT.email}">${CONTACT.email}</a></li>
           <li><a href="${instagramUrl}" target="_blank" rel="noopener">Instagram @${CONTACT.instagram}</a></li>
           <li>${CONTACT.city}</li>

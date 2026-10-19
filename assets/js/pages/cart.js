@@ -6,7 +6,7 @@ import { getDesign, deleteDesign, collectAssetIds } from "../core/designs.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
 import { storageAvailable } from "../core/storage.js";
 import { createDemoOrder } from "../core/orders.js";
-import { SERVER } from "../core/api.js";
+import { SERVER, CATALOG } from "../core/api.js";
 
 initPage("cart");
 
@@ -34,7 +34,7 @@ function render() {
         <h2 class="h3">Resumen</h2>
         <div class="row"><span>Prendas</span><span>${t.count}</span></div>
         <div class="row"><span>Subtotal</span><span>${formatPrice(t.subtotal)}</span></div>
-        <div class="row muted"><span>Envío</span><span>Según código postal · gratis en el centro de Córdoba Capital</span></div>
+        <div class="row muted"><span>Envío</span><span>${CATALOG?.freeShipping ? "Gratis a todo el país (promo)" : "Se calcula con tu código postal"}</span></div>
         <div class="row row--total"><span>Total</span><span class="price" style="font-size:1.5rem" data-total>${formatPrice(t.total)}</span></div>
         <button class="btn btn--primary btn--lg btn--block" type="button" data-checkout>${SERVER ? "Continuar con el pedido" : "Continuar (demo)"} ${icon("arrowRight")}</button>
         <div class="notice notice--info">${icon("info")}<span>${

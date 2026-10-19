@@ -88,11 +88,12 @@ test("cotiza en vivo con las dos empresas, solo a domicilio, de menor a mayor", 
   assert.equal(an.get("bultos[0][kilos]"), "1.81");
 });
 
-test("centro de Córdoba: solo envío gratis, sin consultar a las empresas", async () => {
+test("centro de Córdoba: se cotiza como cualquier otro código postal", async () => {
   const before = calls.length;
   const q = await (await call("POST", "/api/shipping/quote", { postalCode: "5000", items: [] })).json();
-  assert.deepEqual(q.options.map((o) => o.price), [0]);
-  assert.equal(calls.length, before);
+  assert.equal(q.live, true);
+  assert.ok(q.options.every((o) => o.price > 0));
+  assert.ok(calls.length > before);
 });
 
 test("si una empresa falla quedan las otras; si fallan todas, la tabla del panel", async () => {

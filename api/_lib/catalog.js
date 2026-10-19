@@ -288,14 +288,15 @@ export async function saveHomeImages(q, body) {
 }
 
 /**
- * Cintillo y fotos del inicio en UNA consulta, para el catálogo público
+ * Cintillo, fotos del inicio y promo de envío gratis en UNA consulta, para el catálogo público
  * (cada consulta de más se nota al arrancar en frío).
  */
 export async function loadSiteSettings(q) {
-  const rows = await q.query("select key, value from site_settings where key in ('announcement', 'home_images')");
+  const rows = await q.query("select key, value from site_settings where key in ('announcement', 'home_images', 'shipping')");
   const get = (k) => rows.find((r) => r.key === k)?.value;
   return {
     announcement: get("announcement") ? normalizeAnnouncement(get("announcement")).value : { ...EMPTY_ANNOUNCEMENT },
     homeImages: get("home_images") ? normalizeHomeImages(get("home_images")).value : emptyHomeImages(),
+    freeShipping: get("shipping")?.freeShipping === true,
   };
 }
