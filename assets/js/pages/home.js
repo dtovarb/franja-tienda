@@ -1,4 +1,4 @@
-import { initPage, icon } from "../core/ui.js";
+import { initPage, icon, getHomeImages } from "../core/ui.js";
 import { activeProducts, getProduct, getColor } from "../data/catalog.js";
 import { garmentSvg, luminance, GARMENTS } from "../data/garments.js";
 import { listStoreDesigns, storeDesignImageUrl, modelPhotoUrl, designArt } from "../core/store-designs.js";
@@ -7,6 +7,8 @@ import { productCard, productMockup, reviewsBlock, demoTag, IS_DEMO } from "./co
 import { listReviews, reviewSummary } from "../data/reviews.js";
 
 initPage("home");
+const HOME_IMAGES = getHomeImages();
+const photoUrl = (photo) => modelPhotoUrl({ modelPhoto: photo });
 
 // CTA con ícono
 document.querySelectorAll("[data-icon]").forEach((el) => el.insertAdjacentHTML("beforeend", icon(el.dataset.icon)));
@@ -18,6 +20,22 @@ renderHero();
 async function renderHero() {
   const host = document.querySelector("[data-hero-show]");
   const products = activeProducts();
+  const own = HOME_IMAGES.hero[0];
+  const ownUrl = own.photo && (await photoUrl(own.photo));
+  if (ownUrl) {
+    // Foto de portada cargada en el panel: va ella sola, con su texto y enlace.
+    const href = own.link || "disenos.html";
+    renderPicks(listStoreDesigns({ publishedOnly: true }).slice(0, 3));
+    host.innerHTML = `
+      <div class="hero__stage">
+        <a class="hero__frame hero__frame--own" href="${escapeHtml(href)}">
+          <img class="hero__photo" src="${escapeHtml(ownUrl)}" alt="${escapeHtml(own.caption || "nevrado")}" fetchpriority="high">
+        </a>
+        <div class="hero__sticker" aria-hidden="true">hecho<br>a pedido</div>
+        ${own.caption ? `<div class="hero__info"><p class="hero__name">${escapeHtml(own.caption)}</p><a class="btn btn--primary" href="${escapeHtml(href)}">Ver ${icon("arrowRight")}</a></div>` : ""}
+      </div>`;
+    return;
+  }
   const designs = listStoreDesigns({ publishedOnly: true })
     .map((d, i) => ({ d, i }))
     .sort((a, b) => !!b.d.modelPhoto - !!a.d.modelPhoto || a.i - b.i)
@@ -87,7 +105,7 @@ async function renderPicks(designs) {
   const host = document.querySelector("[data-picks]");
   if (!host || !designs.length) return;
   const products = activeProducts();
-  const urls = await Promise.all(designs.map(storeDesignImageUrl));
+  const [urls, photos] = await Promise.all([Promise.all(designs.map(storeDesignImageUrl)), Promise.all(designs.map(modelPhotoUrl))]);
   const items = designs
     .map((d, i) => {
       const fits = products.filter((p) => !d.productIds?.length || d.productIds.includes(p.id));
@@ -97,7 +115,11 @@ async function renderPicks(designs) {
       const href = `producto.html?id=${encodeURIComponent(show.id)}&diseno=${encodeURIComponent(d.id)}`;
       const from = Math.min(...fits.map((p) => p.basePrice)) + (d.price || 0);
       return `<li class="pick" style="--i:${i}">
-        <a class="pick__media" href="${href}">${garmentSvg(show.type, "front", col.hex, { art: designArt(urls[i]), colorId: col.id, className: "pick__svg", title: `${d.name} en ${show.name}` })}</a>
+        <a class="pick__media" href="${href}">${
+          photos[i]
+            ? `<img class="pick__photo" src="${escapeHtml(photos[i])}" alt="${escapeHtml(`${d.name} puesto`)}" loading="lazy">`
+            : garmentSvg(show.type, "front", col.hex, { art: designArt(urls[i]), colorId: col.id, className: "pick__svg", title: `${d.name} en ${show.name}` })
+        }</a>
         <p class="pick__name"><a href="${href}">${escapeHtml(d.name)}</a></p>
         <p class="pick__price">desde <b class="price">${formatPrice(from)}</b></p>
       </li>`;
@@ -136,27 +158,34 @@ document.querySelector("[data-featured]").innerHTML = activeProducts().filter((p
   .map((p, i) => productCard(p, { index: i }))
   .join("");
 
-// Editorial
+// Editorial: tres arcos. Cada uno muestra la foto cargada en el panel o,
+// si no hay, la prenda de muestra de siempre.
 const tee = getProduct("remera-clasica");
 const crew = getProduct("buzo-cuello-redondo");
 const tote = getProduct("tote-bag");
-document.querySelector("[data-editorial]").innerHTML = `
-  <figure class="ed-card ed-card--a">
-    ${productMockup(crew, "rojo", "front")}
-    <figcaption><span class="tag tag--ink">Buzo cuello redondo · rojo</span>${demoTag("Demo", ' style="background:#fff"')}</figcaption>
-  </figure>
-  <figure class="ed-card ed-card--b">
-    ${productMockup(tote, "crudo", "front")}
-    <figcaption><span class="tag tag--magenta">Tote · crudo</span></figcaption>
-  </figure>
-  <figure class="ed-card ed-card--c">
-    ${productMockup(tee, "blanco", "front")}
-    <figcaption><span class="tag tag--ink">Remera clásica · blanco</span></figcaption>
-  </figure>
+const LOOK_DEFAULTS = [
+  { cls: "a", mock: () => crew && productMockup(crew, "rojo", "front"), tag: "tag--ink", label: "Buzo cuello redondo · rojo", demo: true },
+  { cls: "b", mock: () => tote && productMockup(tote, "crudo", "front"), tag: "tag--magenta", label: "Tote · crudo" },
+  { cls: "c", mock: () => tee && productMockup(tee, "blanco", "front"), tag: "tag--ink", label: "Remera clásica · blanco" },
+];
+renderLookbook();
+async function renderLookbook() {
+  const urls = await Promise.all(HOME_IMAGES.lookbook.map((x) => (x.photo ? photoUrl(x.photo) : null)));
+  const cards = LOOK_DEFAULTS.map((def, i) => {
+    const own = HOME_IMAGES.lookbook[i];
+    const caption = urls[i] ? own.caption : def.label;
+    const media = urls[i] ? `<img class="ed-card__photo" src="${escapeHtml(urls[i])}" alt="${escapeHtml(own.caption || "Foto del lookbook")}" loading="lazy">` : def.mock() || "";
+    const tags = `${caption ? `<span class="tag ${def.tag}">${escapeHtml(caption)}</span>` : ""}${!urls[i] && def.demo ? demoTag("Demo", ' style="background:#fff"') : ""}`;
+    const inner = `${media}${tags ? `<figcaption>${tags}</figcaption>` : ""}`;
+    const link = urls[i] && own.link;
+    return `<figure class="ed-card ed-card--${def.cls}${urls[i] ? " ed-card--photo" : ""}">${link ? `<a class="ed-card__link" href="${escapeHtml(link)}">${inner}</a>` : inner}</figure>`;
+  }).join("");
+  document.querySelector("[data-editorial]").innerHTML = `${cards}
   <div class="ed-quote">
     <span class="tag tag--pink">Manifiesto</span>
     <p class="display">Una prenda con tu firma vale más que cualquier logo prestado.</p>
   </div>`;
+}
 
 // Opiniones (de ejemplo): resumen de todas y las más recientes
 // En la tienda real la sección no se muestra hasta que haya opiniones reales.

@@ -5,6 +5,7 @@
 import { SERVER, CATALOG } from "./api.js";
 import { readJSON } from "./storage.js";
 import { normalizeAnnouncement, safeLink } from "./announcement.js";
+import { normalizeHomeImages } from "./home-images.js";
 import { cartCount, onCartChange } from "./cart.js";
 import { escapeHtml } from "./format.js";
 import { CONTACT, whatsappUrl, instagramUrl, CONSUMER_COMPLAINTS_URL } from "../data/contact.js";
@@ -77,6 +78,12 @@ export const DEMO_ANNOUNCEMENT = {
 export function getAnnouncement() {
   if (CATALOG) return CATALOG.announcement || null;
   return normalizeAnnouncement(readJSON(ANNOUNCEMENT_KEY, DEMO_ANNOUNCEMENT)).value;
+}
+
+/* ---------------- Fotos del inicio (se cambian en el panel, «Sitio») ---------------- */
+export const HOME_IMAGES_KEY = "home-images.v1";
+export function getHomeImages() {
+  return normalizeHomeImages(CATALOG ? CATALOG.homeImages : readJSON(HOME_IMAGES_KEY, null)).value;
 }
 
 /** HTML del cintillo (vacío si está apagado). Con varios mensajes, rotan. */

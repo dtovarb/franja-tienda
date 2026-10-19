@@ -410,6 +410,44 @@ test("panel: cintillo de anuncios y foto con modelo de un diseño", async () => 
   assert.equal(r.body.storeDesign.modelPhoto, null);
 });
 
+test("panel: fotos del inicio (portada y lookbook)", async () => {
+  const cookie = await login();
+  let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.equal(cat.homeImages.hero.length, 1);
+  assert.equal(cat.homeImages.lookbook.length, 3);
+  assert.ok(cat.homeImages.lookbook.every((x) => x.photo === null));
+  assert.equal((await call("PUT", "/api/admin/home-images", { body: { homeImages: {} } })).status, 401);
+
+  const jpg = await readFile(new URL("../fixtures/foto.jpg", import.meta.url));
+  const photo = { sha256: sha(jpg), mime: "image/jpeg", bytes: jpg.byteLength, name: "portada.jpg", width: 1200, height: 1500 };
+  const up = await jsonOf(await call("POST", "/api/admin/uploads", { cookie, body: { file: photo } }));
+  await app.handle(new Request(BASE + up.body.target.url, { method: "PUT", headers: up.body.target.headers, body: jpg }));
+  // Enlace raro o formato que no es foto: no.
+  let r = await jsonOf(await call("PUT", "/api/admin/home-images", { cookie, body: { homeImages: { hero: [{ link: "javascript:alert(1)" }] } } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(await call("PUT", "/api/admin/home-images", { cookie, body: { homeImages: { hero: [{ photo: { ...photo, mime: "image/svg+xml" } }] } } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(
+    await call("PUT", "/api/admin/home-images", {
+      cookie,
+      body: { homeImages: { hero: [{ photo, caption: "Nueva colección", link: "disenos.html" }], lookbook: [{}, { photo, caption: "  Tote  crudo " }, {}] } },
+    })
+  );
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.homeImages.hero[0].photo.width, 1200);
+  assert.equal(r.body.homeImages.lookbook[1].caption, "Tote crudo");
+  const img = await app.handle(new Request(BASE + r.body.homeImages.hero[0].photo.url));
+  assert.equal(sha(Buffer.from(await img.arrayBuffer())), photo.sha256);
+  // Guardar sin mandar la foto conserva la que había; removePhoto la quita.
+  r = await jsonOf(await call("PUT", "/api/admin/home-images", { cookie, body: { homeImages: { hero: [{ caption: "Otra" }], lookbook: [{}, { removePhoto: true }, {}] } } }));
+  assert.ok(r.body.homeImages.hero[0].photo, "sin foto nueva queda la anterior");
+  assert.equal(r.body.homeImages.lookbook[1].photo, null);
+  cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.equal(cat.homeImages.hero[0].caption, "Otra");
+  assert.ok(cat.homeImages.hero[0].photo.url);
+  assert.equal(cat.announcement.enabled !== undefined, true, "el cintillo sigue viniendo en el catálogo");
+});
+
 test("sin cuentas en Vercel la API responde 'sin configurar' y la tienda sigue en demo", async () => {
   const off = createApp({ VERCEL: "1", DATABASE_URL: "", POSTGRES_URL: "", SESSION_SECRET: "" });
   const h = await (await off.handle(new Request(BASE + "/api/health"))).json();
