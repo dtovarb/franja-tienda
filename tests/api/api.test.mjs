@@ -467,7 +467,7 @@ test("la URL de Postgres de la integración de Vercel se limpia antes de conecta
 test("zonas de estampa: el frente está incluido y cada otra zona suma su recargo", async () => {
   const { body: cat } = await jsonOf(await call("GET", "/api/catalog"));
   const tee = cat.products.find((p) => p.id === "remera-clasica");
-  assert.deepEqual(tee.faces, ["front", "back", "chest", "front-low", "sleeve-left", "sleeve-right", "label"]);
+  assert.deepEqual(tee.faces, ["front", "back", "chest", "heart", "front-low", "sleeve-left", "sleeve-right", "label"]);
   assert.equal(cat.zonePrices.back, 4500);
   assert.deepEqual(cat.products.find((p) => p.type === "cap").faces, ["front"]);
 

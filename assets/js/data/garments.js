@@ -25,6 +25,7 @@ const FACE_LABELS = {
   front: "Frente",
   back: "Espalda",
   chest: "Logo en el pecho",
+  heart: "Logo en el corazón",
   "front-low": "Logo abajo",
   "sleeve-left": "Manga izquierda",
   "sleeve-right": "Manga derecha",
@@ -33,6 +34,7 @@ const FACE_LABELS = {
 /** Aclaración breve de cada zona chica, para la clienta. */
 const FACE_HINTS = {
   chest: "Arriba del frente, para un logo o una palabra.",
+  heart: "Logo chico en el pecho izquierdo de quien la usa: en la foto queda a la derecha.",
   "front-low": "Abajo del frente, cerca del ruedo.",
   "sleeve-left": "La de quien la usa: en la foto queda a la derecha.",
   "sleeve-right": "La de quien la usa: en la foto queda a la izquierda.",
@@ -335,7 +337,8 @@ function drawCap(face, color, uid) {
 // Medidas de estampa por talle, en cm (ancho × alto). Siguen la práctica
 // habitual de DTG: el frente ocupa ~60–65 % del ancho de pecho del talle y
 // crece con él, con tope en 40 × 50 cm (plancha grande). Los logos, mangas y
-// etiqueta miden lo mismo en todos los talles, como se hace en taller.
+// etiqueta miden lo mismo en todos los talles, como se hace en taller. El
+// logo del corazón va a ~10 cm del centro, del lado izquierdo de quien la usa.
 //
 // `at` ubica la zona sobre la foto (talle M) en unidades del escenario:
 // centro horizontal `cx` y, en vertical, el borde de arriba (`top`), el de
@@ -353,6 +356,7 @@ export const GARMENTS = {
       front: { at: { cx: 500, top: 305 }, cm: { S: [32, 42], M: [34, 44], L: [35, 46], XL: [37, 48], XXL: [38, 49] } },
       back: { at: { cx: 500, top: 220 }, cm: { S: [32, 44], M: [34, 46], L: [35, 48], XL: [37, 50], XXL: [38, 50] } },
       chest: { view: "front", at: { cx: 500, top: 305 }, cm: [25, 9] },
+      heart: { view: "front", at: { cx: 611, top: 320 }, cm: [9, 9] },
       "front-low": { view: "front", at: { cx: 500, bottom: 900 }, cm: [25, 8] },
       "sleeve-left": { view: "front", at: { cx: 808, cy: 405 }, cm: [7, 7] },
       "sleeve-right": { view: "front", at: { cx: 172, cy: 405 }, cm: [7, 7] },
@@ -368,6 +372,7 @@ export const GARMENTS = {
       front: { at: { cx: 500, top: 300 }, cm: { S: [35, 45], M: [37, 47], L: [38, 49], XL: [40, 50], XXL: [40, 50] } },
       back: { at: { cx: 500, top: 235 }, cm: { S: [36, 47], M: [38, 49], L: [39, 50], XL: [40, 50], XXL: [40, 50] } },
       chest: { view: "front", at: { cx: 500, top: 300 }, cm: [25, 9] },
+      heart: { view: "front", at: { cx: 605, top: 315 }, cm: [9, 9] },
       "front-low": { view: "front", at: { cx: 500, bottom: 930 }, cm: [25, 8] },
       "sleeve-left": { view: "front", at: { cx: 829, cy: 430 }, cm: [8, 8] },
       "sleeve-right": { view: "front", at: { cx: 171, cy: 430 }, cm: [8, 8] },
@@ -380,10 +385,12 @@ export const GARMENTS = {
     cmPerUnit: 0.09,
     draw: drawHoodie,
     // Sin logo de pecho ni abajo: la capucha y el bolsillo ocupan esas zonas.
+    // El logo del corazón sí entra, debajo del escote de la capucha.
     // El frente va entre el escote de la capucha y el bolsillo.
     faces: {
       front: { at: { cx: 500, bottom: 750 }, cm: { S: [28, 24], M: [30, 25], L: [31, 26], XL: [32, 26], XXL: [33, 27] } },
       back: { at: { cx: 500, top: 450 }, cm: { S: [33, 40], M: [35, 42], L: [36, 43], XL: [37, 44], XXL: [38, 45] } },
+      heart: { view: "front", at: { cx: 611, top: 485 }, cm: [9, 9] },
       "sleeve-left": { view: "front", at: { cx: 800, cy: 640 }, cm: [7, 9] },
       "sleeve-right": { view: "front", at: { cx: 200, cy: 640 }, cm: [7, 9] },
       label: { view: "back", at: { cx: 500, top: 250 }, cm: [8, 6] },
@@ -398,6 +405,7 @@ export const GARMENTS = {
       front: { at: { cx: 500, top: 360 }, cm: { S: [31, 38], M: [33, 40], L: [34, 42], XL: [35, 43], XXL: [36, 44] } },
       back: { at: { cx: 500, top: 300 }, cm: { S: [33, 40], M: [35, 42], L: [36, 43], XL: [37, 44], XXL: [38, 45] } },
       chest: { view: "front", at: { cx: 500, top: 360 }, cm: [25, 9] },
+      heart: { view: "front", at: { cx: 611, top: 375 }, cm: [9, 9] },
       "front-low": { view: "front", at: { cx: 500, bottom: 950 }, cm: [25, 8] },
       "sleeve-left": { view: "front", at: { cx: 805, cy: 560 }, cm: [7, 9] },
       "sleeve-right": { view: "front", at: { cx: 195, cy: 560 }, cm: [7, 9] },
