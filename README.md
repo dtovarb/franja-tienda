@@ -71,6 +71,7 @@ El frente de remeras, remeras oversize, buzo canguro, buzo cuello redondo, gorra
 1. Sacá la foto de frente, con la prenda centrada y fondo liso (mejor si todas tienen la misma luz y el mismo fondo).
 2. Cargala en la lista `JOBS` de `tools/preparar-fotos.py` con el contorno de la prenda en píxeles (izquierda, derecha y borde superior).
 3. Corré `python3 tools/preparar-fotos.py <carpeta-fotos> assets/img/prendas --debug control.png` y revisá en `control.png` que el recuadro del área de impresión caiga sobre el pecho.
+4. Corré `node tools/zonas-de-estampa.mjs > /tmp/zonas.json` y `python3 -I tools/mapas-de-luz.py assets/img/prendas /tmp/zonas.json` para que los mapas de luz cubran el frente y los logos en todos los talles. Repetilo si cambian las zonas en `assets/js/data/garments.js`.
 
 El script lleva la foto al escenario de 1000 × 1200 sin mover las áreas de impresión y genera los mapas de luz (`-sombra.png`, `-brillo.png`) que hacen que la estampa tome los pliegues de la tela. Los colores de `GARMENT_COLORS` salen de la tela de cada foto.
 
@@ -98,7 +99,7 @@ assets/
               finalize.js (flujo «Finalizar diseño»)  history.js  config.js
   designs/ (SVG de los diseños de la tienda)  fonts/  img/prendas/ (fotos y mapas de luz)
 vendor/fabric/
-tools/    preparar-fotos.py (normaliza fotos de prendas)
+tools/    preparar-fotos.py (normaliza fotos de prendas), mapas-de-luz.py + zonas-de-estampa.mjs (sombras sobre el frente y los logos)
 tests/    e2e.mjs  make-fixtures.py  fixtures/  screenshots/
 docs/     ARQUITECTURA.md
 RESUMEN.md   ← funciones, pruebas, limitaciones y próximos pasos

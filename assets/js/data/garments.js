@@ -6,10 +6,13 @@
  * área imprimible queda definida en coordenadas proporcionales al producto
  * y nunca en píxeles de pantalla.
  *
- * `cmPerUnit` relaciona el espacio lógico con medidas físicas (talle de
- * referencia M). El área de impresión física se deriva de ahí, de modo que
- * proporciones en pantalla y archivo de impresión coinciden siempre.
+ * Cada zona define su medida de estampa en centímetros, por talle. `cmPerUnit`
+ * relaciona el espacio lógico con centímetros en el talle M (el de las fotos)
+ * y se escala para los otros talles con la tabla de talles: el área en
+ * pantalla y el archivo de impresión salen de la misma cuenta.
  */
+
+import { SIZE_CHARTS } from "./size-charts.js";
 
 export const STAGE = { width: 1000, height: 1200 };
 
@@ -329,9 +332,17 @@ function drawCap(face, color, uid) {
 
 /* ---------------- Catálogo de tipos ---------------- */
 
-// Las áreas de frente arrancan ~8 cm debajo del cuello (posición habitual de
-// DTG), medido sobre las fotos de cada prenda. Las mangas van sobre la vista
-// de frente: la manga izquierda de quien la usa queda a la derecha.
+// Medidas de estampa por talle, en cm (ancho × alto). Siguen la práctica
+// habitual de DTG: el frente ocupa ~60–65 % del ancho de pecho del talle y
+// crece con él, con tope en 40 × 50 cm (plancha grande). Los logos, mangas y
+// etiqueta miden lo mismo en todos los talles, como se hace en taller.
+//
+// `at` ubica la zona sobre la foto (talle M) en unidades del escenario:
+// centro horizontal `cx` y, en vertical, el borde de arriba (`top`), el de
+// abajo (`bottom`) o el centro (`cy`). Así el frente arranca siempre a la
+// misma distancia del cuello y el logo de abajo a la misma distancia del ruedo.
+// Las mangas van sobre la vista de frente: la manga izquierda de quien la usa
+// queda a la derecha de la foto.
 export const GARMENTS = {
   tee: {
     id: "tee",
@@ -339,13 +350,13 @@ export const GARMENTS = {
     cmPerUnit: 0.09,
     draw: drawTee,
     faces: {
-      front: { printArea: { x: 332, y: 305, w: 336, h: 448 } },
-      back: { printArea: { x: 332, y: 220, w: 336, h: 480 } },
-      chest: { view: "front", printArea: { x: 355, y: 255, w: 290, h: 110 } },
-      "front-low": { view: "front", printArea: { x: 355, y: 800, w: 290, h: 100 } },
-      "sleeve-left": { view: "front", printArea: { x: 792, y: 290, w: 90, h: 90 } },
-      "sleeve-right": { view: "front", printArea: { x: 118, y: 290, w: 90, h: 90 } },
-      label: { view: "back", printArea: { x: 455, y: 165, w: 90, h: 70 } },
+      front: { at: { cx: 500, top: 305 }, cm: { S: [32, 42], M: [34, 44], L: [35, 46], XL: [37, 48], XXL: [38, 49] } },
+      back: { at: { cx: 500, top: 220 }, cm: { S: [32, 44], M: [34, 46], L: [35, 48], XL: [37, 50], XXL: [38, 50] } },
+      chest: { view: "front", at: { cx: 500, top: 305 }, cm: [25, 9] },
+      "front-low": { view: "front", at: { cx: 500, bottom: 900 }, cm: [25, 8] },
+      "sleeve-left": { view: "front", at: { cx: 808, cy: 405 }, cm: [7, 7] },
+      "sleeve-right": { view: "front", at: { cx: 172, cy: 405 }, cm: [7, 7] },
+      label: { view: "back", at: { cx: 500, top: 165 }, cm: [8, 6] },
     },
   },
   oversize: {
@@ -354,13 +365,13 @@ export const GARMENTS = {
     cmPerUnit: 0.095,
     draw: drawOversize,
     faces: {
-      front: { printArea: { x: 320, y: 300, w: 360, h: 470 } },
-      back: { printArea: { x: 312, y: 235, w: 376, h: 520 } },
-      chest: { view: "front", printArea: { x: 355, y: 255, w: 290, h: 105 } },
-      "front-low": { view: "front", printArea: { x: 355, y: 860, w: 290, h: 95 } },
-      "sleeve-left": { view: "front", printArea: { x: 775, y: 320, w: 95, h: 95 } },
-      "sleeve-right": { view: "front", printArea: { x: 130, y: 320, w: 95, h: 95 } },
-      label: { view: "back", printArea: { x: 458, y: 178, w: 84, h: 66 } },
+      front: { at: { cx: 500, top: 300 }, cm: { S: [35, 45], M: [37, 47], L: [38, 49], XL: [40, 50], XXL: [40, 50] } },
+      back: { at: { cx: 500, top: 235 }, cm: { S: [36, 47], M: [38, 49], L: [39, 50], XL: [40, 50], XXL: [40, 50] } },
+      chest: { view: "front", at: { cx: 500, top: 300 }, cm: [25, 9] },
+      "front-low": { view: "front", at: { cx: 500, bottom: 930 }, cm: [25, 8] },
+      "sleeve-left": { view: "front", at: { cx: 829, cy: 430 }, cm: [8, 8] },
+      "sleeve-right": { view: "front", at: { cx: 171, cy: 430 }, cm: [8, 8] },
+      label: { view: "back", at: { cx: 500, top: 178 }, cm: [8, 6] },
     },
   },
   hoodie: {
@@ -369,12 +380,13 @@ export const GARMENTS = {
     cmPerUnit: 0.09,
     draw: drawHoodie,
     // Sin logo de pecho ni abajo: la capucha y el bolsillo ocupan esas zonas.
+    // El frente va entre el escote de la capucha y el bolsillo.
     faces: {
-      front: { printArea: { x: 350, y: 470, w: 300, h: 280 } },
-      back: { printArea: { x: 320, y: 450, w: 360, h: 470 } },
-      "sleeve-left": { view: "front", printArea: { x: 785, y: 440, w: 90, h: 100 } },
-      "sleeve-right": { view: "front", printArea: { x: 125, y: 440, w: 90, h: 100 } },
-      label: { view: "back", printArea: { x: 455, y: 250, w: 90, h: 70 } },
+      front: { at: { cx: 500, bottom: 750 }, cm: { S: [28, 24], M: [30, 25], L: [31, 26], XL: [32, 26], XXL: [33, 27] } },
+      back: { at: { cx: 500, top: 450 }, cm: { S: [33, 40], M: [35, 42], L: [36, 43], XL: [37, 44], XXL: [38, 45] } },
+      "sleeve-left": { view: "front", at: { cx: 800, cy: 640 }, cm: [7, 9] },
+      "sleeve-right": { view: "front", at: { cx: 200, cy: 640 }, cm: [7, 9] },
+      label: { view: "back", at: { cx: 500, top: 250 }, cm: [8, 6] },
     },
   },
   crewneck: {
@@ -383,13 +395,13 @@ export const GARMENTS = {
     cmPerUnit: 0.09,
     draw: drawCrewneck,
     faces: {
-      front: { printArea: { x: 330, y: 340, w: 340, h: 440 } },
-      back: { printArea: { x: 320, y: 300, w: 360, h: 470 } },
-      chest: { view: "front", printArea: { x: 355, y: 285, w: 290, h: 110 } },
-      "front-low": { view: "front", printArea: { x: 355, y: 800, w: 290, h: 100 } },
-      "sleeve-left": { view: "front", printArea: { x: 740, y: 400, w: 90, h: 100 } },
-      "sleeve-right": { view: "front", printArea: { x: 170, y: 400, w: 90, h: 100 } },
-      label: { view: "back", printArea: { x: 455, y: 240, w: 90, h: 70 } },
+      front: { at: { cx: 500, top: 360 }, cm: { S: [31, 38], M: [33, 40], L: [34, 42], XL: [35, 43], XXL: [36, 44] } },
+      back: { at: { cx: 500, top: 300 }, cm: { S: [33, 40], M: [35, 42], L: [36, 43], XL: [37, 44], XXL: [38, 45] } },
+      chest: { view: "front", at: { cx: 500, top: 360 }, cm: [25, 9] },
+      "front-low": { view: "front", at: { cx: 500, bottom: 950 }, cm: [25, 8] },
+      "sleeve-left": { view: "front", at: { cx: 805, cy: 560 }, cm: [7, 9] },
+      "sleeve-right": { view: "front", at: { cx: 195, cy: 560 }, cm: [7, 9] },
+      label: { view: "back", at: { cx: 500, top: 240 }, cm: [8, 6] },
     },
   },
   cap: {
@@ -470,8 +482,8 @@ export const isMainFace = (type, face) => !GARMENTS[type]?.faces[face]?.view;
  * entera para frente y espalda, un acercamiento para las zonas chicas.
  * Mantiene la proporción del escenario (1000 × 1200).
  */
-export function editorWindow(type, face) {
-  const area = getPrintSpec(type, face).area;
+export function editorWindow(type, face, sizeId = REF_SIZE) {
+  const area = getPrintSpec(type, face, sizeId).area;
   if (isMainFace(type, face)) return { x: 0, y: 0, w: STAGE.width, h: STAGE.height };
   const w = Math.min(STAGE.width, Math.max(area.w * 2.6, 380));
   const h = w * (STAGE.height / STAGE.width);
@@ -490,18 +502,60 @@ export function getGarment(type) {
   return g;
 }
 
-/** Área imprimible lógica + medidas físicas derivadas (cm). */
-export function getPrintSpec(type, face) {
+/** Talle de referencia: el de las fotos y el que se usa si no hay talle elegido. */
+export const REF_SIZE = "M";
+
+/** "2XL" → "XXL", "m" → "M"; "Único" queda igual. */
+const sizeKey = (sizeId) => String(sizeId || REF_SIZE).toUpperCase().replace(/^2XL$/, "XXL");
+
+/**
+ * Centímetros por unidad del escenario para un talle. La foto es la del talle
+ * M; un talle más grande es la misma prenda en otra escala, según su ancho y
+ * su largo en la tabla de talles. Sin tabla (gorra, tote) no cambia.
+ */
+export function cmPerUnitFor(type, sizeId = REF_SIZE) {
   const g = getGarment(type);
-  const area = g.faces[face]?.printArea;
-  if (!area) throw new Error(`La prenda ${type} no tiene cara ${face}`);
+  const rows = SIZE_CHARTS[type]?.rows || [];
+  const ref = rows.find((r) => r.size === REF_SIZE);
+  const row = rows.find((r) => r.size === sizeKey(sizeId));
+  if (!ref || !row) return g.cmPerUnit;
+  return g.cmPerUnit * Math.sqrt((row.ancho / ref.ancho) * (row.largo / ref.largo));
+}
+
+const SIZE_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL"];
+
+/** Medida de estampa (cm) de una zona en un talle; si ese talle no tiene medida, la del talle más cercano. */
+function faceCm(def, sizeId) {
+  if (Array.isArray(def.cm)) return def.cm;
+  const key = sizeKey(sizeId);
+  if (def.cm[key]) return def.cm[key];
+  const i = SIZE_ORDER.indexOf(key);
+  if (i < 0) return def.cm[REF_SIZE];
+  const near = Object.keys(def.cm).sort((x, y) => Math.abs(SIZE_ORDER.indexOf(x) - i) - Math.abs(SIZE_ORDER.indexOf(y) - i));
+  return def.cm[near[0]];
+}
+
+/**
+ * Área imprimible de una zona en un talle: en unidades del escenario (para
+ * el editor) y en centímetros (para el archivo de impresión y los textos).
+ */
+export function getPrintSpec(type, face, sizeId = REF_SIZE) {
+  const g = getGarment(type);
+  const def = g.faces[face];
+  if (!def) throw new Error(`La prenda ${type} no tiene cara ${face}`);
   const round = (n) => Math.round(n * 10) / 10;
-  return {
-    area: { ...area },
-    cmPerUnit: g.cmPerUnit,
-    widthCm: round(area.w * g.cmPerUnit),
-    heightCm: round(area.h * g.cmPerUnit),
-  };
+  if (def.printArea) {
+    const area = { ...def.printArea };
+    return { area, cmPerUnit: g.cmPerUnit, widthCm: round(area.w * g.cmPerUnit), heightCm: round(area.h * g.cmPerUnit) };
+  }
+  const cmPerUnit = cmPerUnitFor(type, sizeId);
+  const [widthCm, heightCm] = faceCm(def, sizeId);
+  const w = widthCm / cmPerUnit;
+  const h = heightCm / cmPerUnit;
+  const { cx, top, bottom, cy } = def.at;
+  const y = top ?? (bottom != null ? bottom - h : cy - h / 2);
+  const r2 = (n) => Math.round(n * 100) / 100;
+  return { area: { x: r2(cx - w / 2), y: r2(y), w: r2(w), h: r2(h) }, cmPerUnit, widthCm, heightCm };
 }
 
 /**
@@ -514,7 +568,7 @@ export function garmentSvg(type, face, colorHex, { art = "", className = "", tit
   const g = getGarment(type);
   const photo = garmentPhoto(type, face, colorId);
   const L = photo ? photoLayers(photo) : g.draw(viewOf(type, face), colorHex, nextUid());
-  const artLayer = art ? artInArea(art, g.faces[face].printArea) : "";
+  const artLayer = art ? artInArea(art, getPrintSpec(type, face).area) : "";
   const label = title || `${g.name} — ${faceLabel(face)}`;
   const fit = photo ? ` data-photo preserveAspectRatio="xMidYMid slice"` : "";
   const vb = viewBox ? `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}` : `0 0 ${STAGE.width} ${STAGE.height}`;

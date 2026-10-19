@@ -11,9 +11,14 @@ initPage("faq");
 const table = document.querySelector("[data-print-sizes]");
 const rows = activeProducts()
   .map((p) => {
+    // Cada talle tiene su medida: se muestra la del más chico y la del más grande.
+    const first = p.sizes[0]?.id, last = p.sizes[p.sizes.length - 1]?.id;
     const sizes = p.faces.map((f) => {
-      const s = getPrintSpec(p.type, f);
-      return `${faceLabel(f)}: ${s.widthCm} × ${s.heightCm} cm`;
+      const a = getPrintSpec(p.type, f, first), z = getPrintSpec(p.type, f, last);
+      const same = a.widthCm === z.widthCm && a.heightCm === z.heightCm;
+      return same
+        ? `${faceLabel(f)}: ${a.widthCm} × ${a.heightCm} cm`
+        : `${faceLabel(f)}: de ${a.widthCm} × ${a.heightCm} cm (${escapeHtml(first)}) a ${z.widthCm} × ${z.heightCm} cm (${escapeHtml(last)})`;
     });
     return `<tr><th scope="row">${escapeHtml(p.name)}</th><td>${sizes.join("<br>")}</td></tr>`;
   })

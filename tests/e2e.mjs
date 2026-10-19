@@ -237,10 +237,11 @@ console.log("\nEscritorio 1440×900");
     await page.fill("#p-angle", "30");
     await page.waitForTimeout(450);
     const o = (await objs(page))[0];
-    const spec = { x: 332, cm: 0.09 };
+    // El área y los cm por unidad dependen del talle elegido.
+    const spec = await page.evaluate(() => { const s = window.__editor.spec(); return { x: s.area.x, cm: s.cmPerUnit }; });
     assert(Math.abs((o.left - spec.x) * spec.cm - 15) < 0.06, `x=${(o.left - spec.x) * spec.cm}`);
     assert(Math.abs(o.sx - o.sy) < 1e-9, "escalado no proporcional");
-    assert(Math.abs(3000 * o.sx * 0.09 - 20) < 0.06, `w=${3000 * o.sx * 0.09}`);
+    assert(Math.abs(3000 * o.sx * spec.cm - 20) < 0.06, `w=${3000 * o.sx * spec.cm}`);
     assert(Math.round(o.angle) === 30, `angle=${o.angle}`);
     return "X=15 cm, ancho=20 cm, 30°";
   });
@@ -408,7 +409,23 @@ console.log("\nEscritorio 1440×900");
     return "borrador recuperado desde localStorage + IndexedDB";
   });
 
-  const printSpec = { wCm: 336 * 0.09, hCm: 448 * 0.09 };
+  await t("Editor", "El área de impresión cambia con el talle", async () => {
+    const read = () => page.evaluate(() => { const s = window.__editor.spec(); return { w: s.widthCm, h: s.heightCm, label: document.querySelector("[data-guides] .area-label").textContent }; });
+    await page.click('[data-tab="product"]');
+    await page.click('[data-v-size="S"]');
+    await page.waitForTimeout(300);
+    const s = await read();
+    await page.click('[data-v-size="L"]');
+    await page.waitForTimeout(300);
+    const l = await read();
+    await page.click('[data-tab="add"]');
+    assert(s.w === 32 && s.h === 42 && /32 × 42 CM/.test(s.label), `S ${JSON.stringify(s)}`);
+    assert(l.w === 35 && l.h === 46 && /35 × 46 CM/.test(l.label), `L ${JSON.stringify(l)}`);
+    return "S 32 × 42 cm → L 35 × 46 cm";
+  });
+
+  // El diseño de prueba es talle L: el frente de la remera clásica mide 35 × 46 cm en L.
+  const printSpec = { wCm: 35, hCm: 46 };
   await t("Finalizar", "Valida, reconstruye y resume el diseño", async () => {
     await page.click('[data-action="finalize"]');
     await page.waitForSelector("[data-add-cart]", { timeout: 30000 });
@@ -883,7 +900,8 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     await page.waitForSelector("[data-print-sizes] tbody tr", { state: "attached" });
     const rows = await page.locator("[data-print-sizes] tbody tr").count();
     assert(rows === 6, `tabla ${rows}`);
-    assert((await page.textContent("[data-print-sizes]")).includes("30,2 × 40,3") || (await page.textContent("[data-print-sizes]")).includes("30.2 × 40.3"), "medida de la remera");
+    const sizesText = await page.textContent("[data-print-sizes]");
+    assert(sizesText.includes("32 × 42 cm (S)") && sizesText.includes("37 × 48 cm (XL)"), "medida de la remera por talle");
     assert((await page.textContent("[data-extra-face]")).includes("4.500"), "precio cara extra");
     await page.goto(`${BASE}/preguntas.html#envios`);
     assert((await page.locator("#envios details[open]").count()) === 1, "el enlace al tema no abre la primera pregunta");
