@@ -499,3 +499,9 @@ test("zonas de estampa: el frente está incluido y cada otra zona suma su recarg
   const cap = await cartItem({ productId: "gorra", colorId: "azul", sizeId: "Único", qty: 1, faces: { "sleeve-left": null } });
   assert.equal((await call("POST", "/api/orders", { body: { customer, shipping, items: [cap] } })).status, 422);
 });
+
+test("talles: ninguna prenda tiene recargo por talle", async () => {
+  const { body: cat } = await jsonOf(await call("GET", "/api/catalog"));
+  const conRecargo = cat.products.flatMap((p) => p.sizes.filter((s) => s.surcharge).map((s) => `${p.id} ${s.id}`));
+  assert.deepEqual(conRecargo, []);
+});
