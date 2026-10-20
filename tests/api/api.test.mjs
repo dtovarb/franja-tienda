@@ -119,10 +119,10 @@ test("salud y catálogo desde la base", async () => {
   assert.deepEqual(rv.body.reviews, []);
 });
 
-test("envío por código postal: centro de Córdoba gratis", async () => {
+test("envío por código postal: Córdoba Capital ya no es gratis", async () => {
   const q = async (cp) => (await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: cp } })));
-  assert.equal((await q("5000")).body.options[0].price, 0);
-  assert.equal((await q("X5000ABC")).body.free, true);
+  assert.equal((await q("5000")).body.options[0].id, "tabla:cordoba-provincia");
+  assert.equal((await q("X5000ABC")).body.free, false);
   // Sin empresas de correo configuradas se usa la tabla del panel (marcada de ejemplo).
   assert.equal((await q("5010")).body.options[0].id, "tabla:cordoba-provincia");
   assert.equal((await q("1425")).body.options[0].id, "tabla:resto-del-pais");
@@ -167,7 +167,7 @@ test("diseño de la tienda: se cobra según el diseño, no según la lista del n
   assert.equal(r.status, 201, JSON.stringify(r.body));
   const tote = (await jsonOf(await call("GET", "/api/catalog"))).body.products.find((p) => p.id === "tote-bag");
   assert.equal(r.body.order.subtotal, tote.basePrice + 3500);
-  assert.equal(r.body.order.shippingCost, 0);
+  assert.equal(r.body.order.shippingCost, 4500);
 });
 
 test("rechaza archivos faltantes, adulterados o peligrosos", async () => {
@@ -359,11 +359,34 @@ test("panel: productos, diseños de la tienda y tarifas de envío", async () => 
 
   // Tarifas: cambiar el precio de una de ejemplo la vuelve real.
   const rates = (await jsonOf(await call("GET", "/api/admin/shipping-rates", { cookie }))).body.rates;
-  rates[1].price = 5200;
+  rates[0].price = 5200;
   r = await jsonOf(await call("PUT", "/api/admin/shipping-rates", { cookie, body: { rates } }));
-  assert.equal(r.body.rates[1].example, false);
-  assert.equal(r.body.rates[2].example, true);
+  assert.equal(r.body.rates[0].example, false);
+  assert.equal(r.body.rates[1].example, true);
   assert.equal((await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: "5800" } }))).body.options[0].price, 5200);
+});
+
+test("panel: la promo de envío gratis apaga el cálculo del envío en todo el país", async () => {
+  const quote = async (cp) => (await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: cp } }))).body;
+  assert.equal((await call("PUT", "/api/admin/shipping-settings", { body: { shipping: { freeShipping: true } } })).status, 401);
+  const cookie = await login();
+  assert.equal((await jsonOf(await call("GET", "/api/admin/shipping-settings", { cookie }))).body.shipping.freeShipping, false);
+  assert.equal((await jsonOf(await call("GET", "/api/catalog"))).body.freeShipping, false);
+  let r = await jsonOf(await call("PUT", "/api/admin/shipping-settings", { cookie, body: { shipping: { freeShipping: "sí" } } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(await call("PUT", "/api/admin/shipping-settings", { cookie, body: { shipping: { freeShipping: true } } }));
+  assert.equal(r.body.shipping.freeShipping, true);
+  for (const cp of ["5000", "1425", "9410"]) assert.deepEqual((await quote(cp)).options.map((o) => [o.id, o.price]), [["promo:envio-gratis", 0]]);
+  assert.equal((await quote("12")).free, undefined); // el CP se sigue validando
+  assert.equal((await jsonOf(await call("GET", "/api/catalog"))).body.freeShipping, true);
+  // El pedido se crea con envío $0 aunque la clienta no haya elegido opción.
+  const item = await cartItem();
+  const o = await jsonOf(await call("POST", "/api/orders", { body: { customer, shipping: { ...shipping, postalCode: "1425" }, items: [item] } }));
+  assert.equal(o.status, 201, JSON.stringify(o.body));
+  assert.equal(o.body.order.shippingCost, 0);
+  r = await jsonOf(await call("PUT", "/api/admin/shipping-settings", { cookie, body: { shipping: { freeShipping: false } } }));
+  assert.equal(r.body.shipping.freeShipping, false);
+  assert.equal((await quote("1425")).options[0].id, "tabla:resto-del-pais");
 });
 
 test("panel: cintillo de anuncios y foto con modelo de un diseño", async () => {

@@ -300,6 +300,17 @@ alter table store_designs add column if not exists model_photo jsonb;
 `,
   },
   {
+    // Desde el 19/10/2026 el centro de Córdoba Capital ya no tiene envío
+    // gratis fijo (el envío gratis pasa a ser una promo del panel). Se borra
+    // esa zona solo si sigue como la cargó el sistema, y el CP 5000 vuelve a
+    // la zona de la provincia.
+    id: "0009_sin_envio_gratis_cordoba",
+    sql: `
+delete from shipping_rates where id = 'cordoba-centro' and cp_from = 5000 and cp_to = 5000 and price = 0;
+update shipping_rates set cp_from = 5000 where id = 'cordoba-provincia' and cp_from = 5001;
+`,
+  },
+  {
     // Sin recargo por talle: todos los talles de todas las prendas cuestan lo
     // mismo (pedido de la tienda, 20/10/2026). El panel sigue permitiendo
     // cargar un recargo si algún día hace falta.

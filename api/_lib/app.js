@@ -12,7 +12,7 @@ import { createCarriers } from "./carriers.js";
 import { createMailer, sendOrderMails } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
 import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZonePrices, saveZonePrices, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
-import { quoteShipping, listRates, replaceRates } from "./shipping.js";
+import { quoteShipping, listRates, replaceRates, loadShippingSettings, saveShippingSettings } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
 import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkToken, orderToken, ORDER_STATUSES } from "./orders.js";
 import { defaultSizesFor } from "../../assets/js/data/catalog.js";
@@ -94,11 +94,11 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       t.push(Date.now());
       const designCollections = await loadDesignCollections(db).catch((err) => (console.error("catálogo: colecciones", err), []));
       t.push(Date.now());
-      const { announcement, homeImages } = await loadSiteSettings(db).catch((err) => (console.error("catálogo: sitio", err), { announcement: null, homeImages: null }));
+      const { announcement, homeImages, freeShipping } = await loadSiteSettings(db).catch((err) => (console.error("catálogo: sitio", err), { announcement: null, homeImages: null, freeShipping: false }));
       t.push(Date.now());
       if (t[6] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms, colecciones ${t[5] - t[4]} ms, sitio ${t[6] - t[5]} ms`);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
-      return json({ colors, products, storeDesigns, zonePrices, designCollections, announcement, homeImages }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
+      return json({ colors, products, storeDesigns, zonePrices, designCollections, announcement, homeImages, freeShipping }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
     }],
 
     ["GET", "/api/reviews", async (req, url) => {
@@ -382,6 +382,18 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       await auth.require(req);
       const body = await readJson(req, 64 * 1024);
       return json({ rates: await db.tx((q) => replaceRates(q, body.rates)) });
+    }],
+
+    ["GET", "/api/admin/shipping-settings", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      return json({ shipping: await loadShippingSettings(db) });
+    }],
+    ["PUT", "/api/admin/shipping-settings", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      const body = await readJson(req, 4096);
+      return json({ shipping: await saveShippingSettings(db, body.shipping) });
     }],
 
     ["GET", "/api/admin/zone-prices", async (req) => {

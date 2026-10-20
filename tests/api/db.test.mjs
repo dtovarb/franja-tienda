@@ -18,3 +18,17 @@ test("migrar dos veces no vuelve a tomar el candado", async () => {
   assert.deepEqual(seen, ["select id from schema_migrations"]);
   await db.close();
 });
+
+test("la migración 0009 saca el envío gratis fijo del centro de Córdoba", async () => {
+  const db = await openDb({ localDbDir: "memory" });
+  await migrate(db);
+  // Así quedó la tabla en la base real con los datos iniciales viejos.
+  await db.query("update shipping_rates set cp_from = 5001 where id = 'cordoba-provincia'");
+  await db.query("insert into shipping_rates (id, name, cp_from, cp_to, price, example, sort) values ('cordoba-centro', 'Córdoba Capital, centro', 5000, 5000, 0, false, -1)");
+  await db.query("delete from schema_migrations where id = '0009_sin_envio_gratis_cordoba'");
+  await migrate(db);
+  const rows = await db.query("select id, cp_from, cp_to, price from shipping_rates order by sort, id");
+  assert.deepEqual(rows.map((r) => r.id), ["cordoba-provincia", "resto-del-pais"]);
+  assert.equal(rows[0].cp_from, 5000);
+  await db.close();
+});

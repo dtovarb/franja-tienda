@@ -138,7 +138,7 @@ try {
     await page.fill("#co-name", "Flor Prueba");
     await page.fill("#co-email", "flor@example.com");
     await page.fill("#co-phone", "351 555 1234");
-    // Fuera del centro de Córdoba: opciones del correo, se elige una y cambia el total.
+    // Opciones del correo, se elige una y cambia el total.
     await page.fill("#co-postalCode", "1425");
     await page.waitForSelector(".ship-option");
     assert((await page.locator(".ship-option").count()) === 2, "opciones de envío");
@@ -146,22 +146,20 @@ try {
     await page.check('.ship-option input[value="correo-argentino:EP"]');
     assert(digits(await page.textContent("[data-total]")) === 37800 + 8900, "total con expreso");
     await page.screenshot({ path: join(SHOTS, "servidor-checkout-envios.png") });
-    await page.fill("#co-postalCode", "5000");
-    await page.waitForFunction(() => /gratis/.test(document.querySelector("[data-quote]").textContent));
     await page.fill("#co-street", "San Martín");
     await page.fill("#co-number", "123");
     await page.fill("#co-city", "Córdoba");
-    assert(digits(await page.textContent("[data-total]")) === 37800, "total con envío gratis");
+    assert(digits(await page.textContent("[data-total]")) === 37800 + 8900, "total con expreso");
     await page.screenshot({ path: join(SHOTS, "servidor-checkout.png"), fullPage: true });
     await page.click("[data-co-submit]");
     await page.waitForURL(/pedido\.html\?id=.+&t=.+&nuevo=1/, { timeout: 60000 });
     await page.waitForSelector(".order-view");
     orderUrl = page.url();
     const text = await page.textContent("main");
-    assert(/Pedido n\.º 1001/.test(text) && /Esperando el pago/.test(text) && /37\.800/.test(text), text.slice(0, 200));
+    assert(/Pedido n\.º 1001/.test(text) && /Esperando el pago/.test(text) && /46\.700/.test(text), text.slice(0, 200));
     assert((await page.textContent("[data-cart-count]")) === "0", "el carrito debería quedar vacío");
     await page.screenshot({ path: join(SHOTS, "servidor-pedido.png"), fullPage: true });
-    return "pedido n.º 1001 por $37.800 (envío gratis en CP 5000)";
+    return "pedido n.º 1001 por $46.700 (expreso de Correo Argentino)";
   });
 
   await t("Producción", "El panel ve el pedido, baja los archivos y avanza el estado", async () => {

@@ -9,15 +9,14 @@ import { SEED_STORE_DESIGNS } from "../../assets/js/core/store-designs.js";
 import { DEMO_REVIEWS } from "../../assets/js/data/reviews.js";
 
 /**
- * Tarifas de envío por código postal. Solo el centro de Córdoba Capital
- * (CP 5000) es una regla real de la tienda: envío gratis. Los demás importes
- * son de EJEMPLO hasta tener las tarifas reales de Andreani y Correo
- * Argentino; el panel los marca así y se cambian desde ahí.
+ * Tarifas de envío por código postal. Los importes son de EJEMPLO hasta tener
+ * las tarifas reales de Andreani y Correo Argentino; el panel los marca así y
+ * se cambian desde ahí. No hay zona gratis fija: el envío gratis es una promo
+ * que se prende desde el panel (ver shipping.js).
  */
 export const SEED_SHIPPING_RATES = [
-  { id: "cordoba-centro", name: "Córdoba Capital, centro", cp_from: 5000, cp_to: 5000, price: 0, example: false, sort: 0 },
-  { id: "cordoba-provincia", name: "Provincia de Córdoba", cp_from: 5001, cp_to: 5999, price: 4500, example: true, sort: 1 },
-  { id: "resto-del-pais", name: "Resto del país", cp_from: 1000, cp_to: 9999, price: 7500, example: true, sort: 2 },
+  { id: "cordoba-provincia", name: "Provincia de Córdoba", cp_from: 5000, cp_to: 5999, price: 4500, example: true, sort: 0 },
+  { id: "resto-del-pais", name: "Resto del país", cp_from: 1000, cp_to: 9999, price: 7500, example: true, sort: 1 },
 ];
 
 export async function seedData(q) {

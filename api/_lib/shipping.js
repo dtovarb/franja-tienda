@@ -1,11 +1,13 @@
 /**
  * Envío por código postal (Andreani o Correo Argentino, a domicilio, sin retiro).
  *
- * 1. Si la tabla del panel (shipping_rates) da envío gratis para ese CP
- *    (centro de Córdoba Capital, CP 5000), esa es la única opción.
- * 2. Si no, se cotiza en vivo con las empresas configuradas (carriers.js)
+ * 1. Si en el panel está prendida la promo de envío gratis (site_settings,
+ *    clave 'shipping'), no se calcula nada: envío gratis a todo el país.
+ * 2. Si la tabla del panel (shipping_rates) tiene precio 0 para ese CP,
+ *    esa es la única opción.
+ * 3. Si no, se cotiza en vivo con las empresas configuradas (carriers.js)
  *    según el peso y tamaño del pedido, y la clienta elige.
- * 3. Si no hay ninguna configurada o ninguna responde, se usa la tabla del
+ * 4. Si no hay ninguna configurada o ninguna responde, se usa la tabla del
  *    panel (gana la primera fila, en orden, cuyo rango incluya el CP).
  */
 import { HttpError } from "./http.js";
@@ -16,6 +18,30 @@ export function normalizePostalCode(raw) {
   const m = String(raw || "").toUpperCase().replace(/\s+/g, "").match(/^(?:[A-Z])?(\d{4})(?:[A-Z]{3})?$/);
   return m ? Number(m[1]) : null;
 }
+
+/** Ajustes de envío del panel: la promo de envío gratis se prende y se apaga a mano. */
+export const DEFAULT_SHIPPING_SETTINGS = { freeShipping: false };
+
+export function normalizeShippingSettings(raw) {
+  return { freeShipping: raw?.freeShipping === true };
+}
+
+export async function loadShippingSettings(q) {
+  const [row] = await q.query("select value from site_settings where key = 'shipping'");
+  return row ? normalizeShippingSettings(row.value) : { ...DEFAULT_SHIPPING_SETTINGS };
+}
+
+export async function saveShippingSettings(q, body) {
+  if (typeof body?.freeShipping !== "boolean") throw new HttpError(422, "Falta indicar si el envío gratis está prendido.");
+  const value = normalizeShippingSettings(body);
+  await q.query(
+    "insert into site_settings (key, value) values ('shipping', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()",
+    [JSON.stringify(value)]
+  );
+  return value;
+}
+
+export const FREE_SHIPPING_OPTION = { id: "promo:envio-gratis", carrier: "Envío gratis", service: "Promoción a todo el país", price: 0, days: null, example: false };
 
 export async function listRates(q) {
   return q.query("select id, name, cp_from, cp_to, price, example, sort from shipping_rates order by sort, id");
@@ -28,8 +54,9 @@ export async function listRates(q) {
 export async function quoteShipping(q, rawPostalCode, { carriers = [], lines = [] } = {}) {
   const cp = normalizePostalCode(rawPostalCode);
   if (!cp || cp < 1000) throw new HttpError(422, "Escribí un código postal válido (4 números, por ejemplo 5000).");
-  const rate = (await listRates(q)).find((r) => cp >= r.cp_from && cp <= r.cp_to);
   const base = { postalCode: String(cp) };
+  if ((await loadShippingSettings(q)).freeShipping) return { ...base, free: true, live: false, promo: true, options: [{ ...FREE_SHIPPING_OPTION }] };
+  const rate = (await listRates(q)).find((r) => cp >= r.cp_from && cp <= r.cp_to);
   if (rate && rate.price === 0) {
     return { ...base, free: true, live: false, options: [{ id: `tabla:${rate.id}`, carrier: "Envío gratis", service: rate.name, price: 0, days: null, example: false }] };
   }

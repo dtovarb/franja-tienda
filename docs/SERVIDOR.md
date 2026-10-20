@@ -65,17 +65,18 @@ Con servidor pide mail y contraseña. Tiene cinco pestañas:
 - **Productos**: precio, visibilidad, destacados, colores, recargos y stock por talle, y los recargos por zona de estampa (el precio base incluye el frente).
 - **Pedidos**: datos de la clienta y envío, vista previa, descarga del original, la vista previa, el archivo de impresión y el diseño editable (enlaces firmados de 15 minutos), cambio de estado con nota (por ejemplo, el número de seguimiento) y enlace para mandarle a la clienta.
 - **Sitio**: el **cintillo de anuncios** de arriba de todo (hasta 5 mensajes que rotan, enlace opcional, color, encendido/apagado). Se guarda en `site_settings` (clave `announcement`) y viaja en `/api/catalog`, que se cachea 30 s: el cambio se ve en la tienda en menos de un minuto.
-- **Envíos**: tabla por rango de código postal. Define el envío gratis (CP 5000) y es el respaldo si las empresas de correo no responden. Las dos zonas pagas tienen **importes de ejemplo** y el panel las marca así.
+- **Envíos**: interruptor de **envío gratis para todo el país** (para campañas: mientras está prendido no se cotiza nada y todos los pedidos van con envío $0; se guarda en `site_settings`, clave `shipping`) y tabla por rango de código postal. Una fila con precio 0 da envío gratis a ese rango, y la tabla es el respaldo si las empresas de correo no responden. Las dos zonas pagas tienen **importes de ejemplo** y el panel las marca así.
 
 ## Envíos
 
 Solo a domicilio (la tienda no tiene retiro), en `api/_lib/shipping.js` y `api/_lib/carriers.js`:
 
-1. Si la tabla del panel da $0 para ese código postal (centro de Córdoba Capital), es la única opción.
-2. Si no, se cotiza **en vivo** con las empresas configuradas y la clienta elige entre las opciones a domicilio, de la más barata a la más cara:
+1. Si la promo de envío gratis del panel está prendida, la única opción es envío gratis, a todo el país.
+2. Si la tabla del panel da $0 para ese código postal, es la única opción.
+3. Si no, se cotiza **en vivo** con las empresas configuradas y la clienta elige entre las opciones a domicilio, de la más barata a la más cara:
    - **Correo Argentino**, API MiCorreo: `POST /token` (usuario y contraseña de la API) y `POST /rates` con el CP de origen (`SHIPPING_ORIGIN_CP`, 5000 por defecto), el de destino y el paquete. Devuelve Paq.ar Clásico y Expreso.
    - **Andreani**, API de tarifas `GET /v1/tarifas` con número de contrato y de cliente. Andreani da estos datos solo a clientes con contrato.
-3. Si ninguna está configurada o ninguna responde (8 segundos), se usa la tabla del panel.
+4. Si ninguna está configurada o ninguna responde (8 segundos), se usa la tabla del panel.
 
 El paquete se arma con un peso y medidas aproximados por tipo de prenda (`PARCEL_BY_TYPE` en `carriers.js`: remera 250 g, buzo canguro 750 g, etc., más 60 g de embalaje). Conviene pesar las prendas reales y ajustar esos números.
 
