@@ -128,13 +128,8 @@ if (!product) {
         <button class="btn btn--primary btn--lg btn--block" type="submit">${design ? "Ver y ajustar en el editor" : "Personalizar en el editor"} ${icon("arrowRight")}</button>
 
         <dl class="spec-list">
-          ${product.faces
-            .map((f) => {
-              const sp = getPrintSpec(product.type, f);
-              return `<dt>${faceLabel(f)}</dt><dd>hasta ${sp.widthCm} × ${sp.heightCm} cm · ${zoneCost(f)}</dd>`;
-            })
-            .join("")}
-          <dt>Medidas</dt><dd>Áreas máximas en talle M de referencia</dd>
+          ${product.faces.map((f) => `<dt>${faceLabel(f)}</dt><dd data-zone-size="${f}"></dd>`).join("")}
+          <dt>Medidas</dt><dd data-zone-note></dd>
           <dt>Técnica</dt><dd>DTG: impresión directa sobre la prenda</dd>
           <dt>Archivos</dt><dd>JPG, PNG o SVG · hasta 25 MB, o un <a href="disenos.html">diseño de la tienda</a></dd>
         </dl>
@@ -159,7 +154,7 @@ if (!product) {
 
   function renderStage() {
     const col = getColor(state.colorId);
-    const spec = getPrintSpec(product.type, state.face);
+    const spec = getPrintSpec(product.type, state.face, state.sizeId);
     const art = design && state.face === product.faces[0] ? designArt(designUrl) : "";
     let svg = garmentSvg(product.type, state.face, col.hex, { art, colorId: col.id, title: `${product.name} ${col.name}, ${faceLabel(state.face)}` });
     if (state.guides) {
@@ -184,6 +179,12 @@ if (!product) {
     const s = product.sizes.find((x) => x.id === state.sizeId);
     root.querySelector("[data-stock]").textContent = s ? `${stockLabel(s.stock)} en talle ${s.label} ${IS_DEMO ? " (stock de ejemplo)" : ""}` : "";
     qtyInput.value = state.qty;
+    // Medidas máximas de estampa: cambian con el talle elegido.
+    root.querySelectorAll("[data-zone-size]").forEach((dd) => {
+      const sp = getPrintSpec(product.type, dd.dataset.zoneSize, state.sizeId);
+      dd.textContent = `hasta ${sp.widthCm} × ${sp.heightCm} cm · ${zoneCost(dd.dataset.zoneSize)}`;
+    });
+    root.querySelector("[data-zone-note]").textContent = s && product.sizes.length > 1 ? `Áreas máximas en talle ${s.label}: crecen con el talle` : "Áreas máximas de estampa";
     root.querySelectorAll("[data-qty]").forEach((b) => {
       b.disabled = (b.dataset.qty === "-1" && state.qty <= 1) || (b.dataset.qty === "1" && state.qty >= 50);
     });

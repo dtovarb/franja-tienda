@@ -83,9 +83,10 @@ export const ed = {
 // Normaliza: faces[f] siempre es un array de objetos serializados
 for (const f of product.faces) if (!Array.isArray(ed.faces[f])) ed.faces[f] = [];
 
-export const spec = (face = ed.face) => getPrintSpec(product.type, face);
+/** Área imprimible de una zona en el talle elegido (cada talle tiene su medida). */
+export const spec = (face = ed.face) => getPrintSpec(product.type, face, ed.variant.sizeId);
 /** Parte de la prenda que se ve: entera, o un acercamiento en las zonas chicas. */
-const view = () => editorWindow(product.type, ed.face);
+const view = () => editorWindow(product.type, ed.face, ed.variant.sizeId);
 export const color = () => getColor(ed.variant.colorId);
 export const printedFaces = () => product.faces.filter((f) => (f === ed.face ? ed.canvas.getObjects().length : ed.faces[f].length) > 0);
 /** Ids de los diseños de la tienda presentes en cualquier cara (cada uno se cobra una vez). */
@@ -688,8 +689,18 @@ export function renderTop() {
 }
 
 export function setVariant(patch) {
+  const sizeChanged = "sizeId" in patch && patch.sizeId !== ed.variant.sizeId;
   ed.variant = { ...ed.variant, ...patch };
   if ("colorId" in patch) renderMockup();
+  if (sizeChanged) {
+    // El área de impresión cambia con el talle: el diseño queda donde está y
+    // se avisa si algo quedó afuera.
+    layout();
+    renderGuides();
+    refresh();
+    const s = spec();
+    announce(`Talle ${ed.variant.sizeId}: ${faceLabel(ed.face).toLowerCase()} de ${s.widthCm} × ${s.heightCm} cm.`);
+  }
   renderTop();
   productPanel.render();
   scheduleSave();
@@ -872,4 +883,4 @@ async function boot() {
 boot();
 
 // Exponer para pruebas automatizadas (no se usa en la interfaz).
-window.__editor = { ed, canvas, undo, redo, setFace, addText, commit, checkBounds, addStoreDesign, price };
+window.__editor = { ed, canvas, undo, redo, setFace, addText, commit, checkBounds, addStoreDesign, price, spec };

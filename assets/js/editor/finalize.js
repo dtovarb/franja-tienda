@@ -79,7 +79,7 @@ export async function openFinalize({ ed, product, price, printedFaces, setFace, 
     const outside = [];
     for (const f of faces) {
       const live = await enliven(await hydrate(ed.faces[f]));
-      const area = getPrintSpec(product.type, f).area;
+      const area = getPrintSpec(product.type, f, ed.variant.sizeId).area;
       live.forEach((o) => {
         const r = o.getBoundingRect(true, true);
         if (!isInside({ x: r.left, y: r.top, w: r.width, h: r.height }, area)) outside.push(f);
@@ -126,7 +126,7 @@ export async function openFinalize({ ed, product, price, printedFaces, setFace, 
 
     // 7. Resolución
     step("resolution", "run");
-    out.report = resolutionReport(product.type, facesJson);
+    out.report = resolutionReport(product.type, facesJson, ed.variant.sizeId);
     const low = out.report.filter((r) => r.level === "low");
     const fair = out.report.filter((r) => r.level === "fair");
     if (low.length) step("resolution", "warn", `${low.length} imagen(es) con baja resolución para el tamaño elegido`);
@@ -195,7 +195,7 @@ export async function openFinalize({ ed, product, price, printedFaces, setFace, 
         <div class="downloads">
           ${faces
             .map((f) => {
-              const s = getPrintSpec(product.type, f);
+              const s = getPrintSpec(product.type, f, ed.variant.sizeId);
               return `<div class="dl"><div><b>Archivo de impresión · ${faceLabel(f)}</b><small data-print-info="${f}">PNG transparente · área ${s.widthCm} × ${s.heightCm} cm · sin prenda ni guías</small></div>
                 <button class="btn btn--sm" type="button" data-dl="print:${f}">${icon("download")}Generar</button></div>`;
             })
@@ -247,7 +247,7 @@ export async function openFinalize({ ed, product, price, printedFaces, setFace, 
   async function ensurePrint(f) {
     const o = opts();
     if (out.prints[f] && out.prints[f].dpi === o.dpi && out.prints[f].mode === o.mode) return out.prints[f];
-    const r = await renderPrintFile({ productType: product.type, face: f, objects: ed.faces[f], ...o });
+    const r = await renderPrintFile({ productType: product.type, face: f, sizeId: ed.variant.sizeId, objects: ed.faces[f], ...o });
     out.prints[f] = r;
     const info = dlg.querySelector(`[data-print-info="${f}"]`);
     if (info) info.textContent = `${r.widthPx} × ${r.heightPx} px · ${r.widthCm} × ${r.heightCm} cm · ${r.dpi} DPI · ${formatBytes(r.blob.size)}`;

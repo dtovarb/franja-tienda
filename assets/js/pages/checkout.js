@@ -205,7 +205,7 @@ async function prepareItem(item, render) {
   for (const f of faces) {
     const preview = await render.renderPreview({ productType: product.type, colorHex: color.hex, colorId: color.id, face: f, objects: objectsOf(f) });
     await add(preview, { role: "preview", face: f, mime: "image/png" });
-    const print = await render.renderPrintFile({ productType: product.type, face: f, objects: objectsOf(f), dpi: 300, mode: "area" });
+    const print = await render.renderPrintFile({ productType: product.type, face: f, sizeId: item.variant.sizeId, objects: objectsOf(f), dpi: 300, mode: "area" });
     await add(print.blob, { role: "print", face: f, mime: "image/png", dpi: 300 });
   }
   return {

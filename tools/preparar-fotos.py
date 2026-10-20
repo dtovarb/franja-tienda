@@ -8,6 +8,8 @@ SRC, OUT = sys.argv[1], sys.argv[2]
 DEBUG = sys.argv[4] if len(sys.argv) > 4 and sys.argv[3] == "--debug" else None
 W, H = 1000, 1200
 
+# Área del frente (talle M) usada para encuadrar; los mapas de luz finales, que
+# cubren todas las zonas, los rehace tools/mapas-de-luz.py.
 AREAS = {
   "tee": (332, 250, 336, 448), "oversize": (320, 270, 360, 470), "hoodie": (350, 470, 300, 280),
   "crewneck": (330, 330, 340, 440), "cap": (360, 500, 280, 190), "tote": (280, 470, 440, 540),

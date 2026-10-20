@@ -490,7 +490,7 @@ test("la URL de Postgres de la integración de Vercel se limpia antes de conecta
 test("zonas de estampa: el frente está incluido y cada otra zona suma su recargo", async () => {
   const { body: cat } = await jsonOf(await call("GET", "/api/catalog"));
   const tee = cat.products.find((p) => p.id === "remera-clasica");
-  assert.deepEqual(tee.faces, ["front", "back", "chest", "front-low", "sleeve-left", "sleeve-right", "label"]);
+  assert.deepEqual(tee.faces, ["front", "back", "chest", "heart", "front-low", "sleeve-left", "sleeve-right", "label"]);
   assert.equal(cat.zonePrices.back, 4500);
   assert.deepEqual(cat.products.find((p) => p.type === "cap").faces, ["front"]);
 
@@ -521,4 +521,10 @@ test("zonas de estampa: el frente está incluido y cada otra zona suma su recarg
   // Una zona que la prenda no tiene se rechaza.
   const cap = await cartItem({ productId: "gorra", colorId: "azul", sizeId: "Único", qty: 1, faces: { "sleeve-left": null } });
   assert.equal((await call("POST", "/api/orders", { body: { customer, shipping, items: [cap] } })).status, 422);
+});
+
+test("talles: ninguna prenda tiene recargo por talle", async () => {
+  const { body: cat } = await jsonOf(await call("GET", "/api/catalog"));
+  const conRecargo = cat.products.flatMap((p) => p.sizes.filter((s) => s.surcharge).map((s) => `${p.id} ${s.id}`));
+  assert.deepEqual(conRecargo, []);
 });
