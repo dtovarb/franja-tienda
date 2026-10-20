@@ -303,7 +303,7 @@ alter table store_designs add column if not exists model_photo jsonb;
     // Sin recargo por talle: todos los talles de todas las prendas cuestan lo
     // mismo (pedido de la tienda, 20/10/2026). El panel sigue permitiendo
     // cargar un recargo si algún día hace falta.
-    id: "0009_sin_recargo_por_talle",
+    id: "0010_sin_recargo_por_talle",
     sql: `
 update product_sizes set surcharge = 0 where surcharge <> 0;
 `,
