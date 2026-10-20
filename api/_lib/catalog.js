@@ -31,7 +31,9 @@ export async function loadProducts(q, { onlyActive = false } = {}) {
     sizes: sizes
       .filter((s) => s.product_id === p.id)
       .map((s) => ({ id: s.size_id, label: s.label, surcharge: s.surcharge, stock: s.stock })),
-    faces: p.faces,
+    // Las zonas salen del código (GARMENTS): una zona nueva aparece sin
+    // migrar la base. La columna faces queda como respaldo.
+    faces: GARMENTS[p.type] ? Object.keys(GARMENTS[p.type].faces) : p.faces,
     includedFaces: p.included_faces,
     featured: p.featured,
     active: p.active,

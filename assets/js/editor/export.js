@@ -59,11 +59,11 @@ export function dpiLevel(dpi, technique = getTechnique()) {
 }
 
 /** Informe de resolución de todas las imágenes de todas las caras. */
-export function resolutionReport(productType, faces) {
+export function resolutionReport(productType, faces, sizeId) {
   const tech = getTechnique();
   const rows = [];
   for (const [face, objs] of Object.entries(faces)) {
-    const { cmPerUnit } = getPrintSpec(productType, face);
+    const { cmPerUnit } = getPrintSpec(productType, face, sizeId);
     for (const o of objs) {
       if (o.type !== "image") continue;
       const dpi = effectiveDpi(o, cmPerUnit);
@@ -128,10 +128,11 @@ export async function renderPreview({ productType, colorHex, colorId = null, fac
 /**
  * Exporta SOLO el área imprimible (o el contenido recortado), sin mockup,
  * guías ni controles, con fondo transparente y DPI declarado en el PNG.
+ * @param sizeId talle del pedido: define la medida en cm del archivo
  * @param mode "area" | "content"
  */
-export async function renderPrintFile({ productType, face, objects, dpi = 300, mode = "area" }) {
-  const spec = getPrintSpec(productType, face);
+export async function renderPrintFile({ productType, face, sizeId, objects, dpi = 300, mode = "area" }) {
+  const spec = getPrintSpec(productType, face, sizeId);
   let region = { ...spec.area };
 
   if (mode === "content" && objects.length) {
@@ -177,12 +178,12 @@ export async function buildDesignDocument({ designId, product, variant, faces, p
   const facesOut = {};
   for (const [face, objs] of Object.entries(faces)) {
     if (!objs.length) continue;
-    const spec = getPrintSpec(product.type, face);
+    const spec = getPrintSpec(product.type, face, variant.sizeId);
     facesOut[face] = {
       label: faceLabel(face),
       stage: { ...STAGE, unit: "unidad lógica" },
       printArea: spec.area,
-      physical: { widthCm: spec.widthCm, heightCm: spec.heightCm, cmPerUnit: spec.cmPerUnit, referenceSize: "M" },
+      physical: { widthCm: spec.widthCm, heightCm: spec.heightCm, cmPerUnit: spec.cmPerUnit, sizeId: variant.sizeId },
       fabric: { version: fabric.version, objects: objs },
     };
   }

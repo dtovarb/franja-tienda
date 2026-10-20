@@ -135,7 +135,7 @@ Corrí `tests/e2e.mjs` con Playwright y Chromium en el contenedor: **49 de 49 pr
 
 ## 3. Limitaciones conocidas
 - **La persistencia es local.** El carrito y los diseños van en localStorage (unos 5 MB) y los originales en IndexedDB. No se sincronizan entre dispositivos y se pierden si se borran los datos del sitio. Los originales que quedan sin usar no se limpian solos.
-- **Las medidas físicas son del talle M.** El área de impresión no cambia según el talle: si se escala por talle o se usa un área fija es una decisión del taller.
+- **El área de impresión depende del talle.** Cada zona tiene su medida en cm por talle (frente y espalda crecen con el talle; logos, mangas y etiqueta miden lo mismo en todos). Las medidas están en `GARMENTS` (assets/js/data/garments.js) y el archivo de impresión sale en la medida del talle del pedido.
 - **Las fotos son de referencia, de frente y de terceros.** Hay que reemplazarlas por fotos propias antes de publicar. La espalda es una ilustración; el color en pantalla es aproximado.
 - No hay recorte ni máscara de imágenes, ni efectos como contorno, sombra o texto en curva.
 - La exportación de impresión es solo PNG. No genera PDF ni separación de colores, y CMYK no se maneja en el navegador.

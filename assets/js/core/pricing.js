@@ -20,6 +20,7 @@ export const DEFAULT_ZONE_PRICES = {
   front: 0,
   back: 4500,
   chest: 2500,
+  heart: 2500,
   "front-low": 2500,
   "sleeve-left": 2500,
   "sleeve-right": 2500,

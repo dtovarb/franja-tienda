@@ -7,7 +7,7 @@
 | HTML + CSS + JS vanilla con **módulos ES**, una página por pantalla | Sin build ni framework, como pidió el brief. Los módulos separan datos, lógica y vistas y se pueden migrar tal cual a un bundler. |
 | **Fabric.js 5.3.0 local** | API estable y documentada; v6 cambia a ESM y promesas, sin ventaja para este alcance. Local para no depender de un CDN. |
 | **Espacio lógico fijo de 1000 × 1200 unidades** por prenda | Mockup, guías y canvas comparten el mismo sistema de coordenadas. El editor solo cambia el zoom según la pantalla, así el área imprimible nunca se desalinea ni depende de píxeles de pantalla. |
-| `cmPerUnit` por tipo de prenda | Convierte el espacio lógico en medidas físicas (talle M de referencia). Las medidas en cm del panel, el DPI efectivo y el tamaño del archivo de impresión salen de ahí. |
+| `cmPerUnit` por tipo de prenda + medidas por talle | `cmPerUnit` convierte el espacio lógico en cm en el talle M (el de las fotos) y se escala para cada talle con su ancho y largo de la tabla de talles. Cada zona tiene su medida en cm por talle (`cm` en `GARMENTS`). Las medidas del panel, el DPI efectivo y el tamaño del archivo de impresión salen de ahí, en el talle elegido. |
 | Guías en un **SVG superpuesto**, fuera de Fabric | No forman parte del JSON ni de ninguna exportación. |
 | Originales en **IndexedDB**, identificados por **SHA-256** | localStorage no soporta binarios grandes. El hash sirve de id, deduplica y permite verificar integridad. El Blob guardado es el `File` original, sin recomprimir. |
 | JSON editable con `src: "asset:<sha256>"` | El diseño no embebe binarios: se reconstruye resolviendo los originales aparte, igual que lo haría un backend con almacenamiento de objetos. |
@@ -35,7 +35,7 @@ Esquema del JSON editable (resumido):
   "faces": {
     "front": {
       "printArea": { "x": 332, "y": 250, "w": 336, "h": 448 },
-      "physical": { "widthCm": 30.2, "heightCm": 40.3, "cmPerUnit": 0.09 },
+      "physical": { "widthCm": 34, "heightCm": 44, "cmPerUnit": 0.09, "sizeId": "M" },
       "fabric": { "version": "5.3.0", "objects": [
         { "type": "image", "src": "asset:9f2c…", "assetId": "9f2c…", "srcWidth": 3000, "left": 500, "top": 474, "scaleX": 0.0896, "…": "…" },
         { "type": "i-text", "text": "nevrado", "fontFamily": "Archivo Black", "…": "…" }
