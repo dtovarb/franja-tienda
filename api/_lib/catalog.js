@@ -10,6 +10,7 @@ import { DEFAULT_ZONE_PRICES, PRICED_ZONES, ALWAYS_ON_ZONES, enabledFaces } from
 import { EMPTY_ANNOUNCEMENT, normalizeAnnouncement } from "../../assets/js/core/announcement.js";
 import { emptyHomeImages, normalizeHomeImages } from "../../assets/js/core/home-images.js";
 import { DEFAULT_MARQUEE, normalizeMarquee, normalizeSiteTexts } from "../../assets/js/core/site-texts.js";
+import { normalizeGarmentPhotos } from "../../assets/js/core/garment-photos.js";
 
 export async function loadColors(q) {
   const rows = await q.query("select id, name, hex from garment_colors order by sort, id");
@@ -362,12 +363,29 @@ export async function saveMarquee(q, body) {
   return saveSetting(q, "marquee", value);
 }
 
+/* ------------------------- Fotos de prenda por color ------------------------- */
+export async function loadGarmentPhotos(q) {
+  const [row] = await q.query("select value from site_settings where key = 'garment_photos'");
+  return normalizeGarmentPhotos(row?.value);
+}
+
+/** Pone (o con `photo` null quita) la foto de un tipo de prenda y color. */
+export async function saveGarmentPhoto(q, key, photo) {
+  const cur = await loadGarmentPhotos(q);
+  if (photo) {
+    const clean = normalizeGarmentPhotos({ [key]: photo })[key];
+    if (!clean) throw new HttpError(422, "La foto no es válida.");
+    cur[key] = clean;
+  } else delete cur[key];
+  return saveSetting(q, "garment_photos", cur);
+}
+
 /**
- * Cintillo, fotos del inicio, textos, marquesina y promo de envío gratis en UNA consulta, para el catálogo público
+ * Cintillo, fotos del inicio y de prendas, textos, marquesina y promo de envío gratis en UNA consulta, para el catálogo público
  * (cada consulta de más se nota al arrancar en frío).
  */
 export async function loadSiteSettings(q) {
-  const rows = await q.query("select key, value from site_settings where key in ('announcement', 'home_images', 'shipping', 'site_texts', 'marquee')");
+  const rows = await q.query("select key, value from site_settings where key in ('announcement', 'home_images', 'shipping', 'site_texts', 'marquee', 'garment_photos')");
   const get = (k) => rows.find((r) => r.key === k)?.value;
   return {
     announcement: get("announcement") ? normalizeAnnouncement(get("announcement")).value : { ...EMPTY_ANNOUNCEMENT },
@@ -375,5 +393,6 @@ export async function loadSiteSettings(q) {
     freeShipping: get("shipping")?.freeShipping === true,
     siteTexts: normalizeSiteTexts(get("site_texts")).value,
     marquee: get("marquee") ? normalizeMarquee(get("marquee")).value : structuredClone(DEFAULT_MARQUEE),
+    garmentPhotos: normalizeGarmentPhotos(get("garment_photos")),
   };
 }

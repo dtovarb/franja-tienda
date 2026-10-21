@@ -12,11 +12,12 @@ import { createCarriers } from "./carriers.js";
 import { createMailer, sendOrderMails } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
 import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZoneSettings, saveZoneSettings, withoutDisabledZones, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
-import { loadSiteTexts, saveSiteTexts, loadMarquee, saveMarquee } from "./catalog.js";
+import { loadSiteTexts, saveSiteTexts, loadMarquee, saveMarquee, loadGarmentPhotos, saveGarmentPhoto } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates, loadShippingSettings, saveShippingSettings } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
 import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkToken, orderToken, ORDER_STATUSES } from "./orders.js";
 import { defaultSizesFor } from "../../assets/js/data/catalog.js";
+import { GARMENTS } from "../../assets/js/data/garments.js";
 import { createRegret } from "./regret.js";
 import { DEFAULT_ZONE_PRICES } from "../../assets/js/core/pricing.js";
 
@@ -95,11 +96,11 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       t.push(Date.now());
       const designCollections = await loadDesignCollections(db).catch((err) => (console.error("catálogo: colecciones", err), []));
       t.push(Date.now());
-      const { announcement, homeImages, freeShipping, siteTexts, marquee } = await loadSiteSettings(db).catch((err) => (console.error("catálogo: sitio", err), { announcement: null, homeImages: null, freeShipping: false, siteTexts: null, marquee: null }));
+      const { announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos } = await loadSiteSettings(db).catch((err) => (console.error("catálogo: sitio", err), { announcement: null, homeImages: null, freeShipping: false, siteTexts: null, marquee: null, garmentPhotos: {} }));
       t.push(Date.now());
       if (t[6] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms, colecciones ${t[5] - t[4]} ms, sitio ${t[6] - t[5]} ms`);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
-      return json({ colors, products: withoutDisabledZones(products, disabledZones), storeDesigns, zonePrices, disabledZones, designCollections, announcement, homeImages, freeShipping, siteTexts, marquee }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
+      return json({ colors, products: withoutDisabledZones(products, disabledZones), storeDesigns, zonePrices, disabledZones, designCollections, announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
     }],
 
     ["GET", "/api/reviews", async (req, url) => {
@@ -371,6 +372,34 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
         }
       }
       return json({ homeImages: await saveHomeImages(c.db, next) });
+    }],
+
+    ["GET", "/api/admin/garment-photos", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      return json({ garmentPhotos: await loadGarmentPhotos(db) });
+    }],
+    // Foto de una prenda en un color: los tres archivos (foto encuadrada y sus
+    // mapas de luz) ya subidos con /api/admin/uploads. Con `photo` null se
+    // quita y vuelve la foto que viene con la tienda.
+    ["PUT", /^\/api\/admin\/garment-photos\/([a-z]{2,20}-[a-z0-9-]{1,40})$/, async (req, url, [key]) => {
+      const c = await ctx();
+      await c.auth.require(req);
+      const [type, ...rest] = key.split("-");
+      if (!GARMENTS[type]) throw new HttpError(422, "Tipo de prenda desconocido.");
+      if (!(await loadColors(c.db))[rest.join("-")]) throw new HttpError(422, "Color desconocido.");
+      const body = await readJson(req, 8192);
+      let photo = null;
+      if (body.photo) {
+        const files = {};
+        for (const layer of ["base", "shade", "light"]) {
+          const src = await modelPhotoSource(c, body.photo[layer]);
+          if (!src) throw new HttpError(422, "Faltan archivos de la foto.");
+          files[layer] = src.url;
+        }
+        photo = { ...files, name: body.photo.name, updatedAt: new Date().toISOString() };
+      }
+      return json({ garmentPhotos: await saveGarmentPhoto(c.db, key, photo) });
     }],
 
     ["GET", "/api/admin/site-texts", async (req) => {

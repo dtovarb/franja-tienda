@@ -13,9 +13,10 @@
  */
 
 import { readJSON, writeJSON, removeKey } from "../core/storage.js";
-import { GARMENTS } from "./garments.js";
+import { GARMENTS, setUploadedPhotos } from "./garments.js";
 import { CATALOG } from "../core/api.js";
 import { enabledFaces } from "../core/zones.js";
+import { normalizeGarmentPhotos, GARMENT_PHOTOS_KEY } from "../core/garment-photos.js";
 
 export const CURRENCY = { code: "ARS", locale: "es-AR" };
 
@@ -163,6 +164,8 @@ const KEY = "catalog.v1";
 // catálogo guardado antes de sacar el buzo con capucha).
 // Con servidor, el catálogo (y los colores) salen de la base; si no, del navegador.
 if (CATALOG) Object.assign(GARMENT_COLORS, CATALOG.colors);
+// Fotos por color subidas en el panel: reemplazan a las de la carpeta.
+setUploadedPhotos(normalizeGarmentPhotos(CATALOG ? CATALOG.garmentPhotos : readJSON(GARMENT_PHOTOS_KEY, null)));
 // Las zonas apagadas en el panel no se ofrecen en ninguna prenda.
 export const PRODUCTS = (CATALOG?.products || (readJSON(KEY, null) || structuredClone(SEED_PRODUCTS)).map((p) => ({ ...p, faces: Object.keys(GARMENTS[p.type]?.faces || {}) })))
   .filter((p) => GARMENTS[p.type])

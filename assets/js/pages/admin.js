@@ -14,6 +14,7 @@ import { initPage, icon, toast, confirmDialog, getAnnouncement, ANNOUNCEMENT_KEY
 import { HOME_IMAGE_SLOTS, MAX_CAPTION, normalizeHomeImages } from "../core/home-images.js";
 import { ANNOUNCEMENT_STYLES, MAX_MESSAGES, MAX_TEXT, normalizeAnnouncement } from "../core/announcement.js";
 import { renderSiteContent, resetSiteContent } from "./admin-texts.js";
+import { photosBlock, bindPhotos, loadGarmentPhotos } from "./admin-photos.js";
 import { readJSON, writeJSON, removeKey } from "../core/storage.js";
 import {
   PRODUCTS, GARMENT_COLORS, getProduct, getColor, saveProducts, resetProducts, defaultSizesFor, stockLabel,
@@ -645,17 +646,18 @@ function productRow(p) {
           <a class="btn btn--ghost" href="producto.html?id=${encodeURIComponent(p.id)}">${icon("eye")}Ver en la tienda</a>
         </div>
       </form>
+      ${photosBlock(p)}
     </details>
   </li>`;
 }
 
 async function renderProducts({ reload = true } = {}) {
-  if (reload) [state.products, state.zones] = await Promise.all([data.products(), data.zoneSettings()]);
+  if (reload) [state.products, state.zones] = await Promise.all([data.products(), data.zoneSettings(), loadGarmentPhotos()]);
   productsPanel.innerHTML = `
     <div class="admin-head">
       <div>
         <h2 class="h3">Productos</h2>
-        <p class="muted">Precio, visibilidad, colores y stock, y las zonas de estampa con su recargo. Los productos ocultos no aparecen en la tienda, pero los carritos que ya los tienen siguen funcionando.</p>
+        <p class="muted">Precio, visibilidad, colores con sus fotos y stock, y las zonas de estampa con su recargo. Los productos ocultos no aparecen en la tienda, pero los carritos que ya los tienen siguen funcionando.</p>
       </div>
       <button class="btn btn--primary" type="button" data-new-product>${icon("plus")}Nuevo producto</button>
     </div>
@@ -809,6 +811,7 @@ productsPanel.addEventListener("click", async (e) => {
     renderProducts({ reload: false });
   }
 });
+bindPhotos(productsPanel, () => state.products);
 productsPanel.addEventListener("submit", (e) => {
   e.preventDefault();
   if (e.target.matches("[data-product-form]")) saveProductForm(e.target);

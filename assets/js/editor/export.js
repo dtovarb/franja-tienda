@@ -22,6 +22,8 @@ const canvasToBlob = (canvas, type = "image/png", q) =>
 function loadBitmap(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    // Las fotos subidas desde el panel vienen del almacenamiento: sin esto el lienzo queda "manchado" y no se exporta.
+    if (/^https?:/.test(src)) img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`No se pudo cargar ${src}`));
     img.src = src;
