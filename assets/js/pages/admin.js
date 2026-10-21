@@ -819,9 +819,14 @@ productsPanel.addEventListener("submit", (e) => {
 /* ======================= Sitio: cintillo de anuncios ======================= */
 const sitePanel = $("[data-panel=sitio]");
 // Atajos a cada sección de la pestaña (es larga).
+// Son botones y no enlaces con #: cambiar el # de la dirección cambia de pestaña.
 const SITE_JUMP = `<nav class="admin-jump" aria-label="Secciones de Sitio">
-    <a href="#sitio-cintillo">Cintillo</a><a href="#sitio-marquesina">Marquesina</a><a href="#sitio-fotos">Fotos del inicio</a><a href="#sitio-textos">Textos de la página</a>
+    <button type="button" data-jump="sitio-cintillo">Cintillo</button><button type="button" data-jump="sitio-marquesina">Marquesina</button><button type="button" data-jump="sitio-fotos">Fotos del inicio</button><button type="button" data-jump="sitio-textos">Textos de la página</button>
   </nav>`;
+sitePanel.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-jump]");
+  if (b) document.getElementById(b.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 
 async function renderSite() {
   const a = (await data.announcement()) || { enabled: false, style: "ciruela", messages: [] };
