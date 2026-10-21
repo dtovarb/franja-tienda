@@ -63,7 +63,7 @@ export const SEED_PRODUCTS = [
       "La base de todo. Cuello redondo con ribete, costuras reforzadas en hombros y una caída que funciona sola o debajo de un buzo.",
     basePrice: 18900,
     colors: ["blanco", "negro", "arena", "grafito", "gris", "rosa-palo", "nude", "marron-claro"],
-    sizes: [size("S"), size("M"), size("L"), size("XL", 0, "low")],
+    sizes: [size("S"), size("M"), size("L"), size("XL", 0, "low"), size("XXL")],
     faces: Object.keys(GARMENTS.tee.faces),
     includedFaces: 1,
     featured: true,
