@@ -285,15 +285,15 @@ async function renderShipping(panel) {
         <h2 class="h3">Tarifas de envío</h2>
         <p class="muted">${
           SHIPPING_LIVE
-            ? "Los precios salen en vivo de Correo Argentino y Andreani. Esta tabla se usa como respaldo si las empresas no responden (una zona con precio 0 tiene envío gratis)."
+            ? "Los precios salen en vivo de Correo Argentino y Andreani. Esta tabla se usa como respaldo si las empresas no responden."
             : "Mientras no estén conectadas las cuentas de Correo Argentino y Andreani, el envío sale de esta tabla."
-        } Gana la primera fila, de arriba hacia abajo, cuyo rango incluya el código postal. Los importes marcados «de ejemplo» no son tarifas reales.</p>
+        } Gana la primera fila, de arriba hacia abajo, cuyo rango incluya el código postal. Tildá «Envío gratis» en una zona para que sus códigos postales no paguen envío (el precio queda guardado para cuando lo destildes). Los importes marcados «de ejemplo» no son tarifas reales.</p>
       </div>
     </div>
     <form class="admin-form" data-rates-form novalidate>
       <div class="table-wrap">
         <table class="admin-table">
-          <thead><tr><th scope="col">Zona</th><th scope="col">CP desde</th><th scope="col">CP hasta</th><th scope="col">Precio (ARS)</th><th scope="col"><span class="sr-only">Quitar</span></th></tr></thead>
+          <thead><tr><th scope="col">Zona</th><th scope="col">CP desde</th><th scope="col">CP hasta</th><th scope="col">Precio (ARS)</th><th scope="col">Envío gratis</th><th scope="col"><span class="sr-only">Quitar</span></th></tr></thead>
           <tbody data-rates>${rates.map(rateRow).join("")}</tbody>
         </table>
       </div>
@@ -315,9 +315,12 @@ async function renderShipping(panel) {
   });
   const form = $("[data-rates-form]", panel);
   form.addEventListener("click", (e) => {
-    if (e.target.closest("[data-add-rate]")) $("[data-rates]", form).insertAdjacentHTML("beforeend", rateRow({ id: "", name: "", cp_from: 1000, cp_to: 9999, price: 0 }));
+    if (e.target.closest("[data-add-rate]")) $("[data-rates]", form).insertAdjacentHTML("beforeend", rateRow({ id: "", name: "", cp_from: 1000, cp_to: 9999, price: 0, free: false }));
     const rm = e.target.closest("[data-remove-rate]");
     if (rm) rm.closest("tr").remove();
+  });
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "free") e.target.closest("tr").classList.toggle("is-free", e.target.checked);
   });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -327,6 +330,7 @@ async function renderShipping(panel) {
       cp_from: Number(tr.querySelector("[name=cp_from]").value),
       cp_to: Number(tr.querySelector("[name=cp_to]").value),
       price: Number(tr.querySelector("[name=price]").value),
+      free: tr.querySelector("[name=free]").checked,
     }));
     try {
       await api("admin/shipping-rates", { method: "PUT", body: { rates: list } });
@@ -339,10 +343,11 @@ async function renderShipping(panel) {
 }
 
 const rateRow = (r) => `
-  <tr data-rate="${escapeHtml(r.id)}">
+  <tr data-rate="${escapeHtml(r.id)}"${r.free ? ' class="is-free"' : ""}>
     <td><input class="input" name="name" maxlength="60" value="${escapeHtml(r.name)}" aria-label="Zona">${r.example ? ' <span class="tag tag--demo">de ejemplo</span>' : ""}</td>
     <td><input class="input" name="cp_from" type="number" min="1000" max="9999" value="${r.cp_from}" aria-label="Código postal desde"></td>
     <td><input class="input" name="cp_to" type="number" min="1000" max="9999" value="${r.cp_to}" aria-label="Código postal hasta"></td>
     <td><input class="input" name="price" type="number" min="0" step="100" value="${r.price}" aria-label="Precio"></td>
+    <td><label class="check check--cell"><input type="checkbox" name="free" ${r.free ? "checked" : ""} aria-label="Envío gratis en ${escapeHtml(r.name || "esta zona")}"><span aria-hidden="true">Gratis</span></label></td>
     <td><button class="icon-btn" type="button" data-remove-rate aria-label="Quitar la zona">${icon("trash")}</button></td>
   </tr>`;

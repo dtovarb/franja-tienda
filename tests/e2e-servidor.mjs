@@ -106,6 +106,25 @@ try {
     return "login rechaza la clave mala y entra con la buena";
   });
 
+  await t("Panel", "Una zona de envíos se marca con envío gratis y la cotización da $0", async () => {
+    const row = page.locator("[data-rate]").first();
+    const id = await row.getAttribute("data-rate");
+    await row.locator("[name=free]").check();
+    assert(await row.evaluate((tr) => tr.classList.contains("is-free")), "fila tachada");
+    await page.click("[data-rates-form] [type=submit]");
+    await page.waitForSelector(`[data-rate="${id}"].is-free [name=free]:checked`);
+    await page.screenshot({ path: join(SHOTS, "servidor-panel-envio-gratis-zona.png"), fullPage: true });
+    const rates = await page.evaluate(async () => (await (await fetch("/api/admin/shipping-rates")).json()).rates);
+    const zone = rates.find((r) => r.id === id);
+    assert(zone.free === true && zone.price > 0, "queda gratis y conserva el precio");
+    const q = await page.evaluate(async (cp) => (await (await fetch("/api/shipping/quote", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ postalCode: String(cp) }) })).json()), zone.cp_from);
+    assert(q.free === true && q.options[0].price === 0, "cotiza $0");
+    await page.locator(`[data-rate="${id}"] [name=free]`).uncheck();
+    await page.click("[data-rates-form] [type=submit]");
+    await page.waitForSelector(`[data-rate="${id}"]:not(.is-free)`);
+    return "se tilda, se guarda, cotiza $0 y se destilda";
+  });
+
   await t("Panel", "Cambiar el precio de un producto se ve en la tienda", async () => {
     await page.click("#tab-productos");
     await page.click('[data-product-row="tote-bag"] summary');
