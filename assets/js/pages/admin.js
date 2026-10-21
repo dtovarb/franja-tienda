@@ -18,7 +18,7 @@ import {
   PRODUCTS, GARMENT_COLORS, getProduct, getColor, saveProducts, resetProducts, defaultSizesFor, stockLabel,
 } from "../data/catalog.js";
 import { GARMENTS, garmentSvg, faceLabel, faceHint } from "../data/garments.js";
-import { ZONE_PRICES, PRICED_ZONES } from "../core/pricing.js";
+import { ZONE_PRICES, PRICED_ZONES, DISABLED_ZONES, ALWAYS_ON_ZONES } from "../core/pricing.js";
 import {
   listStoreDesigns, getStoreDesign, saveStoreDesign, deleteStoreDesign, resetStoreDesigns, storeDesignImageUrl, modelPhotoUrl,
   listCollections, saveCollection, deleteCollection, resetCollections,
@@ -115,9 +115,13 @@ const demoData = {
     saveProducts(PRODUCTS);
     return p;
   },
-  zonePrices: async () => ZONE_PRICES,
-  async saveZonePrices(prices) {
-    return Object.assign(ZONE_PRICES, prices); // solo esta sesión
+  zoneSettings: async () => ({ zonePrices: ZONE_PRICES, disabledZones: [...DISABLED_ZONES] }),
+  async saveZoneSettings({ zonePrices, disabledZones }) {
+    // Solo esta sesión.
+    Object.assign(ZONE_PRICES, zonePrices);
+    DISABLED_ZONES.clear();
+    disabledZones.forEach((z) => DISABLED_ZONES.add(z));
+    return { zonePrices: ZONE_PRICES, disabledZones };
   },
   announcement: async () => getAnnouncement(),
   async saveAnnouncement(a) {
@@ -186,8 +190,8 @@ const serverData = {
   products: async () => (await api("admin/products")).products,
   saveProduct: async (id, fields) => (await api(`admin/products/${encodeURIComponent(id)}`, { method: "PATCH", body: fields })).product,
   createProduct: async (fields) => (await api("admin/products", { method: "POST", body: fields })).product,
-  zonePrices: async () => (await api("admin/zone-prices")).zonePrices,
-  saveZonePrices: async (zonePrices) => (await api("admin/zone-prices", { method: "PUT", body: { zonePrices } })).zonePrices,
+  zoneSettings: async () => await api("admin/zone-prices"),
+  saveZoneSettings: async (settings) => await api("admin/zone-prices", { method: "PUT", body: settings }),
   announcement: async () => (await api("admin/announcement")).announcement,
   saveAnnouncement: async (announcement) => (await api("admin/announcement", { method: "PUT", body: { announcement } })).announcement,
   homeImages: async () => (await api("admin/home-images")).homeImages,
@@ -210,7 +214,7 @@ const serverData = {
 };
 
 const data = SERVER ? serverData : demoData;
-const state = { designs: [], collections: [], products: [], zonePrices: { ...ZONE_PRICES } };
+const state = { designs: [], collections: [], products: [], zones: { zonePrices: { ...ZONE_PRICES }, disabledZones: [...DISABLED_ZONES] } };
 const findDesign = (id) => state.designs.find((d) => d.id === id);
 const findCollection = (id) => state.collections.find((c) => c.id === id);
 const findProduct = (id) => state.products.find((p) => p.id === id);
@@ -617,14 +621,14 @@ function productRow(p) {
                 .join("")}
             </div>
           </fieldset>
-          <fieldset class="field admin-grid__wide"><legend>Talles y stock</legend>
+          <fieldset class="field admin-grid__wide"><legend>Stock por talle</legend>
+            <p class="hint">Todos los talles cuestan lo mismo.</p>
             <table class="admin-table">
-              <thead><tr><th scope="col">Talle</th><th scope="col">Recargo (ARS)</th><th scope="col">Stock</th></tr></thead>
+              <thead><tr><th scope="col">Talle</th><th scope="col">Stock</th></tr></thead>
               <tbody>
                 ${p.sizes
                   .map(
                     (s, i) => `<tr><th scope="row">${escapeHtml(s.label)}</th>
-                    <td><input class="input" type="number" min="0" step="100" name="surcharge-${i}" value="${s.surcharge || 0}" aria-label="Recargo talle ${escapeHtml(s.label)}"></td>
                     <td><select class="input" name="stock-${i}" aria-label="Stock talle ${escapeHtml(s.label)}">
                       ${["ok", "low", "out"].map((st) => `<option value="${st}" ${s.stock === st ? "selected" : ""}>${stockLabel(st)}</option>`).join("")}
                     </select></td></tr>`
@@ -645,12 +649,12 @@ function productRow(p) {
 }
 
 async function renderProducts({ reload = true } = {}) {
-  if (reload) [state.products, state.zonePrices] = await Promise.all([data.products(), data.zonePrices()]);
+  if (reload) [state.products, state.zones] = await Promise.all([data.products(), data.zoneSettings()]);
   productsPanel.innerHTML = `
     <div class="admin-head">
       <div>
         <h2 class="h3">Productos</h2>
-        <p class="muted">Precio, visibilidad, colores, recargos por talle y stock. Los productos ocultos no aparecen en la tienda, pero los carritos que ya los tienen siguen funcionando.</p>
+        <p class="muted">Precio, visibilidad, colores y stock, y las zonas de estampa con su recargo. Los productos ocultos no aparecen en la tienda, pero los carritos que ya los tienen siguen funcionando.</p>
       </div>
       <button class="btn btn--primary" type="button" data-new-product>${icon("plus")}Nuevo producto</button>
     </div>
@@ -678,42 +682,50 @@ async function renderProducts({ reload = true } = {}) {
   updateCounts();
 }
 
-/** Recargos por zona de estampa: el precio base incluye el frente. */
+/** Zonas de estampa: cuáles se ofrecen y cuánto suma cada una (el frente también). */
 function zonePricesForm() {
+  const { zonePrices, disabledZones } = state.zones;
   return `<form class="admin-form" data-zone-prices-form novalidate>
-    <h3 class="h3">Recargos por zona de estampa</h3>
-    <p class="muted">El precio base de cada prenda incluye el estampado del frente. Cada otra zona que la clienta estampe suma este recargo por unidad. Valen para todas las prendas que tienen esa zona.</p>
-    <div class="admin-grid">
-      ${PRICED_ZONES.map(
-        (z) => `<div class="field"><label for="zp-${z}">${escapeHtml(faceLabel(z))} (ARS)</label>
-          <input class="input" id="zp-${z}" name="${z}" type="number" min="0" step="100" inputmode="numeric" value="${state.zonePrices[z] ?? 0}">
-          ${faceHint(z) ? `<p class="hint">${escapeHtml(faceHint(z))}</p>` : ""}</div>`
-      ).join("")}
-    </div>
+    <h3 class="h3">Zonas de estampa</h3>
+    <p class="muted">Cada zona que la clienta estampe suma este recargo por unidad al precio base de la prenda. Si el frente queda en 0, el precio base ya lo incluye. Una zona apagada no aparece en ninguna prenda ni en el editor. Valen para todas las prendas que tienen esa zona.</p>
+    <table class="admin-table admin-zones">
+      <thead><tr><th scope="col">Zona</th><th scope="col">Se ofrece</th><th scope="col">Recargo (ARS)</th></tr></thead>
+      <tbody>
+        ${PRICED_ZONES.map((z) => {
+          const fixed = ALWAYS_ON_ZONES.includes(z);
+          const hint = fixed ? "Siempre se ofrece." : faceHint(z);
+          return `<tr><th scope="row">${escapeHtml(faceLabel(z))}${hint ? `<span class="hint">${escapeHtml(hint)}</span>` : ""}</th>
+            <td><label class="check"><input type="checkbox" name="on-${z}" ${disabledZones.includes(z) ? "" : "checked"} ${fixed ? "disabled" : ""} aria-label="Ofrecer ${escapeHtml(faceLabel(z))}"> Sí</label></td>
+            <td><input class="input" id="zp-${z}" name="${z}" type="number" min="0" step="100" inputmode="numeric" value="${zonePrices[z] ?? 0}" aria-label="Recargo ${escapeHtml(faceLabel(z))}"></td></tr>`;
+        }).join("")}
+      </tbody>
+    </table>
     <div class="notice notice--danger form-errors" role="alert" data-zone-prices-errors></div>
-    <div class="admin-form__actions"><button class="btn btn--primary" type="submit">Guardar recargos</button></div>
+    <div class="admin-form__actions"><button class="btn btn--primary" type="submit">Guardar zonas</button></div>
   </form>`;
 }
 
 async function saveZonePricesForm(form) {
   const errEl = $("[data-zone-prices-errors]", form);
-  const prices = {};
+  const zonePrices = {};
+  const disabledZones = [];
   for (const z of PRICED_ZONES) {
     const v = Number(form.elements.namedItem(z).value);
     if (!Number.isInteger(v) || v < 0) {
       errEl.textContent = `El recargo de «${faceLabel(z)}» tiene que ser un número entero, sin centavos.`;
       return;
     }
-    prices[z] = v;
+    zonePrices[z] = v;
+    if (!ALWAYS_ON_ZONES.includes(z) && !form.elements.namedItem(`on-${z}`).checked) disabledZones.push(z);
   }
   const btn = form.querySelector("[type=submit]");
   btn.disabled = true;
   try {
-    state.zonePrices = await data.saveZonePrices(prices);
+    state.zones = await data.saveZoneSettings({ zonePrices, disabledZones });
     errEl.textContent = "";
-    toast(`Recargos guardados${SERVER ? "" : " (solo en esta sesión de demostración)"}.`, "success");
+    toast(`Zonas guardadas${SERVER ? ". La tienda las muestra en menos de un minuto" : " (solo en esta sesión de demostración)"}.`, "success");
   } catch (err) {
-    errEl.textContent = errText(err, "No se pudieron guardar los recargos.");
+    errEl.textContent = errText(err, "No se pudieron guardar las zonas.");
   }
   btn.disabled = false;
 }
@@ -728,11 +740,7 @@ async function saveProductForm(form) {
   if (!name) errors.push("Poné un nombre.");
   if (!Number.isInteger(basePrice) || basePrice < 1) errors.push("El precio base tiene que ser un número entero mayor a 0.");
   if (!colors.length) errors.push("Elegí al menos un color.");
-  const sizes = p.sizes.map((s, i) => {
-    const surcharge = Number(form[`surcharge-${i}`].value);
-    if (!Number.isInteger(surcharge) || surcharge < 0) errors.push(`El recargo del talle ${s.label} no es válido.`);
-    return { ...s, surcharge, stock: form[`stock-${i}`].value };
-  });
+  const sizes = p.sizes.map((s, i) => ({ ...s, surcharge: 0, stock: form[`stock-${i}`].value }));
   if (errors.length) {
     errEl.innerHTML = errors.map(escapeHtml).join("<br>");
     return;

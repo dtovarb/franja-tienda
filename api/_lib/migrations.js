@@ -319,4 +319,15 @@ update shipping_rates set cp_from = 5000 where id = 'cordoba-provincia' and cp_f
 update product_sizes set surcharge = 0 where surcharge <> 0;
 `,
   },
+  {
+    // Zonas de estampa que se prenden y apagan desde el panel (una zona
+    // apagada no se ofrece en ninguna prenda) y recargo editable también para
+    // el frente (sin fila vale 0, como hasta ahora). Se vuelven a poner en 0
+    // los recargos por talle: el panel ya no los guarda.
+    id: "0011_zonas_activas",
+    sql: `
+alter table zone_prices add column if not exists enabled boolean not null default true;
+update product_sizes set surcharge = 0 where surcharge <> 0;
+`,
+  },
 ];

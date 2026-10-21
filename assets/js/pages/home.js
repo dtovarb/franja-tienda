@@ -5,6 +5,7 @@ import { listStoreDesigns, storeDesignImageUrl, modelPhotoUrl, designArt } from 
 import { formatPrice, escapeHtml } from "../core/format.js";
 import { productCard, productMockup, reviewsBlock, demoTag, IS_DEMO } from "./components.js";
 import { listReviews, reviewSummary } from "../data/reviews.js";
+import { startingPrice } from "../core/pricing.js";
 
 initPage("home");
 const HOME_IMAGES = getHomeImages();
@@ -73,7 +74,7 @@ async function renderHero() {
       <div>
         <p class="mono hero__kicker">Diseño de la casa</p>
         <p class="hero__name">${escapeHtml(s.d.name)}</p>
-        <p class="hero__price"><span class="muted">${escapeHtml(s.show.name)}</span> <b class="price">${formatPrice(s.show.basePrice + (s.d.price || 0))}</b></p>
+        <p class="hero__price"><span class="muted">${escapeHtml(s.show.name)}</span> <b class="price">${formatPrice(startingPrice(s.show, [s.d.id]))}</b></p>
       </div>
       <a class="btn btn--primary" href="${s.href}">Lo quiero ${icon("arrowRight")}</a>
     </div>`;
@@ -113,7 +114,8 @@ async function renderPicks(designs) {
       if (!show) return "";
       const col = show.colors.map(getColor).sort((a, b) => luminance(b.hex) - luminance(a.hex))[0];
       const href = `producto.html?id=${encodeURIComponent(show.id)}&diseno=${encodeURIComponent(d.id)}`;
-      const from = Math.min(...fits.map((p) => p.basePrice)) + (d.price || 0);
+      // El precio de la prenda a la que lleva la tarjeta, el mismo que marca al entrar.
+      const from = startingPrice(show, [d.id]);
       return `<li class="pick" style="--i:${i}">
         <a class="pick__media" href="${href}">${
           photos[i]
@@ -121,7 +123,7 @@ async function renderPicks(designs) {
             : garmentSvg(show.type, "front", col.hex, { art: designArt(urls[i]), colorId: col.id, className: "pick__svg", title: `${d.name} en ${show.name}` })
         }</a>
         <p class="pick__name"><a href="${href}">${escapeHtml(d.name)}</a></p>
-        <p class="pick__price">desde <b class="price">${formatPrice(from)}</b></p>
+        <p class="pick__price"><span class="muted">${escapeHtml(show.name)}</span> <b class="price">${formatPrice(from)}</b></p>
       </li>`;
     })
     .join("");

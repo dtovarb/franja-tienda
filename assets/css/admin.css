@@ -392,3 +392,7 @@
     padding: var(--sp-3);
   }
 }
+
+/* Zonas de estampa: nombre con su medida debajo */
+.admin-zones th .hint { display: block; font-weight: 400; }
+.admin-zones .input { max-width: 9rem; }

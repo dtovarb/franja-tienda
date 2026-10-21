@@ -4,6 +4,7 @@ import { demoArt } from "../data/art.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
 import { icon } from "../core/ui.js";
 import { SERVER } from "../core/api.js";
+import { startingPrice } from "../core/pricing.js";
 
 /**
  * Sin servidor el sitio es el prototipo y todo va rotulado como ejemplo.
@@ -51,7 +52,7 @@ export function productCard(product, { index = 0 } = {}) {
     <div class="pcard__body">
       <div class="pcard__row">
         <h3 class="pcard__name"><a href="${href}" data-card-link>${escapeHtml(product.name)}</a></h3>
-        <p class="price pcard__price">${formatPrice(product.basePrice)}</p>
+        <p class="price pcard__price">${formatPrice(startingPrice(product))}</p>
       </div>
       <p class="pcard__tagline muted">${escapeHtml(product.tagline)}</p>
       <div class="pcard__meta">

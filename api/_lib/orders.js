@@ -13,8 +13,9 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { priceWith } from "../../assets/js/core/pricing.js";
+import { faceLabel } from "../../assets/js/data/garments.js";
 import { HttpError } from "./http.js";
-import { getProduct, storeDesignsByIds, loadZonePrices } from "./catalog.js";
+import { getProduct, storeDesignsByIds, loadZoneSettings, withoutDisabledZones } from "./catalog.js";
 import { quoteShipping } from "./shipping.js";
 import { PAYMENT_STATUS } from "./mercadopago.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
@@ -77,7 +78,10 @@ export function analyzeDesign(product, design) {
   const assetIds = new Set();
   const storeDesignIds = new Set();
   for (const [face, objects] of Object.entries(faces)) {
-    if (!product.faces.includes(face)) throw new HttpError(422, `La prenda ${product.name} no tiene la cara «${face}».`);
+    if (!product.faces.includes(face)) {
+      if (!Array.isArray(objects) || !objects.length) continue;
+      throw new HttpError(422, `La zona «${faceLabel(face).toLowerCase()}» ya no se estampa en ${product.name}. Sacala del diseño en el editor.`);
+    }
     if (!Array.isArray(objects)) throw new HttpError(422, "El diseño no tiene un formato válido.");
     if (objects.length > 60) throw new HttpError(422, "El diseño tiene demasiados elementos.");
     if (!objects.length) continue;
@@ -147,10 +151,11 @@ export async function createOrder({ db, storage, secret, carriers = [] }, body) 
     if (prev) return { order: await getOrder(db, prev.id), token: orderToken(secret, prev.id), replay: true };
   }
 
-  const zonePrices = await loadZonePrices(db);
+  const { zonePrices, disabledZones } = await loadZoneSettings(db);
   const lines = [];
   for (const [i, it] of items.entries()) {
-    const product = await getProduct(db, String(it.productId || ""));
+    // Sin las zonas apagadas en el panel: un diseño que use una ya no pasa.
+    const [product] = withoutDisabledZones([await getProduct(db, String(it.productId || ""))].filter(Boolean), disabledZones);
     if (!product) throw new HttpError(422, `La prenda ${i + 1} ya no está en el catálogo.`);
     if (!product.colors.includes(it.colorId)) throw new HttpError(422, `El color elegido para ${product.name} ya no está disponible.`);
     const size = product.sizes.find((s) => s.id === it.sizeId);
