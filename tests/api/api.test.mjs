@@ -389,6 +389,42 @@ test("panel: la promo de envío gratis apaga el cálculo del envío en todo el p
   assert.equal((await quote("1425")).options[0].id, "tabla:resto-del-pais");
 });
 
+test("panel: textos de la página y marquesina", async () => {
+  const cookie = await login();
+  let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.deepEqual(cat.siteTexts, {});
+  assert.equal(cat.marquee.enabled, true);
+  assert.ok(cat.marquee.items.includes("Remeras"));
+  assert.equal((await call("PUT", "/api/admin/site-texts", { body: { siteTexts: {} } })).status, 401);
+  assert.equal((await call("GET", "/api/admin/site-texts")).status, 401);
+  // Demasiado largo: no.
+  let r = await jsonOf(await call("PUT", "/api/admin/site-texts", { cookie, body: { siteTexts: { "home.hero.cta1": "x".repeat(200) } } }));
+  assert.equal(r.status, 422);
+  // Claves desconocidas, vacíos e iguales al original no se guardan.
+  r = await jsonOf(
+    await call("PUT", "/api/admin/site-texts", {
+      cookie,
+      body: { siteTexts: { "home.hero.title": "  Ropa con\r\nidentidad ", "home.hero.cta1": "", "home.feat.title": "Elegí el lienzo", "nada.que.ver": "x", "about.mission.text": "Uno.\n\n\n\nDos." } },
+    })
+  );
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.siteTexts, { "home.hero.title": "Ropa con\nidentidad", "about.mission.text": "Uno.\n\nDos." });
+  r = await jsonOf(await call("PUT", "/api/admin/marquee", { cookie, body: { marquee: { enabled: true, items: [] } } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(await call("PUT", "/api/admin/marquee", { cookie, body: { marquee: { enabled: true, items: [" Hecho en Córdoba ", "", "DTG"] } } }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.equal(cat.siteTexts["home.hero.title"], "Ropa con\nidentidad");
+  assert.deepEqual(cat.marquee, { enabled: true, items: ["Hecho en Córdoba", "DTG"] });
+  r = await jsonOf(await call("GET", "/api/admin/site-texts", { cookie }));
+  assert.deepEqual(r.body.marquee, cat.marquee);
+  // Se apaga y se deja todo como estaba.
+  await call("PUT", "/api/admin/marquee", { cookie, body: { marquee: { enabled: false, items: [] } } });
+  assert.equal((await jsonOf(await call("GET", "/api/catalog"))).body.marquee.enabled, false);
+  await call("PUT", "/api/admin/site-texts", { cookie, body: { siteTexts: {} } });
+  assert.deepEqual((await jsonOf(await call("GET", "/api/catalog"))).body.siteTexts, {});
+});
+
 test("panel: una zona de la tabla se puede marcar con envío gratis", async () => {
   const quote = async (cp) => (await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: cp } }))).body;
   const cookie = await login();

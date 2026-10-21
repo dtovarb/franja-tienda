@@ -26,6 +26,7 @@
   <link rel="stylesheet" href="assets/css/tokens.css">
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/pages.css">
+  <script>document.documentElement.classList.add("textos-cargando");setTimeout(function(){document.documentElement.classList.remove("textos-cargando")},3000)</script>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -66,17 +67,17 @@
       <div class="hero__block">
         <div class="hero__grid">
           <div class="hero__copy">
-            <p class="eyebrow">Taller propio en Córdoba · Estampado a pedido</p>
-            <h1 id="hero-title" class="display hero__title">Diseños que se usan<span class="accent">.</span></h1>
-            <p class="lead">Elegí un diseño de la casa o subí el tuyo. Lo estampamos en nuestro taller y te llega en 5 a 7 días hábiles, con el envío incluido.</p>
+            <p class="eyebrow" data-text="home.hero.eyebrow">Taller propio en Córdoba · Estampado a pedido</p>
+            <h1 id="hero-title" class="display hero__title"><span data-text="home.hero.title">Diseños que se usan</span><span class="accent">.</span></h1>
+            <p class="lead" data-text="home.hero.lead">Elegí un diseño de la casa o subí el tuyo. Lo estampamos en nuestro taller y te llega en 5 a 7 días hábiles, con el envío incluido.</p>
             <div class="hero__ctas">
-              <a class="btn btn--primary btn--lg" href="disenos.html" data-icon="arrowRight">Ver diseños</a>
-              <a class="btn btn--lg" href="catalogo.html?diseñar=1">Diseñar la mía</a>
+              <a class="btn btn--primary btn--lg" href="disenos.html" data-icon="arrowRight"><span data-text="home.hero.cta1">Ver diseños</span></a>
+              <a class="btn btn--lg" href="catalogo.html?diseñar=1" data-text="home.hero.cta2">Diseñar la mía</a>
             </div>
             <ul class="hero__facts" role="list">
-              <li>Remeras, buzos, gorras y totes</li>
-              <li>Envíos a todo el país</li>
-              <li>Pagás con Mercado Pago</li>
+              <li data-text="home.hero.fact1">Remeras, buzos, gorras y totes</li>
+              <li data-text="home.hero.fact2">Envíos a todo el país</li>
+              <li data-text="home.hero.fact3">Pagás con Mercado Pago</li>
             </ul>
           </div>
           <div class="hero__show" data-hero-show></div>
@@ -87,7 +88,7 @@
     <!-- PRENDAS POR TIPO -->
     <section class="section container" aria-labelledby="cats-title">
       <div class="section-head section-head--center">
-        <h2 id="cats-title" class="display squiggle squiggle--center">Elegí tu prenda</h2>
+        <h2 id="cats-title" class="display squiggle squiggle--center" data-text="home.cats.title">Elegí tu prenda</h2>
       </div>
       <ul class="cats" role="list" data-cats></ul>
     </section>
@@ -99,21 +100,21 @@
     <!-- DESTACADOS -->
     <section class="section container" aria-labelledby="feat-title">
       <div class="section-head section-head--center">
-        <p class="eyebrow">Prendas base</p>
-        <h2 id="feat-title" class="display squiggle squiggle--center">Elegí el lienzo</h2>
-        <p class="lead">Todas se pueden estampar adelante y atrás.</p>
+        <p class="eyebrow" data-text="home.feat.eyebrow">Prendas base</p>
+        <h2 id="feat-title" class="display squiggle squiggle--center" data-text="home.feat.title">Elegí el lienzo</h2>
+        <p class="lead" data-text="home.feat.lead">Todas se pueden estampar adelante y atrás.</p>
       </div>
       <div class="grid-products" data-featured></div>
-      <p class="section-more"><a class="btn" href="catalogo.html">Ver todo el catálogo</a></p>
+      <p class="section-more"><a class="btn" href="catalogo.html" data-text="home.feat.more">Ver todo el catálogo</a></p>
     </section>
 
     <!-- DISEÑOS DE LA CASA -->
     <section class="section container" aria-labelledby="picks-title" data-picks-section hidden>
       <div class="band band--durazno picks">
         <div class="band__copy">
-          <h2 id="picks-title" class="display squiggle">Diseños de la casa</h2>
-          <p class="lead">Elegí uno y la prenda donde lo querés. Lo podés pedir así o cambiarlo en el editor.</p>
-          <a class="btn btn--primary" href="disenos.html" data-icon="arrowRight">Ver todos</a>
+          <h2 id="picks-title" class="display squiggle" data-text="home.picks.title">Diseños de la casa</h2>
+          <p class="lead" data-text="home.picks.lead">Elegí uno y la prenda donde lo querés. Lo podés pedir así o cambiarlo en el editor.</p>
+          <a class="btn btn--primary" href="disenos.html" data-icon="arrowRight"><span data-text="home.picks.more">Ver todos</span></a>
         </div>
         <ul class="picks__list" role="list" data-picks></ul>
       </div>
@@ -123,15 +124,15 @@
     <section class="section container" id="como-funciona" aria-labelledby="how-title">
       <div class="band band--lila">
         <div class="section-head section-head--center">
-          <p class="eyebrow">Personalización</p>
-          <h2 id="how-title" class="display squiggle squiggle--center">Cómo funciona</h2>
-          <p class="lead">Cuatro pasos, sin crear cuenta. Tu diseño queda guardado en este navegador hasta que hagas el pedido.</p>
+          <p class="eyebrow" data-text="home.how.eyebrow">Personalización</p>
+          <h2 id="how-title" class="display squiggle squiggle--center" data-text="home.how.title">Cómo funciona</h2>
+          <p class="lead" data-text="home.how.lead">Cuatro pasos, sin crear cuenta. Tu diseño queda guardado en este navegador hasta que hagas el pedido.</p>
         </div>
         <ol class="steps" role="list">
-          <li class="step"><span class="step__num">1</span><h3 class="h3">Elegí la prenda</h3><p>Tipo, color, talle y cantidad. El precio se actualiza a medida que elegís.</p></li>
-          <li class="step"><span class="step__num">2</span><h3 class="h3">Diseñala</h3><p>Subí imágenes JPG, PNG o SVG, sumá textos y acomodá todo dentro del área de impresión, en frente y espalda.</p></li>
-          <li class="step"><span class="step__num">3</span><h3 class="h3">Revisá los archivos</h3><p>Vista previa, diseño editable y archivo de impresión sin fondo. Te avisamos si una imagen tiene poca resolución.</p></li>
-          <li class="step"><span class="step__num">4</span><h3 class="h3">La producimos</h3><p>Pagás con Mercado Pago, la estampamos en el taller y te llega en 5 a 7 días hábiles, con el envío incluido.</p></li>
+          <li class="step"><span class="step__num">1</span><h3 class="h3" data-text="home.how.s1.title">Elegí la prenda</h3><p data-text="home.how.s1.text">Tipo, color, talle y cantidad. El precio se actualiza a medida que elegís.</p></li>
+          <li class="step"><span class="step__num">2</span><h3 class="h3" data-text="home.how.s2.title">Diseñala</h3><p data-text="home.how.s2.text">Subí imágenes JPG, PNG o SVG, sumá textos y acomodá todo dentro del área de impresión, en frente y espalda.</p></li>
+          <li class="step"><span class="step__num">3</span><h3 class="h3" data-text="home.how.s3.title">Revisá los archivos</h3><p data-text="home.how.s3.text">Vista previa, diseño editable y archivo de impresión sin fondo. Te avisamos si una imagen tiene poca resolución.</p></li>
+          <li class="step"><span class="step__num">4</span><h3 class="h3" data-text="home.how.s4.title">La producimos</h3><p data-text="home.how.s4.text">Pagás con Mercado Pago, la estampamos en el taller y te llega en 5 a 7 días hábiles, con el envío incluido.</p></li>
         </ol>
       </div>
     </section>
@@ -139,8 +140,8 @@
     <!-- EDITORIAL -->
     <section class="section container" aria-labelledby="ed-title">
       <div class="section-head section-head--center">
-        <p class="eyebrow">Lookbook</p>
-        <h2 id="ed-title" class="display squiggle squiggle--center">Ropa para compartir</h2>
+        <p class="eyebrow" data-text="home.look.eyebrow">Lookbook</p>
+        <h2 id="ed-title" class="display squiggle squiggle--center" data-text="home.look.title">Ropa para compartir</h2>
       </div>
       <div class="editorial" data-editorial></div>
     </section>
@@ -148,21 +149,21 @@
     <!-- ARCHIVOS / TALLER -->
     <section class="section container duo" aria-label="Archivos y taller">
       <div class="band band--crema" id="archivos">
-        <p class="eyebrow">Archivos e impresión</p>
-        <h2 class="display h2 squiggle">Tu archivo, intacto</h2>
-        <p class="lead">Guardamos la imagen que subiste tal como llegó. Lo que preparamos para imprimir es otro archivo, separado, que se genera a partir de tu diseño.</p>
+        <p class="eyebrow" data-text="home.files.eyebrow">Archivos e impresión</p>
+        <h2 class="display h2 squiggle" data-text="home.files.title">Tu archivo, intacto</h2>
+        <p class="lead" data-text="home.files.lead">Guardamos la imagen que subiste tal como llegó. Lo que preparamos para imprimir es otro archivo, separado, que se genera a partir de tu diseño.</p>
         <ul class="file-list" role="list">
-          <li><span class="file-list__dot">1</span><div><b>Archivo original</b><p>La imagen que subiste, sin comprimir ni modificar.</p></div></li>
-          <li><span class="file-list__dot">2</span><div><b>Diseño editable</b><p>Textos, posiciones, escalas y rotaciones, para volver a editar o reconstruir el diseño.</p></div></li>
-          <li><span class="file-list__dot">3</span><div><b>Vista previa</b><p>Cómo queda la prenda, para que la revises antes de pedirla.</p></div></li>
-          <li><span class="file-list__dot">4</span><div><b>Archivo de impresión</b><p>Solo el área estampada, fondo transparente, a la medida física y resolución de producción.</p></div></li>
+          <li><span class="file-list__dot">1</span><div><b data-text="home.files.f1.title">Archivo original</b><p data-text="home.files.f1.text">La imagen que subiste, sin comprimir ni modificar.</p></div></li>
+          <li><span class="file-list__dot">2</span><div><b data-text="home.files.f2.title">Diseño editable</b><p data-text="home.files.f2.text">Textos, posiciones, escalas y rotaciones, para volver a editar o reconstruir el diseño.</p></div></li>
+          <li><span class="file-list__dot">3</span><div><b data-text="home.files.f3.title">Vista previa</b><p data-text="home.files.f3.text">Cómo queda la prenda, para que la revises antes de pedirla.</p></div></li>
+          <li><span class="file-list__dot">4</span><div><b data-text="home.files.f4.title">Archivo de impresión</b><p data-text="home.files.f4.text">Solo el área estampada, fondo transparente, a la medida física y resolución de producción.</p></div></li>
         </ul>
       </div>
       <div class="band band--coral" id="taller">
-        <p class="eyebrow">Taller</p>
-        <h2 class="display h2 squiggle">Imprimimos nosotros</h2>
-        <p class="lead">No tercerizamos la impresión. Cada prenda se estampa y se revisa en el taller, por eso podemos mirar tu archivo antes de producirlo.</p>
-        <p>Estamos en Córdoba y enviamos a todo el país por Andreani y Correo Argentino.</p>
+        <p class="eyebrow" data-text="home.shop.eyebrow">Taller</p>
+        <h2 class="display h2 squiggle" data-text="home.shop.title">Imprimimos nosotros</h2>
+        <p class="lead" data-text="home.shop.lead">No tercerizamos la impresión. Cada prenda se estampa y se revisa en el taller, por eso podemos mirar tu archivo antes de producirlo.</p>
+        <p data-text="home.shop.text">Estamos en Córdoba y enviamos a todo el país por Andreani y Correo Argentino.</p>
       </div>
     </section>
 
@@ -179,8 +180,8 @@
 
     <section class="container">
       <div class="cta-band">
-        <h2 class="display">Tu idea,<br><span>nuestra prenda.</span></h2>
-        <a class="btn btn--primary btn--lg" href="catalogo.html?diseñar=1">Diseñar ahora</a>
+        <h2 class="display"><span class="cta-band__a" data-text="home.cta.line1">Tu idea,</span><br><span data-text="home.cta.line2">nuestra prenda.</span></h2>
+        <a class="btn btn--primary btn--lg" href="catalogo.html?diseñar=1" data-text="home.cta.button">Diseñar ahora</a>
       </div>
     </section>
   </main>
