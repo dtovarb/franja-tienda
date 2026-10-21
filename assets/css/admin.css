@@ -406,7 +406,10 @@
   gap: var(--sp-2);
   margin-bottom: var(--sp-5);
 }
-.admin-jump a {
+.admin-jump button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
   padding: 6px 14px;
   border-radius: var(--radius-pill);
   background: var(--p-rosa-2);
@@ -415,7 +418,7 @@
   font-size: var(--fs-sm);
   text-decoration: none;
 }
-.admin-jump a:hover {
+.admin-jump button:hover {
   background: var(--p-rosa);
 }
 #sitio-cintillo, #sitio-marquesina, #sitio-fotos, #sitio-textos {
