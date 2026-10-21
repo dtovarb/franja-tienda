@@ -340,4 +340,15 @@ alter table zone_prices add column if not exists enabled boolean not null defaul
 update product_sizes set surcharge = 0 where surcharge <> 0;
 `,
   },
+  {
+    // La remera clásica vuelve a venderse en XXL (pedido de la tienda,
+    // 21/10/2026), sin recargo y con stock. Va al final de los talles.
+    id: "0013_remera_con_xxl",
+    sql: `
+insert into product_sizes (product_id, size_id, label, surcharge, stock, sort)
+select 'remera-clasica', 'XXL', 'XXL', 0, 'ok', coalesce((select max(sort) + 1 from product_sizes where product_id = 'remera-clasica'), 0)
+where exists (select 1 from products where id = 'remera-clasica')
+on conflict (product_id, size_id) do nothing;
+`,
+  },
 ];
