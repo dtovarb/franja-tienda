@@ -595,3 +595,53 @@ test("talles: ninguna prenda tiene recargo por talle", async () => {
   const conRecargo = cat.products.flatMap((p) => p.sizes.filter((s) => s.surcharge).map((s) => `${p.id} ${s.id}`));
   assert.deepEqual(conRecargo, []);
 });
+
+test("talles: un recargo guardado desde el panel o que quedó en la base no se cobra", async () => {
+  const cookie = await login();
+  const { body } = await jsonOf(await call("GET", "/api/admin/products", { cookie }));
+  const tee = body.products.find((p) => p.id === "remera-clasica");
+  const sizes = tee.sizes.map((s) => ({ ...s, surcharge: 5 }));
+  const saved = await jsonOf(await call("PATCH", "/api/admin/products/remera-clasica", { cookie, body: { sizes } }));
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.deepEqual(saved.body.product.sizes.map((s) => s.surcharge), tee.sizes.map(() => 0));
+  // Un valor viejo en la base tampoco suma al precio.
+  const { db } = await app.init();
+  await db.query("update product_sizes set surcharge = 5 where product_id = 'remera-clasica' and size_id = 'M'");
+  const r = await jsonOf(await call("POST", "/api/orders", { body: { customer, shipping, items: [await cartItem({ qty: 1 })] } }));
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.order.subtotal, 18900);
+  await db.query("update product_sizes set surcharge = 0 where product_id = 'remera-clasica'");
+});
+
+test("zonas de estampa: el frente tiene recargo editable y las zonas se apagan desde el panel", async () => {
+  const cookie = await login();
+  const order = async (faces) =>
+    jsonOf(await call("POST", "/api/orders", { body: { customer, shipping, items: [await cartItem({ qty: 1, faces })] } }));
+
+  // Frente con recargo: lo paga cualquier pedido que lo estampe.
+  const front = await jsonOf(await call("PUT", "/api/admin/zone-prices", { cookie, body: { zonePrices: { front: 3000 } } }));
+  assert.equal(front.status, 200, JSON.stringify(front.body));
+  assert.equal(front.body.zonePrices.front, 3000);
+  assert.equal((await order({ front: null })).body.order.subtotal, 18900 + 3000);
+
+  // Apagar mangas: desaparecen de las prendas y un pedido con manga se rechaza.
+  assert.equal((await call("PUT", "/api/admin/zone-prices", { cookie, body: { disabledZones: ["front"] } })).status, 422);
+  assert.equal((await call("PUT", "/api/admin/zone-prices", { cookie, body: { disabledZones: ["codo"] } })).status, 422);
+  const off = await jsonOf(await call("PUT", "/api/admin/zone-prices", { cookie, body: { zonePrices: { "sleeve-left": 2800 }, disabledZones: ["sleeve-left", "sleeve-right"] } }));
+  assert.equal(off.status, 200, JSON.stringify(off.body));
+  assert.deepEqual(off.body.disabledZones.sort(), ["sleeve-left", "sleeve-right"]);
+  assert.equal(off.body.zonePrices["sleeve-left"], 2800); // el precio se guarda aunque esté apagada
+  const { body: cat } = await jsonOf(await call("GET", "/api/catalog"));
+  assert.deepEqual(cat.disabledZones.sort(), ["sleeve-left", "sleeve-right"]);
+  assert.deepEqual(cat.products.find((p) => p.id === "remera-clasica").faces, ["front", "back", "chest", "heart", "front-low", "label"]);
+  const sleeve = await order({ front: null, "sleeve-left": null });
+  assert.equal(sleeve.status, 422);
+  assert.match(sleeve.body.error, /manga izquierda/i);
+  const got = await jsonOf(await call("GET", "/api/admin/zone-prices", { cookie }));
+  assert.deepEqual(got.body.disabledZones.sort(), ["sleeve-left", "sleeve-right"]);
+
+  // Prenderlas de nuevo y volver el frente a 0.
+  const back = await jsonOf(await call("PUT", "/api/admin/zone-prices", { cookie, body: { zonePrices: { front: 0, "sleeve-left": 2500 }, disabledZones: [] } }));
+  assert.deepEqual(back.body.disabledZones, []);
+  assert.equal((await order({ front: null, "sleeve-left": null })).body.order.subtotal, 18900 + 2500);
+});

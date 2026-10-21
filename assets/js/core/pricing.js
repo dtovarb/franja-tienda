@@ -10,11 +10,12 @@ import { faceLabel } from "../data/garments.js";
 import { storeDesignsByIds } from "./store-designs.js";
 import { CATALOG } from "./api.js";
 
+export { ALWAYS_ON_ZONES, DISABLED_ZONES, enabledFaces } from "./zones.js";
+
 /**
- * Recargo de cada zona de estampa. El precio base de la prenda incluye el
- * frente; cada otra zona estampada suma lo suyo. Son los valores iniciales:
- * con servidor, los que se cargan en el panel (tabla zone_prices) los
- * reemplazan.
+ * Recargo de cada zona de estampa, el frente incluido (arranca en 0: el
+ * precio base ya lo cubre). Son los valores iniciales: con servidor, los que
+ * se cargan en el panel (tabla zone_prices) los reemplazan.
  */
 export const DEFAULT_ZONE_PRICES = {
   front: 0,
@@ -28,7 +29,7 @@ export const DEFAULT_ZONE_PRICES = {
 };
 
 /** Zonas que tienen recargo editable en el panel, en orden. */
-export const PRICED_ZONES = Object.keys(DEFAULT_ZONE_PRICES).filter((z) => z !== "front");
+export const PRICED_ZONES = Object.keys(DEFAULT_ZONE_PRICES);
 
 export const ZONE_PRICES = { ...DEFAULT_ZONE_PRICES, ...(CATALOG?.zonePrices || {}) };
 
@@ -60,11 +61,11 @@ export function computePrice(product, variant, { printedFaces = [], technique, s
  * regla de precios es una sola.
  */
 export function priceWith(product, variant, { printedFaces = [], technique, storeDesigns = [], zonePrices = DEFAULT_ZONE_PRICES } = {}) {
+  // Todos los talles cuestan lo mismo: un recargo por talle que haya quedado
+  // en la base no se cobra.
   const lines = [{ label: "Prenda base", amount: product.basePrice }];
-  const size = product.sizes.find((s) => s.id === variant.sizeId);
-  if (size && size.surcharge) lines.push({ label: `Suplemento talle ${size.label}`, amount: size.surcharge });
 
-  // El frente está incluido en el precio base; cada otra zona suma su recargo.
+  // Cada zona estampada suma su recargo (el del frente arranca en 0).
   printedFaces.forEach((f) => {
     const amount = zonePrices[f] ?? DEFAULT_ZONE_PRICES[f] ?? 0;
     if (amount) lines.push({ label: `Estampa: ${faceLabel(f).toLowerCase()}`, amount, zone: f });
@@ -83,4 +84,14 @@ export function priceWith(product, variant, { printedFaces = [], technique, stor
   const unit = lines.reduce((sum, l) => sum + l.amount, 0);
   const qty = Math.max(1, Number(variant.qty) || 1);
   return { lines, unit, qty, total: unit * qty };
+}
+
+/**
+ * Precio que se muestra antes de diseñar: la prenda con el frente estampado
+ * (y el diseño de la tienda, si viene uno). Es lo mismo que marca la página
+ * de la prenda al entrar, así las tarjetas y la prenda dicen lo mismo.
+ */
+export function startingPrice(product, storeDesignIds = []) {
+  const face = product.faces.includes("front") ? "front" : product.faces[0];
+  return computePrice(product, { sizeId: product.sizes[0]?.id, qty: 1 }, { printedFaces: face ? [face] : [], storeDesignIds }).unit;
 }

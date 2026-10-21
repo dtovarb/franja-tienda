@@ -6,7 +6,7 @@
 import { GARMENTS } from "../../assets/js/data/garments.js";
 import { HttpError } from "./http.js";
 import { insertProduct } from "./seed.js";
-import { DEFAULT_ZONE_PRICES, PRICED_ZONES } from "../../assets/js/core/pricing.js";
+import { DEFAULT_ZONE_PRICES, PRICED_ZONES, ALWAYS_ON_ZONES, enabledFaces } from "../../assets/js/core/pricing.js";
 import { EMPTY_ANNOUNCEMENT, normalizeAnnouncement } from "../../assets/js/core/announcement.js";
 import { emptyHomeImages, normalizeHomeImages } from "../../assets/js/core/home-images.js";
 import { DEFAULT_MARQUEE, normalizeMarquee, normalizeSiteTexts } from "../../assets/js/core/site-texts.js";
@@ -106,7 +106,6 @@ export async function updateProduct(q, id, body) {
   const sizeIds = new Set(current.sizes.map((s) => s.id));
   for (const s of sizes) {
     if (!sizeIds.has(s.id)) throw new HttpError(422, `El talle ${s.id} no existe en este producto.`);
-    int(s.surcharge ?? 0, 0, `El recargo del talle ${s.id}`);
     if (!["ok", "low", "out"].includes(s.stock)) throw new HttpError(422, `El stock del talle ${s.id} no es válido.`);
   }
   const next = {
@@ -125,8 +124,9 @@ export async function updateProduct(q, id, body) {
   await q.query("delete from product_colors where product_id=$1", [id]);
   let i = 0;
   for (const c of colors) await q.query("insert into product_colors (product_id, color_id, sort) values ($1,$2,$3)", [id, c, i++]);
+  // Sin recargo por talle: se guarda siempre en 0, venga lo que venga.
   for (const s of sizes) {
-    await q.query("update product_sizes set surcharge=$3, stock=$4 where product_id=$1 and size_id=$2", [id, s.id, s.surcharge ?? 0, s.stock]);
+    await q.query("update product_sizes set surcharge=0, stock=$3 where product_id=$1 and size_id=$2", [id, s.id, s.stock]);
   }
   return getProduct(q, id);
 }
@@ -240,13 +240,39 @@ export async function deleteDesignCollection(q, id) {
 /* ------------------------- Recargos por zona ------------------------- */
 /** Recargo de cada zona de estampa: los del panel sobre los valores iniciales. */
 export async function loadZonePrices(q) {
-  const rows = await q.query("select zone, price from zone_prices");
-  return { ...DEFAULT_ZONE_PRICES, ...Object.fromEntries(rows.map((r) => [r.zone, r.price])) };
+  return (await loadZoneSettings(q)).zonePrices;
 }
 
-export async function saveZonePrices(q, prices) {
-  if (!prices || typeof prices !== "object") throw new HttpError(422, "Faltan los recargos.");
-  for (const [zone, value] of Object.entries(prices)) {
+/**
+ * Recargos y zonas apagadas, en una sola consulta. Una zona sin fila vale lo
+ * de DEFAULT_ZONE_PRICES y está prendida.
+ */
+export async function loadZoneSettings(q) {
+  const rows = await q.query("select zone, price, enabled from zone_prices");
+  return {
+    zonePrices: { ...DEFAULT_ZONE_PRICES, ...Object.fromEntries(rows.map((r) => [r.zone, r.price])) },
+    disabledZones: rows.filter((r) => r.enabled === false && PRICED_ZONES.includes(r.zone) && !ALWAYS_ON_ZONES.includes(r.zone)).map((r) => r.zone),
+  };
+}
+
+/** Saca de cada producto las zonas apagadas en el panel. */
+export function withoutDisabledZones(products, disabledZones) {
+  if (!disabledZones?.length) return products;
+  return products.map((p) => ({ ...p, faces: enabledFaces(p.faces, disabledZones) }));
+}
+
+/**
+ * Guarda recargos ({ zona: precio }) y, si viene, la lista de zonas apagadas
+ * (las que no están en la lista quedan prendidas). El frente no se apaga.
+ */
+export async function saveZoneSettings(q, { zonePrices = {}, disabledZones } = {}) {
+  if (!zonePrices || typeof zonePrices !== "object") throw new HttpError(422, "Faltan los recargos.");
+  if (disabledZones !== undefined && !Array.isArray(disabledZones)) throw new HttpError(422, "La lista de zonas apagadas no es válida.");
+  for (const zone of disabledZones || []) {
+    if (!PRICED_ZONES.includes(zone)) throw new HttpError(422, `Zona desconocida: ${zone}.`);
+    if (ALWAYS_ON_ZONES.includes(zone)) throw new HttpError(422, "El frente no se puede apagar: es la zona principal de cada prenda.");
+  }
+  for (const [zone, value] of Object.entries(zonePrices)) {
     if (!PRICED_ZONES.includes(zone)) throw new HttpError(422, `Zona desconocida: ${zone}.`);
     const price = Number(value);
     if (!Number.isInteger(price) || price < 0 || price > 1_000_000) throw new HttpError(422, "Cada recargo tiene que ser un número entero, sin centavos.");
@@ -255,7 +281,22 @@ export async function saveZonePrices(q, prices) {
       [zone, price]
     );
   }
-  return loadZonePrices(q);
+  if (disabledZones !== undefined) {
+    const off = new Set(disabledZones);
+    const current = await loadZonePrices(q);
+    for (const zone of PRICED_ZONES) {
+      await q.query(
+        "insert into zone_prices (zone, price, enabled) values ($1, $2, $3) on conflict (zone) do update set enabled = excluded.enabled, updated_at = now()",
+        [zone, current[zone] ?? 0, !off.has(zone)]
+      );
+    }
+  }
+  return loadZoneSettings(q);
+}
+
+/** Compatibilidad: guardar solo recargos. */
+export async function saveZonePrices(q, prices) {
+  return (await saveZoneSettings(q, { zonePrices: prices })).zonePrices;
 }
 
 /* ------------------------- Cintillo de anuncios ------------------------- */

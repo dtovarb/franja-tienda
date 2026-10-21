@@ -15,6 +15,7 @@
 import { readJSON, writeJSON, removeKey } from "../core/storage.js";
 import { GARMENTS } from "./garments.js";
 import { CATALOG } from "../core/api.js";
+import { enabledFaces } from "../core/zones.js";
 
 export const CURRENCY = { code: "ARS", locale: "es-AR" };
 
@@ -162,7 +163,10 @@ const KEY = "catalog.v1";
 // catálogo guardado antes de sacar el buzo con capucha).
 // Con servidor, el catálogo (y los colores) salen de la base; si no, del navegador.
 if (CATALOG) Object.assign(GARMENT_COLORS, CATALOG.colors);
-export const PRODUCTS = (CATALOG?.products || (readJSON(KEY, null) || structuredClone(SEED_PRODUCTS)).map((p) => ({ ...p, faces: Object.keys(GARMENTS[p.type]?.faces || {}) }))).filter((p) => GARMENTS[p.type]);
+// Las zonas apagadas en el panel no se ofrecen en ninguna prenda.
+export const PRODUCTS = (CATALOG?.products || (readJSON(KEY, null) || structuredClone(SEED_PRODUCTS)).map((p) => ({ ...p, faces: Object.keys(GARMENTS[p.type]?.faces || {}) })))
+  .filter((p) => GARMENTS[p.type])
+  .map((p) => ({ ...p, faces: enabledFaces(p.faces) }));
 
 /** Productos visibles en la tienda (los ocultos siguen valiendo para el carrito). */
 export function activeProducts() {

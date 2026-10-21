@@ -86,8 +86,7 @@ if (!product) {
           <div class="chips" role="radiogroup" aria-label="Talle" data-sizes>
             ${product.sizes
               .map(
-                (s) => `<button type="button" class="chip" role="radio" data-size="${s.id}" ${s.stock === "out" ? "disabled" : ""} aria-label="Talle ${s.label}, ${stockLabel(s.stock)}${s.surcharge ? `, recargo ${formatPrice(s.surcharge)}` : ""}">
-                  ${s.label}${s.surcharge ? `<small>+${formatPrice(s.surcharge)}</small>` : ""}</button>`
+                (s) => `<button type="button" class="chip" role="radio" data-size="${s.id}" ${s.stock === "out" ? "disabled" : ""} aria-label="Talle ${s.label}, ${stockLabel(s.stock)}">${s.label}</button>`
               )
               .join("")}
           </div>
@@ -120,7 +119,7 @@ if (!product) {
             <span class="price pdp__price" data-unit></span>
           </div>
           <div class="breakdown" data-breakdown style="margin-top:var(--sp-3)"></div>
-          <p class="hint" style="margin-top:var(--sp-2)">El precio incluye el estampado del frente. ${product.faces.length > 1 ? "Cada otra zona que estampes suma su recargo (ver abajo). " : ""}El precio final se ajusta en el editor según las zonas que diseñes.</p>
+          <p class="hint" style="margin-top:var(--sp-2)">El precio ya incluye el estampado del frente. ${product.faces.length > 1 ? "Cada otra zona que estampes suma su recargo (ver abajo). " : ""}El precio final se ajusta en el editor según las zonas que diseñes.</p>
         </div>
 
         <div class="notice notice--danger form-errors" role="alert" data-errors></div>

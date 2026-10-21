@@ -28,7 +28,7 @@ export function renderProductPanel({ ed, product, setVariant, price, printedFace
           ${product.sizes
             .map(
               (s) => `<button type="button" class="chip" role="radio" aria-checked="${s.id === v.sizeId}" data-v-size="${s.id}" ${s.stock === "out" ? "disabled" : ""} aria-label="Talle ${s.label}, ${stockLabel(s.stock)}">
-              ${s.label}${s.surcharge ? `<small>+${formatPrice(s.surcharge)}</small>` : ""}</button>`
+              ${s.label}</button>`
             )
             .join("")}
         </div>

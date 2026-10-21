@@ -11,7 +11,7 @@ import { createMercadoPago } from "./mercadopago.js";
 import { createCarriers } from "./carriers.js";
 import { createMailer, sendOrderMails } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
-import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZonePrices, saveZonePrices, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
+import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZoneSettings, saveZoneSettings, withoutDisabledZones, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
 import { loadSiteTexts, saveSiteTexts, loadMarquee, saveMarquee } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates, loadShippingSettings, saveShippingSettings } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
@@ -91,7 +91,7 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       t.push(Date.now());
       const storeDesigns = await loadStoreDesigns(db, { publishedOnly: true }).catch((err) => (console.error("catálogo: diseños", err), []));
       t.push(Date.now());
-      const zonePrices = await loadZonePrices(db).catch((err) => (console.error("catálogo: recargos", err), { ...DEFAULT_ZONE_PRICES }));
+      const { zonePrices, disabledZones } = await loadZoneSettings(db).catch((err) => (console.error("catálogo: recargos", err), { zonePrices: { ...DEFAULT_ZONE_PRICES }, disabledZones: [] }));
       t.push(Date.now());
       const designCollections = await loadDesignCollections(db).catch((err) => (console.error("catálogo: colecciones", err), []));
       t.push(Date.now());
@@ -99,7 +99,7 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       t.push(Date.now());
       if (t[6] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms, colecciones ${t[5] - t[4]} ms, sitio ${t[6] - t[5]} ms`);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
-      return json({ colors, products, storeDesigns, zonePrices, designCollections, announcement, homeImages, freeShipping, siteTexts, marquee }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
+      return json({ colors, products: withoutDisabledZones(products, disabledZones), storeDesigns, zonePrices, disabledZones, designCollections, announcement, homeImages, freeShipping, siteTexts, marquee }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
     }],
 
     ["GET", "/api/reviews", async (req, url) => {
@@ -419,13 +419,13 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
     ["GET", "/api/admin/zone-prices", async (req) => {
       const { db, auth } = await ctx();
       await auth.require(req);
-      return json({ zonePrices: await loadZonePrices(db) });
+      return json(await loadZoneSettings(db));
     }],
     ["PUT", "/api/admin/zone-prices", async (req) => {
       const { db, auth } = await ctx();
       await auth.require(req);
       const body = await readJson(req, 8192);
-      return json({ zonePrices: await db.tx((q) => saveZonePrices(q, body.zonePrices)) });
+      return json(await db.tx((q) => saveZoneSettings(q, { zonePrices: body.zonePrices, disabledZones: body.disabledZones })));
     }],
 
     /* ------------- Archivos en disco (solo servidor local) ------------- */
