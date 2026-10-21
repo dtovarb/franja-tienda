@@ -425,6 +425,37 @@ test("panel: textos de la página y marquesina", async () => {
   assert.deepEqual((await jsonOf(await call("GET", "/api/catalog"))).body.siteTexts, {});
 });
 
+test("panel: una zona de la tabla se puede marcar con envío gratis", async () => {
+  const quote = async (cp) => (await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: cp } }))).body;
+  const cookie = await login();
+  const put = async (rates) => jsonOf(await call("PUT", "/api/admin/shipping-rates", { cookie, body: { rates } }));
+  let rates = (await jsonOf(await call("GET", "/api/admin/shipping-rates", { cookie }))).body.rates;
+  assert.ok(rates.every((r) => r.free === false));
+  const cordoba = rates.find((r) => r.id === "cordoba-provincia");
+  const price = cordoba.price;
+  let r = await put(rates.map((x) => (x.id === "cordoba-provincia" ? { ...x, free: "sí" } : x)));
+  assert.equal(r.status, 422);
+  r = await put(rates.map((x) => (x.id === "cordoba-provincia" ? { ...x, free: true } : x)));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const saved = r.body.rates.find((x) => x.id === "cordoba-provincia");
+  assert.equal(saved.free, true);
+  assert.equal(saved.price, price); // el precio queda guardado
+  let q = await quote("5800");
+  assert.equal(q.free, true);
+  assert.deepEqual(q.options.map((o) => [o.id, o.price, o.service]), [["tabla:cordoba-provincia", 0, cordoba.name]]);
+  assert.equal((await quote("1425")).options[0].price, rates.find((x) => x.id === "resto-del-pais").price);
+  // El pedido de esa zona sale con envío $0.
+  const item = await cartItem();
+  const o = await jsonOf(await call("POST", "/api/orders", { body: { customer, shipping: { ...shipping, postalCode: "5800" }, items: [item] } }));
+  assert.equal(o.status, 201, JSON.stringify(o.body));
+  assert.equal(o.body.order.shippingCost, 0);
+  // Al destildarla vuelve a cobrar el precio que tenía.
+  r = await put(r.body.rates.map((x) => ({ ...x, free: false })));
+  q = await quote("5800");
+  assert.equal(q.free, false);
+  assert.equal(q.options[0].price, price);
+});
+
 test("panel: cintillo de anuncios y foto con modelo de un diseño", async () => {
   const cookie = await login();
   let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;

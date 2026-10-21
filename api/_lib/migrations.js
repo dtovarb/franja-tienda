@@ -319,4 +319,14 @@ update shipping_rates set cp_from = 5000 where id = 'cordoba-provincia' and cp_f
 update product_sizes set surcharge = 0 where surcharge <> 0;
 `,
   },
+  {
+    // Envío gratis por zona (pedido de la tienda, 21/10/2026): cada fila de
+    // la tabla de envíos tiene su botón de envío gratis y guarda su precio
+    // para cuando se apague. Las zonas que ya estaban en $0 quedan marcadas.
+    id: "0011_envio_gratis_por_zona",
+    sql: `
+alter table shipping_rates add column if not exists free boolean not null default false;
+update shipping_rates set free = true where price = 0 and not free;
+`,
+  },
 ];
