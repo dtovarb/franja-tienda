@@ -13,6 +13,7 @@
 import { initPage, icon, toast, confirmDialog, getAnnouncement, ANNOUNCEMENT_KEY, announcementBar, getHomeImages, HOME_IMAGES_KEY } from "../core/ui.js";
 import { HOME_IMAGE_SLOTS, MAX_CAPTION, normalizeHomeImages } from "../core/home-images.js";
 import { ANNOUNCEMENT_STYLES, MAX_MESSAGES, MAX_TEXT, normalizeAnnouncement } from "../core/announcement.js";
+import { renderSiteContent, resetSiteContent } from "./admin-texts.js";
 import { readJSON, writeJSON, removeKey } from "../core/storage.js";
 import {
   PRODUCTS, GARMENT_COLORS, getProduct, getColor, saveProducts, resetProducts, defaultSizesFor, stockLabel,
@@ -817,13 +818,17 @@ productsPanel.addEventListener("submit", (e) => {
 
 /* ======================= Sitio: cintillo de anuncios ======================= */
 const sitePanel = $("[data-panel=sitio]");
+// Atajos a cada sección de la pestaña (es larga).
+const SITE_JUMP = `<nav class="admin-jump" aria-label="Secciones de Sitio">
+    <a href="#sitio-cintillo">Cintillo</a><a href="#sitio-marquesina">Marquesina</a><a href="#sitio-fotos">Fotos del inicio</a><a href="#sitio-textos">Textos de la página</a>
+  </nav>`;
 
 async function renderSite() {
   const a = (await data.announcement()) || { enabled: false, style: "ciruela", messages: [] };
   const rows = [...a.messages];
   while (rows.length < MAX_MESSAGES) rows.push({ text: "", link: "" });
   sitePanel.innerHTML = `
-    <div class="admin-head">
+    <div class="admin-head" id="sitio-cintillo">
       <div>
         <h2 class="h3">Cintillo de anuncios</h2>
         <p class="muted">La franja de arriba de todo de la tienda, para ofertas, envíos o novedades. Con más de un mensaje, van rotando cada 5 segundos.</p>
@@ -863,8 +868,12 @@ async function renderSite() {
         <button class="btn btn--primary" type="submit">Guardar cintillo</button>
       </div>
     </form>
-    <div data-home-images></div>`;
+    <div data-marquee-admin></div>
+    <div data-home-images></div>
+    <div data-site-texts></div>`;
+  sitePanel.insertAdjacentHTML("afterbegin", SITE_JUMP);
   renderHomeImages();
+  renderSiteContent({ marqueeHost: $("[data-marquee-admin]", sitePanel), textsHost: $("[data-site-texts]", sitePanel) });
   const form = $("[data-announce-form]", sitePanel);
   const read = () => ({
     enabled: form.enabled.checked,
@@ -909,7 +918,7 @@ async function renderHomeImages() {
     </li>`;
   };
   host.innerHTML = `
-    <div class="admin-head admin-head--sep">
+    <div class="admin-head admin-head--sep" id="sitio-fotos">
       <div>
         <h2 class="h3">Fotos del inicio</h2>
         <p class="muted">Cambiá las fotos de la portada y del lookbook. Quedan mejor verticales (4:5); antes de subirlas las achicamos a 1600 px. Las fotos de «Diseños de la casa» son la «Foto con modelo» de cada diseño, en la pestaña Diseños.</p>
@@ -1079,6 +1088,7 @@ $("[data-reset]")?.addEventListener("click", async () => {
   resetStoreDesigns();
   resetCollections();
   removeKey(ANNOUNCEMENT_KEY);
+  resetSiteContent();
   clearOrders();
   editingDesign = null;
   editingCollection = null;

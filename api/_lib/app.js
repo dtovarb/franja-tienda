@@ -12,6 +12,7 @@ import { createCarriers } from "./carriers.js";
 import { createMailer, sendOrderMails } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
 import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZoneSettings, saveZoneSettings, withoutDisabledZones, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
+import { loadSiteTexts, saveSiteTexts, loadMarquee, saveMarquee } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates, loadShippingSettings, saveShippingSettings } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
 import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkToken, orderToken, ORDER_STATUSES } from "./orders.js";
@@ -94,11 +95,11 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       t.push(Date.now());
       const designCollections = await loadDesignCollections(db).catch((err) => (console.error("catálogo: colecciones", err), []));
       t.push(Date.now());
-      const { announcement, homeImages, freeShipping } = await loadSiteSettings(db).catch((err) => (console.error("catálogo: sitio", err), { announcement: null, homeImages: null, freeShipping: false }));
+      const { announcement, homeImages, freeShipping, siteTexts, marquee } = await loadSiteSettings(db).catch((err) => (console.error("catálogo: sitio", err), { announcement: null, homeImages: null, freeShipping: false, siteTexts: null, marquee: null }));
       t.push(Date.now());
       if (t[6] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms, colecciones ${t[5] - t[4]} ms, sitio ${t[6] - t[5]} ms`);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
-      return json({ colors, products: withoutDisabledZones(products, disabledZones), storeDesigns, zonePrices, disabledZones, designCollections, announcement, homeImages, freeShipping }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
+      return json({ colors, products: withoutDisabledZones(products, disabledZones), storeDesigns, zonePrices, disabledZones, designCollections, announcement, homeImages, freeShipping, siteTexts, marquee }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
     }],
 
     ["GET", "/api/reviews", async (req, url) => {
@@ -370,6 +371,25 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
         }
       }
       return json({ homeImages: await saveHomeImages(c.db, next) });
+    }],
+
+    ["GET", "/api/admin/site-texts", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      return json({ siteTexts: await loadSiteTexts(db), marquee: await loadMarquee(db) });
+    }],
+    // Solo los textos cambiados: un texto vacío o igual al de siempre vuelve al de siempre.
+    ["PUT", "/api/admin/site-texts", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      const body = await readJson(req, 128 * 1024);
+      return json({ siteTexts: await saveSiteTexts(db, body.siteTexts) });
+    }],
+    ["PUT", "/api/admin/marquee", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      const body = await readJson(req, 8 * 1024);
+      return json({ marquee: await saveMarquee(db, body.marquee) });
     }],
 
     ["GET", "/api/admin/shipping-rates", async (req) => {

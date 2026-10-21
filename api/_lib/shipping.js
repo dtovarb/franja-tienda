@@ -3,8 +3,8 @@
  *
  * 1. Si en el panel está prendida la promo de envío gratis (site_settings,
  *    clave 'shipping'), no se calcula nada: envío gratis a todo el país.
- * 2. Si la tabla del panel (shipping_rates) tiene precio 0 para ese CP,
- *    esa es la única opción.
+ * 2. Si la zona de la tabla del panel (shipping_rates) que incluye ese CP
+ *    está marcada con envío gratis (o tiene precio 0), esa es la única opción.
  * 3. Si no, se cotiza en vivo con las empresas configuradas (carriers.js)
  *    según el peso y tamaño del pedido, y la clienta elige.
  * 4. Si no hay ninguna configurada o ninguna responde, se usa la tabla del
@@ -44,7 +44,7 @@ export async function saveShippingSettings(q, body) {
 export const FREE_SHIPPING_OPTION = { id: "promo:envio-gratis", carrier: "Envío gratis", service: "Promoción a todo el país", price: 0, days: null, example: false };
 
 export async function listRates(q) {
-  return q.query("select id, name, cp_from, cp_to, price, example, sort from shipping_rates order by sort, id");
+  return q.query("select id, name, cp_from, cp_to, price, free, example, sort from shipping_rates order by sort, id");
 }
 
 /**
@@ -57,7 +57,7 @@ export async function quoteShipping(q, rawPostalCode, { carriers = [], lines = [
   const base = { postalCode: String(cp) };
   if ((await loadShippingSettings(q)).freeShipping) return { ...base, free: true, live: false, promo: true, options: [{ ...FREE_SHIPPING_OPTION }] };
   const rate = (await listRates(q)).find((r) => cp >= r.cp_from && cp <= r.cp_to);
-  if (rate && rate.price === 0) {
+  if (rate && (rate.free || rate.price === 0)) {
     return { ...base, free: true, live: false, options: [{ id: `tabla:${rate.id}`, carrier: "Envío gratis", service: rate.name, price: 0, days: null, example: false }] };
   }
   const parcel = parcelFor(lines.length ? lines : [{ type: "tee", qty: 1 }]);
@@ -94,12 +94,13 @@ export async function replaceRates(q, list) {
     const id = String(r.id || "").match(/^[a-z0-9-]{1,40}$/) ? r.id : `zona-${i + 1}`;
     // Una tarifa de ejemplo deja de serlo cuando se le cambia el precio.
     const prev = before.get(id);
-    return { id, name, cp_from: cpFrom, cp_to: cpTo, price, example: !!prev?.example && prev.price === price, sort: i };
+    if (r.free !== undefined && typeof r.free !== "boolean") throw new HttpError(422, `Falta indicar si «${name}» tiene envío gratis.`);
+    return { id, name, cp_from: cpFrom, cp_to: cpTo, price, free: r.free === true, example: !!prev?.example && prev.price === price, sort: i };
   });
   await q.query("delete from shipping_rates");
   for (const r of clean) {
-    await q.query("insert into shipping_rates (id, name, cp_from, cp_to, price, example, sort) values ($1,$2,$3,$4,$5,$6,$7)", [
-      r.id, r.name, r.cp_from, r.cp_to, r.price, r.example, r.sort,
+    await q.query("insert into shipping_rates (id, name, cp_from, cp_to, price, free, example, sort) values ($1,$2,$3,$4,$5,$6,$7,$8)", [
+      r.id, r.name, r.cp_from, r.cp_to, r.price, r.free, r.example, r.sort,
     ]);
   }
   return listRates(q);

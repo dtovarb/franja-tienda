@@ -180,7 +180,7 @@
 }
 .admin-table {
   width: 100%;
-  max-width: 520px;
+  max-width: 720px;
   border-collapse: collapse;
   font-size: var(--fs-sm);
 }
@@ -276,6 +276,12 @@
 .order-admin__events summary { cursor: pointer; font-weight: 600; }
 .order-admin__events ul { list-style: none; padding: 0; margin: var(--sp-2) 0 0; display: grid; gap: var(--sp-1); }
 .admin-table td .tag { margin-top: 4px; display: inline-block; }
+.admin-table .check--cell { margin-right: 0; white-space: nowrap; }
+.admin-table th { white-space: nowrap; }
+.admin-table [name="cp_from"],
+.admin-table [name="cp_to"] { min-width: 5.5em; }
+/* Zona con envío gratis: el precio queda guardado pero no se cobra. */
+.admin-table tr.is-free [name="price"] { opacity: 0.45; text-decoration: line-through; }
 .admin-product--order summary { grid-template-columns: minmax(0, 1fr) auto; }
 .admin-product--order .admin-row__main { display: grid; gap: 2px; }
 .admin-product--order .admin-product__state { display: grid; justify-items: end; gap: 4px; text-align: right; }
@@ -391,6 +397,83 @@
     gap: var(--sp-3);
     padding: var(--sp-3);
   }
+}
+
+/* Atajos de la pestaña Sitio */
+.admin-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-5);
+}
+.admin-jump a {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--p-rosa-2);
+  color: var(--c-ciruela);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  text-decoration: none;
+}
+.admin-jump a:hover {
+  background: var(--p-rosa);
+}
+#sitio-cintillo, #sitio-marquesina, #sitio-fotos, #sitio-textos {
+  scroll-margin-top: calc(var(--header-h) + 24px);
+}
+
+/* Marquesina (pestaña Sitio) */
+.admin-marquee {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-marquee__preview {
+  margin-top: 0;
+  border-radius: var(--radius-sm);
+}
+
+/* Textos de la página (pestaña Sitio) */
+.admin-text-pages {
+  margin-bottom: var(--sp-4);
+}
+.admin-text-group {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: var(--border);
+  border-radius: var(--radius-md);
+}
+.admin-text-group legend {
+  padding-inline: 6px;
+  font-weight: 700;
+  color: var(--c-ciruela);
+}
+.admin-text__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.admin-text textarea {
+  resize: vertical;
+  min-height: 0;
+  font-family: inherit;
+  line-height: 1.45;
+}
+.admin-text--changed .input {
+  border-color: var(--c-ciruela);
+  background: var(--p-rosa-2);
+}
+.admin-form__actions--sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: var(--sp-3) 0;
+  background: color-mix(in srgb, var(--c-bg) 94%, transparent);
 }
 
 /* Zonas de estampa: nombre con su medida debajo */

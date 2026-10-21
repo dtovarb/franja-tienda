@@ -24,15 +24,16 @@
   <link rel="stylesheet" href="assets/css/tokens.css">
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/pages.css">
+  <script>document.documentElement.classList.add("textos-cargando");setTimeout(function(){document.documentElement.classList.remove("textos-cargando")},3000)</script>
 </head>
 <body>
   <a class="skip-link" href="#main">Saltar al contenido</a>
   <header id="site-header"></header>
   <main id="main" class="container">
     <div class="page-head catalog-head">
-      <p class="eyebrow">Diseños de la casa</p>
-      <h1 class="display">Diseños<br>listos</h1>
-      <p class="lead">Elegí un diseño nuestro y la prenda donde lo querés. Entra al editor ya ubicado: lo podés pedir así o moverlo, cambiarle el tamaño y sumarle texto.</p>
+      <p class="eyebrow" data-text="designs.eyebrow">Diseños de la casa</p>
+      <h1 class="display" data-text="designs.title">Diseños<br>listos</h1>
+      <p class="lead" data-text="designs.lead">Elegí un diseño nuestro y la prenda donde lo querés. Entra al editor ya ubicado: lo podés pedir así o moverlo, cambiarle el tamaño y sumarle texto.</p>
     </div>
     <div class="filters" role="group" aria-label="Filtrar por colección" data-collections hidden></div>
     <p class="lead collection-desc" data-collection-desc hidden></p>

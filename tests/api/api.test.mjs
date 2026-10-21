@@ -389,6 +389,73 @@ test("panel: la promo de envío gratis apaga el cálculo del envío en todo el p
   assert.equal((await quote("1425")).options[0].id, "tabla:resto-del-pais");
 });
 
+test("panel: textos de la página y marquesina", async () => {
+  const cookie = await login();
+  let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.deepEqual(cat.siteTexts, {});
+  assert.equal(cat.marquee.enabled, true);
+  assert.ok(cat.marquee.items.includes("Remeras"));
+  assert.equal((await call("PUT", "/api/admin/site-texts", { body: { siteTexts: {} } })).status, 401);
+  assert.equal((await call("GET", "/api/admin/site-texts")).status, 401);
+  // Demasiado largo: no.
+  let r = await jsonOf(await call("PUT", "/api/admin/site-texts", { cookie, body: { siteTexts: { "home.hero.cta1": "x".repeat(200) } } }));
+  assert.equal(r.status, 422);
+  // Claves desconocidas, vacíos e iguales al original no se guardan.
+  r = await jsonOf(
+    await call("PUT", "/api/admin/site-texts", {
+      cookie,
+      body: { siteTexts: { "home.hero.title": "  Ropa con\r\nidentidad ", "home.hero.cta1": "", "home.feat.title": "Elegí el lienzo", "nada.que.ver": "x", "about.mission.text": "Uno.\n\n\n\nDos." } },
+    })
+  );
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.siteTexts, { "home.hero.title": "Ropa con\nidentidad", "about.mission.text": "Uno.\n\nDos." });
+  r = await jsonOf(await call("PUT", "/api/admin/marquee", { cookie, body: { marquee: { enabled: true, items: [] } } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(await call("PUT", "/api/admin/marquee", { cookie, body: { marquee: { enabled: true, items: [" Hecho en Córdoba ", "", "DTG"] } } }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.equal(cat.siteTexts["home.hero.title"], "Ropa con\nidentidad");
+  assert.deepEqual(cat.marquee, { enabled: true, items: ["Hecho en Córdoba", "DTG"] });
+  r = await jsonOf(await call("GET", "/api/admin/site-texts", { cookie }));
+  assert.deepEqual(r.body.marquee, cat.marquee);
+  // Se apaga y se deja todo como estaba.
+  await call("PUT", "/api/admin/marquee", { cookie, body: { marquee: { enabled: false, items: [] } } });
+  assert.equal((await jsonOf(await call("GET", "/api/catalog"))).body.marquee.enabled, false);
+  await call("PUT", "/api/admin/site-texts", { cookie, body: { siteTexts: {} } });
+  assert.deepEqual((await jsonOf(await call("GET", "/api/catalog"))).body.siteTexts, {});
+});
+
+test("panel: una zona de la tabla se puede marcar con envío gratis", async () => {
+  const quote = async (cp) => (await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: cp } }))).body;
+  const cookie = await login();
+  const put = async (rates) => jsonOf(await call("PUT", "/api/admin/shipping-rates", { cookie, body: { rates } }));
+  let rates = (await jsonOf(await call("GET", "/api/admin/shipping-rates", { cookie }))).body.rates;
+  assert.ok(rates.every((r) => r.free === false));
+  const cordoba = rates.find((r) => r.id === "cordoba-provincia");
+  const price = cordoba.price;
+  let r = await put(rates.map((x) => (x.id === "cordoba-provincia" ? { ...x, free: "sí" } : x)));
+  assert.equal(r.status, 422);
+  r = await put(rates.map((x) => (x.id === "cordoba-provincia" ? { ...x, free: true } : x)));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const saved = r.body.rates.find((x) => x.id === "cordoba-provincia");
+  assert.equal(saved.free, true);
+  assert.equal(saved.price, price); // el precio queda guardado
+  let q = await quote("5800");
+  assert.equal(q.free, true);
+  assert.deepEqual(q.options.map((o) => [o.id, o.price, o.service]), [["tabla:cordoba-provincia", 0, cordoba.name]]);
+  assert.equal((await quote("1425")).options[0].price, rates.find((x) => x.id === "resto-del-pais").price);
+  // El pedido de esa zona sale con envío $0.
+  const item = await cartItem();
+  const o = await jsonOf(await call("POST", "/api/orders", { body: { customer, shipping: { ...shipping, postalCode: "5800" }, items: [item] } }));
+  assert.equal(o.status, 201, JSON.stringify(o.body));
+  assert.equal(o.body.order.shippingCost, 0);
+  // Al destildarla vuelve a cobrar el precio que tenía.
+  r = await put(r.body.rates.map((x) => ({ ...x, free: false })));
+  q = await quote("5800");
+  assert.equal(q.free, false);
+  assert.equal(q.options[0].price, price);
+});
+
 test("panel: cintillo de anuncios y foto con modelo de un diseño", async () => {
   const cookie = await login();
   let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;

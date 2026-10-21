@@ -1,4 +1,4 @@
-import { initPage } from "../core/ui.js";
+import { initPage, siteText } from "../core/ui.js";
 import { activeProducts } from "../data/catalog.js";
 import { GARMENTS } from "../data/garments.js";
 import { productCard } from "./components.js";
@@ -7,9 +7,8 @@ import { params } from "../core/format.js";
 initPage(params().has("diseñar") ? "design" : "catalog");
 
 if (params().has("diseñar")) {
-  document.querySelector("[data-intro]").textContent = "Paso 1 de 3 · Elegí la prenda";
-  document.querySelector("[data-lead]").textContent =
-    "Primero elegí la prenda base. Después vas a poder definir color, talle y cantidad, y entrar al editor.";
+  document.querySelector("[data-intro]").textContent = siteText("catalog.design.eyebrow");
+  document.querySelector("[data-lead]").textContent = siteText("catalog.design.lead");
 }
 
 const grid = document.querySelector("[data-grid]");
