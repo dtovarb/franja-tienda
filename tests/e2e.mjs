@@ -918,7 +918,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     await page.goto(`${BASE}/producto.html?id=remera-clasica`);
     await page.waitForSelector("[data-size-chart]", { state: "attached" });
     const tee = await page.$$eval("[data-size-chart] tr", (trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent.trim()).join("|")));
-    assert(tee[0] === "Talle|Largo (A)|Ancho (B)|Hombro (C)|Manga (D)" && tee.includes("S|69 cm|52 cm|13,4 cm|21 cm") && tee.includes("XXL|76 cm|56 cm|17 cm|24 cm") && tee.length === 6, tee.join(" / "));
+    assert(tee[0] === "Talle|Largo (A)|Ancho (B)|Hombro (C)|Manga (D)" && tee.includes("S|69 cm|52 cm|13,4 cm|21 cm") && tee.includes("XXL|76 cm|60 cm|17 cm|24 cm") && tee.length === 6, tee.join(" / "));
     assert(await page.locator(".size-note", { hasText: "Pueden variar hasta 2 cm" }).count(), "falta la nota de la remera clásica");
     await page.goto(`${BASE}/producto.html?id=remera-oversize`);
     await page.waitForSelector("[data-size-chart]", { state: "attached" });
