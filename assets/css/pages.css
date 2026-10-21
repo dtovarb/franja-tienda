@@ -907,6 +907,9 @@
 .cta-band .display span {
   color: var(--c-terracota);
 }
+.cta-band .display span.cta-band__a {
+  color: inherit;
+}
 @media (max-width: 700px) {
   .cta-band { grid-template-columns: 1fr; }
 }
@@ -1820,4 +1823,118 @@
 .reviews__bar {
   border-radius: var(--radius-pill);
   overflow: hidden;
+}
+
+/* ---------- Textos editables: mientras llega lo del panel ---------- */
+/* El HTML trae el texto de siempre; si en el panel se cambió, se ve recién
+   cuando llega (así no aparece el viejo y salta al nuevo). A los 3 s, se
+   muestra igual. */
+.textos-cargando [data-text] {
+  visibility: hidden;
+}
+
+/* ---------- Quiénes somos ---------- */
+.about-hero {
+  padding-top: var(--sp-6);
+}
+.about-hero__block {
+  display: grid;
+  gap: var(--sp-4);
+  justify-items: start;
+  overflow: hidden;
+}
+.about-hero__title {
+  font-size: clamp(2.75rem, 1rem + 6vw, 6.5rem);
+  line-height: 0.92;
+  color: var(--c-ciruela);
+  max-width: 14ch;
+}
+.about-hero__stripes {
+  width: min(320px, 70%);
+  height: 12px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-top: var(--sp-2);
+}
+.about-story__block {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr);
+  gap: var(--sp-6);
+  align-items: start;
+}
+.about-story__block .display {
+  font-size: var(--fs-3xl);
+}
+.about-story__text,
+.about-mv__text {
+  display: grid;
+  gap: var(--sp-3);
+  font-size: var(--fs-lg);
+  color: var(--c-ink-2);
+  max-width: 62ch;
+}
+.about-mv {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-5);
+}
+.about-mv__card {
+  display: grid;
+  gap: var(--sp-3);
+  align-content: start;
+  border-radius: 180px 180px var(--radius-lg) var(--radius-lg);
+  padding-top: clamp(40px, 6vw, 72px);
+}
+.about-mv__card .display {
+  font-size: var(--fs-2xl);
+  color: var(--c-ciruela);
+}
+.about-mv__icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--c-surface);
+  font-size: 2rem;
+}
+.about-traits {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-4);
+  margin: var(--sp-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.about-trait {
+  display: grid;
+  gap: var(--sp-2);
+  align-content: start;
+  padding: var(--sp-5);
+  background: var(--c-surface);
+  border-radius: var(--radius-md);
+}
+.about-trait .h3 {
+  color: var(--c-ciruela);
+}
+.about-trait p {
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+}
+.about-trait__dot {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+.about-trait:nth-child(1) .about-trait__dot { background: var(--p-coral); }
+.about-trait:nth-child(2) .about-trait__dot { background: var(--p-rosa); }
+.about-trait:nth-child(3) .about-trait__dot { background: var(--p-lila); }
+.about-trait:nth-child(4) .about-trait__dot { background: var(--p-durazno); box-shadow: inset 0 0 0 2px var(--c-ciruela); }
+@media (max-width: 900px) {
+  .about-traits { grid-template-columns: 1fr 1fr; }
+  .about-story__block { grid-template-columns: 1fr; gap: var(--sp-4); }
+}
+@media (max-width: 640px) {
+  .about-mv { grid-template-columns: 1fr; }
+  .about-traits { grid-template-columns: 1fr; gap: var(--sp-3); }
 }

@@ -9,6 +9,7 @@ import { insertProduct } from "./seed.js";
 import { DEFAULT_ZONE_PRICES, PRICED_ZONES } from "../../assets/js/core/pricing.js";
 import { EMPTY_ANNOUNCEMENT, normalizeAnnouncement } from "../../assets/js/core/announcement.js";
 import { emptyHomeImages, normalizeHomeImages } from "../../assets/js/core/home-images.js";
+import { DEFAULT_MARQUEE, normalizeMarquee, normalizeSiteTexts } from "../../assets/js/core/site-texts.js";
 
 export async function loadColors(q) {
   const rows = await q.query("select id, name, hex from garment_colors order by sort, id");
@@ -289,16 +290,49 @@ export async function saveHomeImages(q, body) {
   return value;
 }
 
+/* ------------------------- Textos del sitio y marquesina ------------------------- */
+async function saveSetting(q, key, value) {
+  await q.query(
+    "insert into site_settings (key, value) values ($1, $2::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()",
+    [key, JSON.stringify(value)]
+  );
+  return value;
+}
+
+export async function loadSiteTexts(q) {
+  const [row] = await q.query("select value from site_settings where key = 'site_texts'");
+  return normalizeSiteTexts(row?.value).value;
+}
+
+export async function saveSiteTexts(q, body) {
+  const { value, errors } = normalizeSiteTexts(body);
+  if (errors.length) throw new HttpError(422, errors.join(" "));
+  return saveSetting(q, "site_texts", value);
+}
+
+export async function loadMarquee(q) {
+  const [row] = await q.query("select value from site_settings where key = 'marquee'");
+  return row ? normalizeMarquee(row.value).value : structuredClone(DEFAULT_MARQUEE);
+}
+
+export async function saveMarquee(q, body) {
+  const { value, errors } = normalizeMarquee(body && typeof body === "object" ? body : {});
+  if (errors.length) throw new HttpError(422, errors.join(" "));
+  return saveSetting(q, "marquee", value);
+}
+
 /**
- * Cintillo, fotos del inicio y promo de envío gratis en UNA consulta, para el catálogo público
+ * Cintillo, fotos del inicio, textos, marquesina y promo de envío gratis en UNA consulta, para el catálogo público
  * (cada consulta de más se nota al arrancar en frío).
  */
 export async function loadSiteSettings(q) {
-  const rows = await q.query("select key, value from site_settings where key in ('announcement', 'home_images', 'shipping')");
+  const rows = await q.query("select key, value from site_settings where key in ('announcement', 'home_images', 'shipping', 'site_texts', 'marquee')");
   const get = (k) => rows.find((r) => r.key === k)?.value;
   return {
     announcement: get("announcement") ? normalizeAnnouncement(get("announcement")).value : { ...EMPTY_ANNOUNCEMENT },
     homeImages: get("home_images") ? normalizeHomeImages(get("home_images")).value : emptyHomeImages(),
     freeShipping: get("shipping")?.freeShipping === true,
+    siteTexts: normalizeSiteTexts(get("site_texts")).value,
+    marquee: get("marquee") ? normalizeMarquee(get("marquee")).value : structuredClone(DEFAULT_MARQUEE),
   };
 }

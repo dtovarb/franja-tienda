@@ -564,6 +564,69 @@ fieldset {
 .nav a[aria-current="page"] {
   background: var(--p-rosa);
 }
+/* Desplegable de colecciones en «Diseños» */
+.nav__drop {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.nav__drop > a {
+  padding-right: 6px;
+}
+.nav__toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -2px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--c-ciruela);
+  cursor: pointer;
+}
+.nav__toggle:hover {
+  background: var(--p-rosa-2);
+}
+.nav__toggle .icon {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.nav__drop[data-open="true"] .nav__toggle .icon {
+  transform: rotate(180deg);
+}
+.nav__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  min-width: 220px;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  background: var(--c-bg);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  display: none;
+}
+/* puente invisible para que el mouse llegue al menú sin que se cierre */
+.nav__menu::before {
+  content: "";
+  position: absolute;
+  inset: -8px 0 auto 0;
+  height: 8px;
+}
+.nav__drop[data-open="true"] .nav__menu {
+  display: grid;
+  gap: 2px;
+}
+.nav__menu a {
+  display: block;
+  white-space: nowrap;
+}
 .header-actions {
   display: flex;
   align-items: center;
@@ -611,6 +674,19 @@ fieldset {
 .menu-toggle {
   display: none;
 }
+/* Pantallas medianas: el menú entra en una línea */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .site-header__inner { gap: var(--sp-3); }
+  .logo small { display: none; }
+  .nav { gap: 0; }
+  .nav a { padding: 8px 9px; white-space: nowrap; }
+  .nav__drop > a { padding-right: 2px; }
+}
+@media (min-width: 761px) and (max-width: 900px) {
+  .nav a { padding: 8px 6px; font-size: 0.8125rem; }
+  .cart-link .cart-label { display: none; }
+  .cart-link { padding: 0 var(--sp-2); }
+}
 @media (max-width: 760px) {
   .nav {
     position: fixed;
@@ -635,6 +711,33 @@ fieldset {
   .nav a {
     padding: 14px 16px;
     font-size: var(--fs-lg);
+  }
+  /* En el celu las colecciones van siempre a la vista, debajo de «Diseños» */
+  .nav__drop {
+    flex-wrap: wrap;
+  }
+  .nav__drop > a {
+    padding-right: 16px;
+  }
+  .nav__toggle {
+    display: none;
+  }
+  .nav__menu,
+  .nav__drop[data-open="true"] .nav__menu {
+    position: static;
+    display: grid;
+    gap: 0;
+    width: 100%;
+    min-width: 0;
+    padding: 0 0 4px 16px;
+    border: 0;
+    box-shadow: none;
+    background: none;
+  }
+  .nav__menu a {
+    padding: 8px 16px;
+    font-size: var(--fs-md);
+    font-weight: 500;
   }
   .menu-toggle {
     display: inline-flex;

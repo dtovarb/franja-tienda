@@ -6,6 +6,8 @@ import { SERVER, CATALOG } from "./api.js";
 import { readJSON } from "./storage.js";
 import { normalizeAnnouncement, safeLink } from "./announcement.js";
 import { normalizeHomeImages } from "./home-images.js";
+import { TEXT_BY_KEY, normalizeSiteTexts, normalizeMarquee } from "./site-texts.js";
+import { listCollections, listStoreDesigns } from "./store-designs.js";
 import { cartCount, onCartChange } from "./cart.js";
 import { escapeHtml } from "./format.js";
 import { CONTACT, whatsappUrl, instagramUrl, CONSUMER_COMPLAINTS_URL } from "../data/contact.js";
@@ -86,6 +88,45 @@ export function getHomeImages() {
   return normalizeHomeImages(CATALOG ? CATALOG.homeImages : readJSON(HOME_IMAGES_KEY, null)).value;
 }
 
+/* ---------------- Textos del sitio y marquesina (panel, «Sitio») ---------------- */
+export const SITE_TEXTS_KEY = "site-texts.v1";
+export const MARQUEE_KEY = "marquee.v1";
+let TEXTS;
+export function getSiteTexts() {
+  return (TEXTS ||= normalizeSiteTexts(CATALOG ? CATALOG.siteTexts : readJSON(SITE_TEXTS_KEY, null)).value);
+}
+export function getMarquee() {
+  return normalizeMarquee(CATALOG ? CATALOG.marquee : readJSON(MARQUEE_KEY, null)).value;
+}
+/** El texto de esa clave: el que se cargó en el panel o el de siempre. */
+export function siteText(key) {
+  return getSiteTexts()[key] ?? TEXT_BY_KEY[key]?.def ?? "";
+}
+/**
+ * HTML seguro de un texto: los saltos de línea pasan a <br>; en los de
+ * párrafos, una línea en blanco es un párrafo nuevo (<p> adentro de un
+ * <div>, dos <br> adentro de cualquier otro elemento).
+ */
+export function textHtml(value, kind = "line", inBlock = false) {
+  const esc = (s) => escapeHtml(s).replace(/\n/g, "<br>");
+  if (kind !== "paras") return esc(value);
+  const paras = value.split(/\n{2,}/);
+  return inBlock ? paras.map((p) => `<p>${esc(p)}</p>`).join("") : paras.map(esc).join("<br><br>");
+}
+export function siteTextHtml(key) {
+  return textHtml(siteText(key), TEXT_BY_KEY[key]?.kind);
+}
+/** Pone en cada [data-text] su texto. Solo toca los que se cambiaron en el panel. */
+export function applySiteTexts(root = document) {
+  const texts = getSiteTexts();
+  root.querySelectorAll("[data-text]").forEach((el) => {
+    const key = el.dataset.text;
+    if (texts[key] == null || !TEXT_BY_KEY[key]) return;
+    el.innerHTML = textHtml(texts[key], TEXT_BY_KEY[key].kind, el.tagName === "DIV");
+  });
+  document.documentElement.classList.remove("textos-cargando");
+}
+
 /** HTML del cintillo (vacío si está apagado). Con varios mensajes, rotan. */
 export function announcementBar(a = getAnnouncement()) {
   if (!a?.enabled || !a.messages?.length) return "";
@@ -129,9 +170,35 @@ const NAV = [
   { href: "catalogo.html", label: "Prendas", key: "catalog" },
   { href: "disenos.html", label: "Diseños", key: "designs" },
   { href: "index.html#como-funciona", label: "Cómo funciona", key: "how" },
+  { href: "quienes-somos.html", label: "Nosotros", key: "about" },
   { href: "preguntas.html", label: "Preguntas", key: "faq" },
   { href: "catalogo.html?diseñar=1", label: "Diseñar", key: "design" },
 ];
+
+/** Colecciones con algún diseño publicado: van en el desplegable de «Diseños». */
+function activeCollections() {
+  try {
+    const published = listStoreDesigns({ publishedOnly: true });
+    return listCollections().filter((c) => published.some((d) => d.collectionId === c.id));
+  } catch {
+    return [];
+  }
+}
+
+function navItem(n, active) {
+  const current = n.key === active ? 'aria-current="page"' : "";
+  if (n.key !== "designs") return `<a href="${n.href}" ${current}>${n.label}</a>`;
+  const cols = activeCollections();
+  if (!cols.length) return `<a href="${n.href}" ${current}>${n.label}</a>`;
+  return `<div class="nav__drop" data-nav-drop>
+      <a href="${n.href}" ${current}>${n.label}</a>
+      <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="nav-colecciones" aria-label="Ver colecciones">${icon("down")}</button>
+      <ul class="nav__menu" id="nav-colecciones" role="list">
+        <li><a href="disenos.html">Todos los diseños</a></li>
+        ${cols.map((c) => `<li><a href="disenos.html?coleccion=${encodeURIComponent(c.id)}">${escapeHtml(c.name)}</a></li>`).join("")}
+      </ul>
+    </div>`;
+}
 
 export function renderHeader(active) {
   const el = document.getElementById("site-header");
@@ -149,7 +216,7 @@ export function renderHeader(active) {
     <div class="container site-header__inner">
       <a class="logo" href="index.html" aria-label="nevrado, ir al inicio"><img src="assets/img/nevrado-logo.svg" alt="nevrado" width="128" height="30"><small>taller de prendas</small></a>
       <nav class="nav" id="main-nav" aria-label="Principal">
-        ${NAV.map((n) => `<a href="${n.href}" ${n.key === active ? 'aria-current="page"' : ""}>${n.label}</a>`).join("")}
+        ${NAV.map((n) => navItem(n, active)).join("")}
       </nav>
       <div class="header-actions">
         <button class="icon-btn menu-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Abrir menú">${icon("menu")}</button>
@@ -171,10 +238,33 @@ export function renderHeader(active) {
     toggle.setAttribute("aria-label", open ? "Cerrar menú" : "Abrir menú");
   });
   nav.addEventListener("click", (e) => {
+    const t = e.target.closest(".nav__toggle");
+    if (t) return setDrop(t.closest("[data-nav-drop]"), t.getAttribute("aria-expanded") !== "true");
     if (e.target.closest("a")) nav.dataset.open = "false";
   });
+  // Desplegable de colecciones: se abre con el mouse encima o con el botón
+  // de la flecha; se cierra con Escape, al salir o al hacer clic afuera.
+  const drop = nav.querySelector("[data-nav-drop]");
+  if (drop) {
+    const hover = matchMedia("(hover: hover) and (min-width: 761px)");
+    drop.addEventListener("mouseenter", () => hover.matches && setDrop(drop, true));
+    drop.addEventListener("mouseleave", () => hover.matches && setDrop(drop, false));
+    drop.addEventListener("focusout", (e) => !drop.contains(e.relatedTarget) && setDrop(drop, false));
+    drop.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || drop.dataset.open !== "true") return;
+      setDrop(drop, false);
+      drop.querySelector(".nav__toggle").focus();
+    });
+    document.addEventListener("click", (e) => !drop.contains(e.target) && setDrop(drop, false));
+  }
   updateCartCount(false);
   onCartChange(() => updateCartCount(true));
+}
+
+function setDrop(drop, open) {
+  if (!drop) return;
+  drop.dataset.open = String(open);
+  drop.querySelector(".nav__toggle").setAttribute("aria-expanded", String(open));
 }
 
 export function updateCartCount(animate) {
@@ -200,7 +290,7 @@ export function renderFooter({ whatsapp = true } = {}) {
     <div class="container footer-grid">
       <div>
         <p class="footer-brand"><img src="assets/img/nevrado-logo-fondo-oscuro.svg" alt="nevrado" width="320" height="75"></p>
-        <p class="muted" style="color:rgba(255,255,255,.8);margin-top:12px;max-width:34ch">Prendas que imprimimos y terminamos en nuestro taller de ${CONTACT.city.split(",")[0]}. Vos traés la idea.</p>
+        <p class="muted" style="color:rgba(255,255,255,.8);margin-top:12px;max-width:34ch">${siteTextHtml("footer.blurb")}</p>
       </div>
       <div>
         <h2>Tienda</h2>
@@ -216,6 +306,7 @@ export function renderFooter({ whatsapp = true } = {}) {
         <h2>Info</h2>
         <ul role="list">
           <li><a href="index.html#como-funciona">Cómo funciona</a></li>
+          <li><a href="quienes-somos.html">Quiénes somos</a></li>
           <li><a href="index.html#taller">El taller</a></li>
           <li><a href="preguntas.html">Preguntas frecuentes</a></li>
           <li><a href="terminos.html">Términos y condiciones</a></li>
@@ -238,7 +329,7 @@ export function renderFooter({ whatsapp = true } = {}) {
     </div>
     <div class="container footer-legal">
       <span>© ${new Date().getFullYear()} nevrado · ${CONTACT.city}${SERVER ? "" : " · prototipo de demostración"}</span>
-      <span>Envíos a todo el país · Pagos con Mercado Pago</span>
+      <span>${siteTextHtml("footer.legal")}</span>
     </div>
     ${
       whatsapp
@@ -293,6 +384,7 @@ export function confirmDialog({ title, body = "", confirmLabel = "Confirmar", ca
 
 export function initPage(active) {
   injectSprite();
+  if (active !== "admin") applySiteTexts();
   renderHeader(active);
   renderFooter({ whatsapp: active !== "admin" });
 }

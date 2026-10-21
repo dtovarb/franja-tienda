@@ -1,4 +1,4 @@
-import { initPage, icon, getHomeImages } from "../core/ui.js";
+import { initPage, icon, getHomeImages, getMarquee, siteTextHtml } from "../core/ui.js";
 import { activeProducts, getProduct, getColor } from "../data/catalog.js";
 import { garmentSvg, luminance, GARMENTS } from "../data/garments.js";
 import { listStoreDesigns, storeDesignImageUrl, modelPhotoUrl, designArt } from "../core/store-designs.js";
@@ -31,7 +31,7 @@ async function renderHero() {
         <a class="hero__frame hero__frame--own" href="${escapeHtml(href)}">
           <img class="hero__photo" src="${escapeHtml(ownUrl)}" alt="${escapeHtml(own.caption || "nevrado")}" fetchpriority="high">
         </a>
-        <div class="hero__sticker" aria-hidden="true">hecho<br>a pedido</div>
+        <div class="hero__sticker" aria-hidden="true">${siteTextHtml("home.hero.sticker")}</div>
         ${own.caption ? `<div class="hero__info"><p class="hero__name">${escapeHtml(own.caption)}</p><a class="btn btn--primary" href="${escapeHtml(href)}">Ver ${icon("arrowRight")}</a></div>` : ""}
       </div>`;
     return;
@@ -68,14 +68,14 @@ async function renderHero() {
       ${s.photo ? `<img class="hero__photo" src="${escapeHtml(s.photo)}" alt="${escapeHtml(s.d.name)} puesto" fetchpriority="high">` : ""}
       <span class="hero__mock-wrap">${garmentSvg(s.show.type, "front", s.col.hex, { art: designArt(s.art), colorId: s.col.id, className: "hero__mock", title: `${s.d.name} en ${s.show.name} ${s.col.name}` })}</span>
     </a>
-    <div class="hero__sticker" aria-hidden="true">hecho<br>a pedido</div>
+    <div class="hero__sticker" aria-hidden="true">${siteTextHtml("home.hero.sticker")}</div>
     <div class="hero__info">
       <div>
-        <p class="mono hero__kicker">Diseño de la casa</p>
+        <p class="mono hero__kicker">${siteTextHtml("home.hero.kicker")}</p>
         <p class="hero__name">${escapeHtml(s.d.name)}</p>
         <p class="hero__price"><span class="muted">${escapeHtml(s.show.name)}</span> <b class="price">${formatPrice(s.show.basePrice + (s.d.price || 0))}</b></p>
       </div>
-      <a class="btn btn--primary" href="${s.href}">Lo quiero ${icon("arrowRight")}</a>
+      <a class="btn btn--primary" href="${s.href}">${siteTextHtml("home.hero.buy")} ${icon("arrowRight")}</a>
     </div>`;
 
   host.innerHTML = `
@@ -148,10 +148,19 @@ async function renderPicks(designs) {
     .join("");
 }
 
-// Marquee
-const words = ["Remeras", "Buzos", "Gorras", "Totes", "Estampado en taller propio", "Diseño frente y espalda", "Archivos a 300 DPI"];
-const run = words.map((w) => `<span>${w}<i class="flor"></i></span>`).join("");
-document.querySelector("[data-marquee]").innerHTML = run + run;
+// Marquesina: las frases se cambian en el panel («Sitio»). Con pocas frases
+// se repiten hasta llenar el ancho, así la banda nunca queda con un hueco.
+{
+  const m = getMarquee();
+  const band = document.querySelector(".marquee");
+  if (!m.enabled || !m.items.length) band?.remove();
+  else {
+    let words = [...m.items];
+    while (words.join("").length < 120) words = words.concat(m.items);
+    const run = words.map((w) => `<span>${escapeHtml(w)}<i class="flor"></i></span>`).join("");
+    document.querySelector("[data-marquee]").innerHTML = run + run;
+  }
+}
 
 // Destacados
 document.querySelector("[data-featured]").innerHTML = activeProducts().filter((p) => p.featured)
@@ -182,8 +191,8 @@ async function renderLookbook() {
   }).join("");
   document.querySelector("[data-editorial]").innerHTML = `${cards}
   <div class="ed-quote">
-    <span class="tag tag--pink">Manifiesto</span>
-    <p class="display">Una prenda con tu firma vale más que cualquier logo prestado.</p>
+    <span class="tag tag--pink">${siteTextHtml("home.look.tag")}</span>
+    <p class="display">${siteTextHtml("home.look.quote")}</p>
   </div>`;
 }
 
