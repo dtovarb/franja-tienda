@@ -457,11 +457,36 @@ const PHOTOS = new Set([
   "cap-naranja", "cap-verde", "cap-azul", "cap-celeste",
 ]);
 
+/**
+ * Fotos subidas desde el panel (core/garment-photos.js), por `${tipo}-${color}`.
+ * Tienen prioridad sobre las de la carpeta; las carga data/catalog.js.
+ */
+const UPLOADED = new Map();
+export function setUploadedPhotos(map) {
+  UPLOADED.clear();
+  for (const [key, p] of Object.entries(map || {})) UPLOADED.set(key, p);
+}
+
+/** La foto que viene con la tienda (sin contar las subidas), o null. */
+export function bundledPhoto(type, colorId) {
+  const key = `${type}-${colorId}`;
+  if (!PHOTOS.has(key)) return null;
+  return { base: `${PHOTO_DIR}${key}.jpg`, shade: `${PHOTO_DIR}${key}-sombra.png`, light: `${PHOTO_DIR}${key}-brillo.png` };
+}
+
+/** Una foto de la tienda de ese tipo de prenda (la del color pedido si hay), para usar de guía al encuadrar. */
+export function referencePhoto(type, colorId) {
+  if (bundledPhoto(type, colorId)) return bundledPhoto(type, colorId);
+  const key = [...PHOTOS].find((k) => k.startsWith(`${type}-`));
+  return key ? bundledPhoto(type, key.slice(type.length + 1)) : null;
+}
+
 /** URLs de la foto y sus mapas de luz, o null si esa prenda/color/cara no tiene foto. */
 export function garmentPhoto(type, face, colorId) {
-  const key = `${type}-${colorId}`;
-  if (viewOf(type, face) !== "front" || !colorId || !PHOTOS.has(key)) return null;
-  return { base: `${PHOTO_DIR}${key}.jpg`, shade: `${PHOTO_DIR}${key}-sombra.png`, light: `${PHOTO_DIR}${key}-brillo.png` };
+  if (viewOf(type, face) !== "front" || !colorId) return null;
+  const up = UPLOADED.get(`${type}-${colorId}`);
+  if (up) return { base: up.base, shade: up.shade, light: up.light, uploaded: true };
+  return bundledPhoto(type, colorId);
 }
 
 function photoLayers(photo) {

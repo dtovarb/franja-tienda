@@ -538,6 +538,40 @@ test("panel: fotos del inicio (portada y lookbook)", async () => {
   assert.equal(cat.announcement.enabled !== undefined, true, "el cintillo sigue viniendo en el catálogo");
 });
 
+test("panel: fotos de prenda por color", async () => {
+  const cookie = await login();
+  let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.deepEqual(cat.garmentPhotos, {});
+  assert.equal((await call("PUT", "/api/admin/garment-photos/tee-negro", { body: { photo: null } })).status, 401);
+
+  const upload = async (path, mime, name) => {
+    const bytes = await readFile(new URL(path, import.meta.url));
+    const meta = { sha256: sha(bytes), mime, bytes: bytes.byteLength, name, width: 1000, height: 1200 };
+    const up = await jsonOf(await call("POST", "/api/admin/uploads", { cookie, body: { file: meta } }));
+    await app.handle(new Request(BASE + up.body.target.url, { method: "PUT", headers: up.body.target.headers, body: bytes }));
+    return meta;
+  };
+  const base = await upload("../fixtures/foto.jpg", "image/jpeg", "remera-negra.jpg");
+  const map = await upload("../fixtures/grafica-alta.png", "image/png", "mapa.png");
+  const photo = { base, shade: map, light: map, name: "remera-negra.jpg" };
+  // Prenda o color que no existen, o archivos que faltan: no.
+  assert.equal((await call("PUT", "/api/admin/garment-photos/vestido-negro", { cookie, body: { photo } })).status, 422);
+  assert.equal((await call("PUT", "/api/admin/garment-photos/tee-fucsia", { cookie, body: { photo } })).status, 422);
+  assert.equal((await call("PUT", "/api/admin/garment-photos/tee-negro", { cookie, body: { photo: { base } } })).status, 422);
+
+  let r = await jsonOf(await call("PUT", "/api/admin/garment-photos/tee-negro", { cookie, body: { photo } }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const saved = r.body.garmentPhotos["tee-negro"];
+  assert.ok(saved.base && saved.shade && saved.light && saved.updatedAt);
+  const img = await app.handle(new Request(BASE + saved.base));
+  assert.equal(sha(Buffer.from(await img.arrayBuffer())), base.sha256);
+  cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.equal(cat.garmentPhotos["tee-negro"].base, saved.base);
+  // Con photo null se quita y vuelve la foto de la tienda.
+  r = await jsonOf(await call("PUT", "/api/admin/garment-photos/tee-negro", { cookie, body: { photo: null } }));
+  assert.deepEqual(r.body.garmentPhotos, {});
+});
+
 test("sin cuentas en Vercel la API responde 'sin configurar' y la tienda sigue en demo", async () => {
   const off = createApp({ VERCEL: "1", DATABASE_URL: "", POSTGRES_URL: "", SESSION_SECRET: "" });
   const h = await (await off.handle(new Request(BASE + "/api/health"))).json();

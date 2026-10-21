@@ -482,3 +482,105 @@
 /* Zonas de estampa: nombre con su medida debajo */
 .admin-zones th .hint { display: block; font-weight: 400; }
 .admin-zones .input { max-width: 9rem; }
+
+/* Fotos por color (pestaña Productos) */
+.admin-colorphotos {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-5);
+  border-top: var(--border);
+}
+.admin-colorphotos .label {
+  font-weight: 700;
+  color: var(--c-ciruela);
+}
+.admin-colorphotos__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-3);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-colorphoto {
+  display: grid;
+  gap: var(--sp-2);
+  align-content: start;
+  padding: var(--sp-2);
+  background: var(--c-surface);
+  border: var(--border);
+  border-radius: var(--radius-md);
+}
+.admin-colorphoto__img {
+  aspect-ratio: 5 / 6;
+  background: var(--c-surface-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.admin-colorphoto__img svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.admin-colorphoto__info {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-sm);
+}
+.admin-colorphoto__info b {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.admin-colorphoto__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+.admin-colorphoto__actions label.btn {
+  cursor: pointer;
+}
+.admin-colorphoto__actions label.btn:focus-within {
+  outline: 2px solid var(--c-ciruela);
+  outline-offset: 2px;
+}
+
+/* Encuadre de una foto nueva */
+.admin-frame {
+  width: min(94vw, 600px);
+}
+.admin-frame__stage {
+  display: grid;
+  place-items: center;
+}
+.admin-frame__stage canvas {
+  width: min(100%, 50vh * 5 / 6, 420px);
+  height: auto;
+  aspect-ratio: 5 / 6;
+  border-radius: var(--radius-sm);
+  touch-action: none;
+  cursor: grab;
+  background: var(--c-surface-2);
+}
+.admin-frame__stage canvas:active {
+  cursor: grabbing;
+}
+.admin-frame__stage canvas:focus-visible {
+  outline: 2px solid var(--c-ciruela);
+  outline-offset: 3px;
+}
+.admin-frame__controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-3);
+  align-items: end;
+}
+.admin-frame__controls input[type="range"] {
+  width: 100%;
+}
+.admin-frame__nudge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
