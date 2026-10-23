@@ -10,7 +10,8 @@
  *   - Sin servidor (demostración): sin login, todo en este navegador.
  * La diferencia está en `data` (abajo) y en la pestaña de pedidos.
  */
-import { initPage, icon, toast, confirmDialog, getAnnouncement, ANNOUNCEMENT_KEY, announcementBar, getHomeImages, HOME_IMAGES_KEY } from "../core/ui.js";
+import { initPage, icon, toast, confirmDialog, getAnnouncement, ANNOUNCEMENT_KEY, announcementBar, getHomeImages, HOME_IMAGES_KEY, getPopup, POPUP_KEY, popupHtml, fillPopupPhoto } from "../core/ui.js";
+import { POPUP_LIMITS, POPUP_LABELS, POPUP_DEFAULTS, normalizePopup } from "../core/popup.js";
 import { HOME_IMAGE_SLOTS, FIELD_LIMITS, FIELD_LABELS, normalizeHomeImages } from "../core/home-images.js";
 import { ANNOUNCEMENT_STYLES, MAX_MESSAGES, MAX_TEXT, normalizeAnnouncement } from "../core/announcement.js";
 import { renderSiteContent, resetSiteContent } from "./admin-texts.js";
@@ -132,6 +133,20 @@ const demoData = {
     writeJSON(ANNOUNCEMENT_KEY, value);
     return value;
   },
+  popup: async () => getPopup(),
+  /** `changes`: { enabled, kicker, title, text, button, link, photo?: preparePhoto(), removePhoto? }. */
+  async savePopup({ photo: newPhoto, removePhoto, ...fields }) {
+    let photo = (await this.popup()).photo;
+    if (newPhoto) {
+      const { blob, meta } = newPhoto;
+      await putAsset({ id: meta.sha256, blob, name: meta.name, type: meta.mime, size: meta.bytes, width: meta.width, height: meta.height, isVector: false });
+      photo = { assetId: meta.sha256, name: meta.name, width: meta.width, height: meta.height };
+    } else if (removePhoto) photo = null;
+    const { value, errors } = normalizePopup({ ...fields, photo, updatedAt: new Date().toISOString() });
+    if (errors.length) throw new Error(errors.join(" "));
+    writeJSON(POPUP_KEY, value);
+    return value;
+  },
   homeImages: async () => normalizeHomeImages(readJSON(HOME_IMAGES_KEY, null)).value,
   /** `changes`: por lugar, { kicker, caption, text, button, link, photo?: preparePhoto(), removePhoto? }. */
   async saveHomeImages(changes) {
@@ -196,6 +211,16 @@ const serverData = {
   saveZoneSettings: async (settings) => await api("admin/zone-prices", { method: "PUT", body: settings }),
   announcement: async () => (await api("admin/announcement")).announcement,
   saveAnnouncement: async (announcement) => (await api("admin/announcement", { method: "PUT", body: { announcement } })).announcement,
+  popup: async () => (await api("admin/popup")).popup,
+  async savePopup({ photo: newPhoto, ...fields }) {
+    let photo;
+    if (newPhoto) {
+      photo = newPhoto.meta;
+      const { target } = await api("admin/uploads", { method: "POST", body: { file: photo } });
+      await putToTarget(target, newPhoto.blob);
+    }
+    return (await api("admin/popup", { method: "PUT", body: { popup: { ...fields, photo, removePhoto: !!fields.removePhoto } } })).popup;
+  },
   homeImages: async () => (await api("admin/home-images")).homeImages,
   async saveHomeImages(changes) {
     const homeImages = {};
@@ -824,7 +849,7 @@ const sitePanel = $("[data-panel=sitio]");
 // Atajos a cada sección de la pestaña (es larga).
 // Son botones y no enlaces con #: cambiar el # de la dirección cambia de pestaña.
 const SITE_JUMP = `<nav class="admin-jump" aria-label="Secciones de Sitio">
-    <button type="button" data-jump="sitio-cintillo">Cintillo</button><button type="button" data-jump="sitio-marquesina">Marquesina</button><button type="button" data-jump="sitio-fotos">Fotos del inicio</button><button type="button" data-jump="sitio-textos">Textos de la página</button>
+    <button type="button" data-jump="sitio-cintillo">Cintillo</button><button type="button" data-jump="sitio-oferta">Ventana de oferta</button><button type="button" data-jump="sitio-marquesina">Marquesina</button><button type="button" data-jump="sitio-fotos">Fotos del inicio</button><button type="button" data-jump="sitio-textos">Textos de la página</button>
   </nav>`;
 sitePanel.addEventListener("click", (e) => {
   const b = e.target.closest("[data-jump]");
@@ -876,10 +901,12 @@ async function renderSite() {
         <button class="btn btn--primary" type="submit">Guardar cintillo</button>
       </div>
     </form>
+    <div data-popup-admin></div>
     <div data-marquee-admin></div>
     <div data-home-images></div>
     <div data-site-texts></div>`;
   sitePanel.insertAdjacentHTML("afterbegin", SITE_JUMP);
+  renderPopupAdmin();
   renderHomeImages();
   renderSiteContent({ marqueeHost: $("[data-marquee-admin]", sitePanel), textsHost: $("[data-site-texts]", sitePanel) });
   const form = $("[data-announce-form]", sitePanel);
@@ -897,6 +924,119 @@ async function renderSite() {
   form.addEventListener("input", preview);
   form.addEventListener("change", preview);
   preview();
+}
+
+/* ======================= Sitio: ventana de oferta ======================= */
+const POPUP_PLACEHOLDERS = {
+  kicker: "Ej.: Solo por esta semana",
+  title: "Ej.: 15% off en remeras",
+  text: "Ej.: En todos los diseños de la casa, hasta el domingo.",
+  button: POPUP_DEFAULTS.button,
+};
+
+async function renderPopupAdmin() {
+  const host = $("[data-popup-admin]", sitePanel);
+  if (!host) return;
+  const p = await data.popup();
+  const field = (f, tag = "input") => {
+    const attrs = `class="input" id="po-${f}" name="${f}" maxlength="${POPUP_LIMITS[f]}" placeholder="${escapeHtml(POPUP_PLACEHOLDERS[f])}"`;
+    return `<div class="field"><label for="po-${f}">${POPUP_LABELS[f]}${f === "title" || f === "text" ? "" : " (opcional)"}</label>
+      ${tag === "textarea" ? `<textarea ${attrs} rows="3">${escapeHtml(p[f])}</textarea>` : `<input ${attrs} value="${escapeHtml(p[f])}">`}</div>`;
+  };
+  host.innerHTML = `
+    <div class="admin-head admin-head--sep" id="sitio-oferta">
+      <div>
+        <h2 class="h3">Ventana de oferta</h2>
+        <p class="muted">Un cartel que aparece al entrar a la tienda, con tu oferta y un botón. Sale una sola vez por visita (si la clienta lo cierra, no vuelve hasta que entre otro día) y no aparece en el carrito, el editor ni en el pago. Si cambiás la oferta y guardás, la ven de nuevo también quienes ya habían cerrado la anterior.</p>
+      </div>
+    </div>
+    <form class="admin-form" data-popup-form novalidate>
+      <label class="check"><input type="checkbox" name="enabled" ${p.enabled ? "checked" : ""}> Mostrar la ventana en la tienda</label>
+      <div class="admin-home__slot">
+        <div class="admin-home__thumb">${p.photo ? `<img data-popup-thumb alt="Foto actual">` : `<span class="hint">Sin foto</span>`}</div>
+        <div class="admin-home__fields">
+          <div class="field"><label for="po-photo">${p.photo ? "Cambiar foto" : "Subir foto"} (opcional)</label>
+            <input class="input" id="po-photo" name="photo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+            <p class="hint">Va al costado del texto (arriba en el celu). Queda mejor vertical o cuadrada. Sin foto, la ventana es solo texto.</p></div>
+          ${p.photo ? `<label class="check"><input type="checkbox" name="removePhoto"> Quitar la foto</label>` : ""}
+        </div>
+      </div>
+      ${field("kicker")}
+      ${field("title")}
+      ${field("text", "textarea")}
+      ${field("button")}
+      <div class="field"><label for="po-link">Enlace del botón (opcional)</label>
+        <input class="input" id="po-link" name="link" value="${escapeHtml(p.link)}" placeholder="${POPUP_DEFAULTS.link}">
+        <p class="hint">Vacío lleva a las prendas (<code>catalogo.html</code>). También podés poner <code>disenos.html</code>, una colección (<code>disenos.html?coleccion=…</code>) o una dirección que empiece con https://.</p></div>
+      <div class="field">
+        <span class="label">Vista previa</span>
+        <div class="admin-popup__preview" data-popup-preview></div>
+      </div>
+      <div class="notice notice--danger form-errors" role="alert" data-popup-errors></div>
+      <div class="admin-form__actions">
+        <button class="btn btn--primary" type="submit">Guardar ventana</button>
+      </div>
+    </form>`;
+  const form = $("[data-popup-form]", host);
+  if (p.photo) modelPhotoUrl({ modelPhoto: p.photo }).then((u) => u && ($("[data-popup-thumb]", form).src = u));
+  const read = () => ({
+    enabled: form.enabled.checked,
+    ...Object.fromEntries(Object.keys(POPUP_LIMITS).map((f) => [f, form[f].value])),
+    link: form.link.value,
+    removePhoto: !!form.removePhoto?.checked,
+  });
+  let localPhoto = null; // vista previa de una foto elegida y todavía sin guardar
+  const preview = () => {
+    const v = read();
+    const { value } = normalizePopup({ ...v, link: "" });
+    const out = $("[data-popup-preview]", form);
+    if (!value.title && !value.text) return (out.innerHTML = '<p class="hint">Escribí un título o un texto para verla.</p>');
+    const photo = localPhoto ? { url: localPhoto } : v.removePhoto ? null : p.photo;
+    out.innerHTML = popupHtml({ ...value, photo }) + (form.enabled.checked ? "" : '<p class="hint">Apagada: no se ve en la tienda.</p>');
+    out.querySelector("[data-offer-cta]")?.addEventListener("click", (e) => e.preventDefault());
+    const img = out.querySelector("[data-popup-photo]");
+    if (img && localPhoto) img.src = localPhoto;
+    else if (img) fillPopupPhoto(out, { photo });
+  };
+  form.addEventListener("input", preview);
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "photo") {
+      if (localPhoto) URL.revokeObjectURL(localPhoto);
+      const f = e.target.files[0];
+      localPhoto = f ? URL.createObjectURL(f) : null;
+    }
+    preview();
+  });
+  preview();
+}
+
+async function savePopupForm(form) {
+  const errEl = $("[data-popup-errors]", form);
+  errEl.textContent = "";
+  const btn = form.querySelector("[type=submit]");
+  const raw = {
+    enabled: form.enabled.checked,
+    ...Object.fromEntries(Object.keys(POPUP_LIMITS).map((f) => [f, form[f].value])),
+    link: form.link.value,
+    removePhoto: !!form.removePhoto?.checked,
+  };
+  const { errors } = normalizePopup(raw);
+  if (errors.length) return (errEl.innerHTML = errors.map(escapeHtml).join("<br>"));
+  btn.disabled = true;
+  try {
+    const file = form.photo.files[0];
+    const saved = await data.savePopup({ ...raw, photo: file ? await preparePhoto(file) : undefined });
+    toast(
+      saved.enabled
+        ? `Ventana guardada${SERVER ? ". En la tienda aparece en un minuto como mucho." : " en este navegador."}`
+        : `Ventana apagada${SERVER ? ". Deja de aparecer en un minuto como mucho." : "."}`,
+      "success"
+    );
+    renderPopupAdmin();
+  } catch (err) {
+    errEl.textContent = errText(err, "No se pudo guardar la ventana.");
+    btn.disabled = false;
+  }
 }
 
 /* ======================= Sitio: fotos del inicio ======================= */
@@ -1001,6 +1141,7 @@ async function saveHomeImagesForm(form) {
 sitePanel.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (e.target.closest("[data-home-form]")) return saveHomeImagesForm(e.target.closest("[data-home-form]"));
+  if (e.target.closest("[data-popup-form]")) return savePopupForm(e.target.closest("[data-popup-form]"));
   const form = e.target.closest("[data-announce-form]");
   if (!form) return;
   const errEl = $("[data-announce-errors]", form);
@@ -1106,6 +1247,7 @@ $("[data-reset]")?.addEventListener("click", async () => {
   resetStoreDesigns();
   resetCollections();
   removeKey(ANNOUNCEMENT_KEY);
+  removeKey(POPUP_KEY);
   resetSiteContent();
   clearOrders();
   editingDesign = null;

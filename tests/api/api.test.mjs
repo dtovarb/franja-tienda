@@ -552,6 +552,42 @@ test("panel: fotos del inicio (portada y colecciones)", async () => {
   assert.equal(cat.announcement.enabled !== undefined, true, "el cintillo sigue viniendo en el catálogo");
 });
 
+test("panel: ventana de oferta", async () => {
+  const cookie = await login();
+  let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.equal(cat.popup.enabled, false);
+  assert.equal((await call("PUT", "/api/admin/popup", { body: { popup: { enabled: true, title: "x" } } })).status, 401);
+  // Prendida sin título ni texto, enlace raro o texto largo: no.
+  let r = await jsonOf(await call("PUT", "/api/admin/popup", { cookie, body: { popup: { enabled: true, button: "Ver" } } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(await call("PUT", "/api/admin/popup", { cookie, body: { popup: { enabled: true, title: "Oferta", link: "javascript:alert(1)" } } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(await call("PUT", "/api/admin/popup", { cookie, body: { popup: { enabled: true, title: "x".repeat(71) } } }));
+  assert.equal(r.status, 422);
+
+  const jpg = await readFile(new URL("../fixtures/foto.jpg", import.meta.url));
+  const photo = { sha256: sha(jpg), mime: "image/jpeg", bytes: jpg.byteLength, name: "oferta.jpg", width: 1200, height: 1500 };
+  const up = await jsonOf(await call("POST", "/api/admin/uploads", { cookie, body: { file: photo } }));
+  await app.handle(new Request(BASE + up.body.target.url, { method: "PUT", headers: up.body.target.headers, body: jpg }));
+  r = await jsonOf(await call("PUT", "/api/admin/popup", { cookie, body: { popup: { enabled: true, photo, title: "  15% off  en remeras ", text: "Hasta el domingo.", wat: 1 } } }));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.popup.title, "15% off en remeras");
+  assert.equal(r.body.popup.photo.width, 1200);
+  assert.equal(r.body.popup.wat, undefined);
+  assert.ok(r.body.popup.updatedAt);
+  const first = r.body.popup.updatedAt;
+  // Guardar sin foto nueva conserva la anterior; cambia la fecha (se vuelve a mostrar).
+  await new Promise((ok) => setTimeout(ok, 5));
+  r = await jsonOf(await call("PUT", "/api/admin/popup", { cookie, body: { popup: { enabled: true, title: "20% off", link: "disenos.html" } } }));
+  assert.ok(r.body.popup.photo, "sin foto nueva queda la anterior");
+  assert.notEqual(r.body.popup.updatedAt, first);
+  cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.deepEqual([cat.popup.enabled, cat.popup.title, cat.popup.link], [true, "20% off", "disenos.html"]);
+  r = await jsonOf(await call("PUT", "/api/admin/popup", { cookie, body: { popup: { enabled: false, title: "20% off", removePhoto: true } } }));
+  assert.equal(r.body.popup.photo, null);
+  assert.equal((await jsonOf(await call("GET", "/api/admin/popup", { cookie }))).body.popup.enabled, false);
+});
+
 test("panel: fotos de prenda por color", async () => {
   const cookie = await login();
   let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
