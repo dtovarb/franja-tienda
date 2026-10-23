@@ -46,6 +46,7 @@ Con `RESEND_API_KEY` configurada, la tienda manda mails con [Resend](https://res
 - **Comprobante de compra** a la clienta cuando el pedido pasa a «Pagado» (aviso de Mercado Pago o cambio a mano en el panel): número de pedido, prendas, subtotal, envío, total, operación de Mercado Pago, dirección y el enlace para seguir el pedido. Aclara que no es una factura.
 - **Pedido recibido** a la clienta cuando no hay cobro online («cobro a coordinar»).
 - **Aviso a la dueña** (`OWNER_EMAILS`) en esos mismos dos momentos, con enlace al panel.
+- **Recordatorio de pago** a la clienta que dejó un pedido sin pagar en Mercado Pago: una sola vez, entre 20 y 72 horas después, con el enlace para pagarlo. No va si la misma clienta pagó otro pedido después, ni sin cobro online. Lo dispara la tarea diaria de `vercel.json` (`crons`, 12 h de Argentina) en `/api/cron/recordatorios`; con `CRON_SECRET` cargada en Vercel solo acepta esa clave.
 
 Cada mail sale una sola vez por pedido: queda registrado en la tabla `order_emails` y va con `Idempotency-Key` a Resend, así los avisos repetidos de Mercado Pago no lo duplican. Si Resend falla, el pedido sigue igual, el error queda en el historial del pedido y el próximo aviso lo reintenta. Sin `RESEND_API_KEY` no se manda nada.
 

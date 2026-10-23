@@ -245,3 +245,51 @@ test("botón de arrepentimiento: si el mail falla, el pedido queda guardado", as
   const [row] = await db.query("select * from regret_requests where code = $1", [body.code]);
   assert.match(row.mail_customer, /^error/);
 });
+
+test("recordatorio de pago: una vez, al día siguiente, y no si ya pagó otro pedido", async () => {
+  sent = [];
+  payments = {};
+  const app = makeApp(path.join(tmp, "recordatorio"), { MP_ACCESS_TOKEN: "TEST", MP_WEBHOOK_SECRET: "firma-mp", MP_API_URL: "https://mp.test", CRON_SECRET: "clave-cron" });
+  const cron = (headers = { authorization: "Bearer clave-cron" }) => call(app, "GET", "/api/cron/recordatorios", { headers });
+  const { order: o, token } = await order(app);
+  const { db } = await app.init();
+  const ago = (id, h) => db.query(`update orders set created_at = now() - interval '${h} hours' where id = $1`, [id]);
+
+  assert.equal((await cron({})).status, 401);
+  assert.equal((await cron({ authorization: "Bearer otra" })).status, 401);
+  // Recién hecho: todavía no.
+  assert.deepEqual((await (await cron()).json()).sent, []);
+  // Al día siguiente: sí, con el link para pagar.
+  await ago(o.id, 26);
+  const { sent: r1 } = await (await cron()).json();
+  assert.deepEqual(r1, [{ order: o.number, sent: true }]);
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0].to, ["flor@example.com"]);
+  assert.equal(sent[0].subject, `Tu pedido #${o.number} te está esperando · nevrado`);
+  assert.equal(sent[0].key, `nevrado-${o.id}-recordatorio_pago`);
+  assert.ok(sent[0].text.includes(`https://www.nevrado.com/pedido.html?id=${o.id}&t=${token}`));
+  assert.ok(!/comprobante de compra/.test(sent[0].text));
+  // Una sola vez.
+  await cron();
+  assert.equal(sent.length, 1);
+
+  // Otro pedido sin pagar, pero la clienta pagó uno después: no se le recuerda.
+  const { order: viejo } = await order(app);
+  const { order: nuevo } = await order(app);
+  await ago(viejo.id, 30);
+  await ago(nuevo.id, 28);
+  await db.query("update orders set status = 'pagado', payment_status = 'aprobado' where id = $1", [nuevo.id]);
+  // Uno de hace más de 3 días tampoco.
+  const { order: lejano } = await order(app);
+  await ago(lejano.id, 80);
+  await cron();
+  assert.equal(sent.filter((m) => /te está esperando/.test(m.subject)).length, 1);
+});
+
+test("recordatorio de pago: sin clave, solo el aviso de Vercel; sin cobro online no hace nada", async () => {
+  const app = makeApp(path.join(tmp, "recordatorio-sin-mp"));
+  assert.equal((await call(app, "GET", "/api/cron/recordatorios")).status, 401);
+  const r = await call(app, "GET", "/api/cron/recordatorios", { headers: { "user-agent": "vercel-cron/1.0" } });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).skipped, "sin cobro online");
+});
