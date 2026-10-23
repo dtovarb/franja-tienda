@@ -1160,6 +1160,48 @@
   justify-content: space-between;
   gap: var(--sp-3);
 }
+.summary-box .row--discount {
+  color: var(--c-success);
+  font-weight: 600;
+}
+.summary-box .row--discount > span:last-child {
+  white-space: nowrap;
+}
+.link-btn {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--c-ink-3);
+  font: inherit;
+  font-weight: 400;
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.coupon-form {
+  display: grid;
+  gap: 6px;
+  padding: var(--sp-3) 0;
+  border-top: 1px dashed var(--c-line);
+  border-bottom: 1px dashed var(--c-line);
+}
+.coupon-form label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.coupon-form__row {
+  display: flex;
+  gap: var(--sp-2);
+}
+.coupon-form__row .input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+}
+.coupon-form__error {
+  color: var(--c-danger);
+  margin: 0;
+}
 .summary-box .row--total {
   padding-top: var(--sp-3);
   border-top: var(--border);

@@ -171,6 +171,7 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
     `Pedido #${n} · ${date(order.created_at)}`,
     ...items.map((i) => `- ${i.qty} × ${i.name} (${i.detail}): ${price(i.total)}`),
     `Subtotal: ${price(order.subtotal)}`,
+    ...(order.discount ? [`Descuento (código ${order.coupon_code}, ${order.coupon_percent}%): −${price(order.discount)}`] : []),
     `${shippingLabel(order)}: ${order.shipping_cost ? price(order.shipping_cost) : "gratis"}`,
     `Total: ${price(order.total)}`,
     content.payment,
@@ -218,6 +219,7 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
     </table>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px">
       ${row("Subtotal", price(order.subtotal))}
+      ${order.discount ? row(`Descuento · código ${order.coupon_code} (${order.coupon_percent}%)`, `−${price(order.discount)}`) : ""}
       ${row(shippingLabel(order), order.shipping_cost ? price(order.shipping_cost) : "Gratis")}
       ${row("Total", price(order.total), true)}
     </table>

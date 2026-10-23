@@ -15,7 +15,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { priceWith } from "../../assets/js/core/pricing.js";
 import { faceLabel } from "../../assets/js/data/garments.js";
 import { HttpError } from "./http.js";
-import { getProduct, storeDesignsByIds, loadZoneSettings, withoutDisabledZones } from "./catalog.js";
+import { getProduct, storeDesignsByIds, loadZoneSettings, withoutDisabledZones, loadCoupons } from "./catalog.js";
+import { findCoupon, discountFor } from "../../assets/js/core/coupons.js";
 import { quoteShipping } from "./shipping.js";
 import { PAYMENT_STATUS } from "./mercadopago.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
@@ -186,7 +187,15 @@ export async function createOrder({ db, storage, secret, carriers = [] }, body) 
   await verifyFiles(storage, lines.flatMap((l) => l.files));
 
   const subtotal = lines.reduce((n, l) => n + l.price.total, 0);
-  const total = subtotal + shipping.price;
+  // Código de descuento: se vuelve a validar acá; si ya no sirve, no se cobra distinto de lo que vio la clienta.
+  let coupon = null;
+  if (body.couponCode) {
+    const found = findCoupon(await loadCoupons(db), body.couponCode);
+    if (found.error) throw new HttpError(409, `${found.error} Sacalo en el carrito para seguir.`);
+    coupon = found.coupon;
+  }
+  const discount = coupon ? discountFor(subtotal, coupon.percent) : 0;
+  const total = subtotal - discount + shipping.price;
   const id = crypto.randomUUID();
 
   await db.tx(async (q) => {
@@ -197,9 +206,9 @@ export async function createOrder({ db, storage, secret, carriers = [] }, body) 
       );
     }
     await q.query(
-      `insert into orders (id, customer, shipping, subtotal, shipping_cost, total, idempotency_key)
-       values ($1, $2::text::jsonb, $3::text::jsonb, $4, $5, $6, $7)`,
-      [id, JSON.stringify(customer), JSON.stringify({ ...address, quote: shipping }), subtotal, shipping.price, total, idem]
+      `insert into orders (id, customer, shipping, subtotal, shipping_cost, total, idempotency_key, discount, coupon_code, coupon_percent)
+       values ($1, $2::text::jsonb, $3::text::jsonb, $4, $5, $6, $7, $8, $9, $10)`,
+      [id, JSON.stringify(customer), JSON.stringify({ ...address, quote: shipping }), subtotal, shipping.price, total, idem, discount, coupon?.code || null, coupon?.percent || null]
     );
     for (const [pos, l] of lines.entries()) {
       await q.query(
@@ -241,6 +250,9 @@ export function publicOrder(o) {
     customer: { name: o.customer.name, email: o.customer.email },
     shipping: { city: o.shipping.city, province: o.shipping.province, postalCode: o.shipping.postalCode, zone: o.shipping.quote?.zone },
     subtotal: o.subtotal,
+    discount: o.discount || 0,
+    couponCode: o.coupon_code || null,
+    couponPercent: o.coupon_percent || null,
     shippingCost: o.shipping_cost,
     total: o.total,
     items: o.items.map((it) => ({

@@ -9,13 +9,14 @@
  */
 import { safeLink } from "./announcement.js";
 import { cleanPhoto } from "./home-images.js";
+import { cleanCode, validCode } from "./coupons.js";
 
 export const POPUP_LIMITS = { kicker: 40, title: 70, text: 220, button: 28 };
 export const POPUP_LABELS = { kicker: "Línea chica de arriba", title: "Título", text: "Texto", button: "Texto del botón" };
 export const POPUP_DEFAULTS = { button: "Ver productos", link: "catalogo.html" };
 const TEXT_FIELDS = Object.keys(POPUP_LIMITS);
 
-export const emptyPopup = () => ({ enabled: false, photo: null, kicker: "", title: "", text: "", button: "", link: "", updatedAt: null });
+export const emptyPopup = () => ({ enabled: false, photo: null, kicker: "", title: "", text: "", code: "", button: "", link: "", updatedAt: null });
 
 /**
  * Valida y limpia. Devuelve { value, errors }. Botón y enlace vacíos quedan
@@ -34,6 +35,10 @@ export function normalizePopup(raw) {
   const link = safeLink(src.link);
   if (link === null) errors.push("El enlace del botón no es válido: usá una página del sitio (por ejemplo catalogo.html) o una dirección que empiece con https://.");
   value.link = link || "";
+  // Código de descuento que se muestra en la ventana (se crea en «Códigos de descuento»).
+  const code = cleanCode(src.code);
+  if (code && !validCode(code)) errors.push("El código de descuento tiene que tener de 3 a 20 letras o números, sin espacios.");
+  value.code = validCode(code) ? code : "";
   value.photo = cleanPhoto(src.photo);
   value.enabled = !!src.enabled;
   if (value.enabled && !value.title && !value.text) errors.push("Para mostrar la ventana escribí al menos un título o un texto.");

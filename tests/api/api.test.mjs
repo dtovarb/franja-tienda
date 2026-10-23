@@ -588,6 +588,55 @@ test("panel: ventana de oferta", async () => {
   assert.equal((await jsonOf(await call("GET", "/api/admin/popup", { cookie }))).body.popup.enabled, false);
 });
 
+test("códigos de descuento: panel, carrito, pedido y Mercado Pago", async () => {
+  const cookie = await login();
+  assert.equal((await call("PUT", "/api/admin/coupons", { body: { coupons: [] } })).status, 401);
+  // Código mal escrito, porcentaje fuera de rango o repetido: no.
+  let r = await jsonOf(await call("PUT", "/api/admin/coupons", { cookie, body: { coupons: [{ code: "a b", percent: 10 }] } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(await call("PUT", "/api/admin/coupons", { cookie, body: { coupons: [{ code: "MUCHO", percent: 95 }] } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(await call("PUT", "/api/admin/coupons", { cookie, body: { coupons: [{ code: "X15", percent: 15 }, { code: "x15", percent: 10 }] } }));
+  assert.equal(r.status, 422);
+  r = await jsonOf(
+    await call("PUT", "/api/admin/coupons", {
+      cookie,
+      body: { coupons: [{ code: " nevrado15 ", percent: 15 }, { code: "VIEJO", percent: 30, endsOn: "2020-01-31" }, { code: "APAGADO", percent: 20, active: false }, { code: "", percent: "" }] },
+    })
+  );
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.coupons.map((c) => c.code), ["NEVRADO15", "VIEJO", "APAGADO"]);
+
+  const check = async (code) => jsonOf(await call("POST", "/api/coupons/check", { body: { code } }));
+  assert.deepEqual((await check("nevrado15")).body.coupon, { code: "NEVRADO15", percent: 15 });
+  assert.match((await check("VIEJO")).body.error, /venció/);
+  assert.equal((await check("APAGADO")).status, 404);
+  assert.equal((await check("NOEXISTE")).status, 404);
+
+  // Pedido con código: 15% de las prendas, el envío entero.
+  const item = await cartItem({ faces: { front: null, back: null } });
+  r = await jsonOf(await call("POST", "/api/orders", { body: { customer, shipping: { ...shipping, postalCode: "1425" }, items: [item], couponCode: "nevrado15" } }));
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.order.subtotal, 46800);
+  assert.equal(r.body.order.discount, 7020);
+  assert.equal(r.body.order.couponCode, "NEVRADO15");
+  assert.equal(r.body.order.total, 46800 - 7020 + 7500);
+  const pref = mpCalls.at(-1);
+  assert.equal(pref.items.reduce((n, i) => n + i.unit_price * i.quantity, 0), r.body.order.total);
+  assert.ok(pref.items.every((i) => i.unit_price > 0));
+  // Un código vencido al momento de pagar: no se crea el pedido.
+  const late = await jsonOf(await call("POST", "/api/orders", { body: { customer, shipping: { ...shipping, postalCode: "1425" }, items: [item], couponCode: "VIEJO" } }));
+  assert.equal(late.status, 409);
+  // Los usos cuentan solo pedidos pagados.
+  assert.deepEqual((await jsonOf(await call("GET", "/api/admin/coupons", { cookie }))).body.uses, {});
+  await call("PATCH", `/api/admin/orders/${r.body.order.id}`, { cookie, body: { status: "pagado" } });
+  const uses = (await jsonOf(await call("GET", "/api/admin/coupons", { cookie }))).body.uses;
+  assert.equal(uses.NEVRADO15, 1);
+  // La ventana de oferta guarda el código en mayúsculas.
+  r = await jsonOf(await call("PUT", "/api/admin/popup", { cookie, body: { popup: { enabled: false, title: "15% off", code: "nevrado15" } } }));
+  assert.equal(r.body.popup.code, "NEVRADO15");
+});
+
 test("panel: fotos de prenda por color", async () => {
   const cookie = await login();
   let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;

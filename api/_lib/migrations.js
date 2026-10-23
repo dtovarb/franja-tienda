@@ -351,4 +351,15 @@ where exists (select 1 from products where id = 'remera-clasica')
 on conflict (product_id, size_id) do nothing;
 `,
   },
+  {
+    // Códigos de descuento (pedido de la tienda, 23/10/2026): el pedido guarda
+    // el código usado, su porcentaje y los pesos descontados de las prendas.
+    // Los códigos viven en site_settings (clave 'coupons').
+    id: "0014_codigos_descuento",
+    sql: `
+alter table orders add column if not exists discount integer not null default 0;
+alter table orders add column if not exists coupon_code text;
+alter table orders add column if not exists coupon_percent integer;
+`,
+  },
 ];

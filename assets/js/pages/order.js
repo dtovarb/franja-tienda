@@ -70,6 +70,7 @@ function render(o, { fromPayment }) {
       </section>
       <aside class="summary-box" aria-label="Importes">
         <div class="row"><span>Subtotal</span><span>${formatPrice(o.subtotal)}</span></div>
+        ${o.discount ? `<div class="row"><span>Descuento · ${escapeHtml(o.couponCode)} (${o.couponPercent}%)</span><span>−${formatPrice(o.discount)}</span></div>` : ""}
         <div class="row"><span>Envío${o.shipping.zone ? ` · ${escapeHtml(o.shipping.zone)}` : ""}</span><span>${o.shippingCost ? formatPrice(o.shippingCost) : "Gratis"}</span></div>
         <div class="row row--total"><span>Total</span><span class="price" style="font-size:1.5rem">${formatPrice(o.total)}</span></div>
         <p class="hint">A nombre de ${escapeHtml(o.customer.name)} · ${escapeHtml(o.shipping.city)}, ${escapeHtml(o.shipping.province)} (CP ${escapeHtml(o.shipping.postalCode)}).</p>
