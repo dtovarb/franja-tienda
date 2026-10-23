@@ -4,9 +4,9 @@ import { getProduct, getColor } from "../data/catalog.js";
 import { faceLabel } from "../data/garments.js";
 import { getDesign, deleteDesign, collectAssetIds } from "../core/designs.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
-import { storageAvailable } from "../core/storage.js";
+import { storageAvailable, readJSON, writeJSON } from "../core/storage.js";
 import { createDemoOrder } from "../core/orders.js";
-import { SERVER, CATALOG } from "../core/api.js";
+import { SERVER, CATALOG, api } from "../core/api.js";
 import { savedCouponCode, rememberCoupon, forgetCoupon, checkCoupon, cartCouponDiscount } from "../core/coupon-state.js";
 
 initPage("cart");
@@ -17,6 +17,13 @@ const added = params().get("added");
 let coupon = null;
 let couponMsg = "";
 let couponTyped = null; // lo último que escribió, para no borrárselo si el código no sirve
+/**
+ * Envío estimado en el carrito: con el código postal se muestra el más barato
+ * y se suma al total. El código queda guardado para el formulario de datos.
+ */
+const FORM_KEY = "checkout.datos.v1"; // el mismo del formulario de datos
+let ship = { cp: readJSON(FORM_KEY, {}).postalCode || "", quote: null, msg: "", busy: false };
+const shipCost = () => (ship.quote ? Math.min(...ship.quote.options.map((o) => o.price)) : 0);
 
 function render() {
   const { items } = getCart();
@@ -55,8 +62,8 @@ function render() {
                 ${couponMsg ? `<p class="hint coupon-form__error" role="alert">${escapeHtml(couponMsg)}</p>` : ""}
               </form>`
         }
-        <div class="row muted"><span>Envío</span><span>${CATALOG?.freeShipping ? "Gratis a todo el país (promo)" : "Se calcula con tu código postal"}</span></div>
-        <div class="row row--total"><span>Total</span><span class="price" style="font-size:1.5rem" data-total>${formatPrice(t.total - discount)}</span></div>
+        ${shippingRow()}
+        <div class="row row--total"><span>Total${ship.quote ? `<br><small class="muted">con envío</small>` : ""}</span><span class="price" style="font-size:1.5rem" data-total>${formatPrice(t.total - discount + shipCost())}</span></div>
         <button class="btn btn--primary btn--lg btn--block" type="button" data-checkout>${SERVER ? "Continuar con el pedido" : "Continuar (demo)"} ${icon("arrowRight")}</button>
         <div class="notice notice--info">${icon("info")}<span>${
           SERVER
@@ -69,6 +76,44 @@ function render() {
     const el = root.querySelector(`[data-item="${CSS.escape(added)}"]`);
     el?.style.setProperty("box-shadow", "inset 6px 0 0 var(--c-orange)");
   }
+}
+
+function shippingRow() {
+  if (CATALOG?.freeShipping) return `<div class="row muted"><span>Envío</span><span>Gratis a todo el país (promo)</span></div>`;
+  if (!SERVER) return `<div class="row muted"><span>Envío</span><span>Se calcula con tu código postal</span></div>`;
+  if (ship.quote) {
+    const cost = shipCost();
+    return `<div class="row"><span>Envío a ${escapeHtml(ship.quote.postalCode)}<br><button class="link-btn" type="button" data-ship-change>Cambiar</button></span><span>${cost ? formatPrice(cost) : "Gratis"}</span></div>`;
+  }
+  return `<form class="coupon-form ship-form" data-ship-form novalidate>
+      <label for="ship-cp">Calculá el envío</label>
+      <div class="coupon-form__row">
+        <input class="input" id="ship-cp" name="cp" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="Código postal" value="${escapeHtml(ship.cp)}">
+        <button class="btn" type="submit" ${ship.busy ? "disabled" : ""}>${ship.busy ? "…" : "Calcular"}</button>
+      </div>
+      ${ship.msg ? `<p class="hint coupon-form__error" role="alert">${escapeHtml(ship.msg)}</p>` : `<p class="hint" style="margin:0">Te llega en 5 a 7 días hábiles, con el envío incluido en ese plazo.</p>`}
+    </form>`;
+}
+
+async function quoteShipping(cp, { quiet = false } = {}) {
+  ship.cp = String(cp || "").trim();
+  if (ship.cp.replace(/\D/g, "").length < 4) {
+    ship = { ...ship, quote: null, msg: quiet ? "" : "Escribí los 4 números de tu código postal, por ejemplo 5000." };
+    return render();
+  }
+  ship.busy = true;
+  render();
+  try {
+    const items = getCart().items.map((i) => ({ productId: i.productId, qty: i.qty }));
+    ship.quote = await api("shipping/quote", { method: "POST", body: { postalCode: ship.cp, items } });
+    ship.msg = "";
+    writeJSON(FORM_KEY, { ...readJSON(FORM_KEY, {}), postalCode: ship.cp });
+  } catch (err) {
+    ship.quote = null;
+    ship.msg = quiet ? "" : err.message || "No pudimos calcular el envío.";
+  }
+  ship.busy = false;
+  render();
 }
 
 function itemRow(item) {
@@ -120,6 +165,12 @@ async function applyCoupon(code, { quiet = false } = {}) {
 }
 
 root.addEventListener("submit", (e) => {
+  const sf = e.target.closest("[data-ship-form]");
+  if (sf) {
+    e.preventDefault();
+    quoteShipping(sf.cp.value);
+    return;
+  }
   const f = e.target.closest("[data-coupon-form]");
   if (!f) return;
   e.preventDefault();
@@ -129,6 +180,12 @@ root.addEventListener("submit", (e) => {
 });
 
 root.addEventListener("click", async (e) => {
+  if (e.target.closest("[data-ship-change]")) {
+    ship = { ...ship, quote: null, msg: "" };
+    render();
+    root.querySelector("#ship-cp")?.focus();
+    return;
+  }
   if (e.target.closest("[data-coupon-remove]")) {
     coupon = null;
     couponMsg = "";
@@ -241,7 +298,9 @@ if (!storageAvailable()) {
   root.innerHTML = `<div class="notice notice--danger">${icon("alert")}<span>Este navegador bloquea el almacenamiento local (¿modo privado estricto?). El carrito no puede funcionar.</span></div>`;
 } else {
   render();
-  onCartChange(render);
+  // Si cambian las cantidades, el paquete cambia: se vuelve a cotizar.
+  onCartChange(() => (ship.quote && getCart().items.length ? quoteShipping(ship.cp, { quiet: true }) : render()));
+  if (SERVER && ship.cp && !CATALOG?.freeShipping && getCart().items.length) quoteShipping(ship.cp, { quiet: true });
   // El código que quedó guardado (o que trajo la ventana de oferta) se vuelve a revisar.
   if (savedCouponCode() && getCart().items.length) applyCoupon(savedCouponCode(), { quiet: true });
   if (added) toast("Prenda agregada al carrito.", "success");
