@@ -35,7 +35,19 @@ const TYPES = {
 const PRIVATE = /^\/(api|tools|tests|node_modules|\.data|\.git|supabase|docs)(\/|$)|^\/\./;
 
 const server = http.createServer(async (req, res) => {
-  const { pathname } = new URL(req.url, "http://x");
+  const { pathname, search } = new URL(req.url, "http://x");
+  // Las mismas reescrituras que vercel.json.
+  const ficha = pathname.match(/^\/diseno\/([^/]+)$/);
+  if (ficha) {
+    const q = new URLSearchParams(search);
+    q.set("nombre", decodeURIComponent(ficha[1]));
+    req.url = `/api/pagina-diseno?${q}`;
+    return api(req, res);
+  }
+  if (pathname === "/sitemap.xml") {
+    req.url = "/api/sitemap";
+    return api(req, res);
+  }
   if (pathname.startsWith("/api/")) return api(req, res);
   if (PRIVATE.test(pathname)) {
     res.statusCode = 404;

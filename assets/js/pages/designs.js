@@ -1,7 +1,7 @@
 import { initPage } from "../core/ui.js";
 import { activeProducts, getColor } from "../data/catalog.js";
 import { garmentSvg, luminance } from "../data/garments.js";
-import { listStoreDesigns, listCollections, storeDesignImageUrl, modelPhotoUrl, designArt } from "../core/store-designs.js";
+import { listStoreDesigns, listCollections, storeDesignImageUrl, modelPhotoUrl, designArt, designPageUrl } from "../core/store-designs.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
 import { demoTag } from "./components.js";
 import { startingPrice } from "../core/pricing.js";
@@ -62,7 +62,7 @@ async function render() {
           <ul class="dcard__products" role="list">
             ${fits
               .map(
-                (p) => `<li><a class="chip" href="producto.html?id=${encodeURIComponent(p.id)}&diseno=${encodeURIComponent(d.id)}">${escapeHtml(p.name)}<small>${formatPrice(startingPrice(p, [d.id]))}</small></a></li>`
+                (p) => `<li><a class="chip" href="${designPageUrl(d, p.id)}">${escapeHtml(p.name)}<small>${formatPrice(startingPrice(p, [d.id]))}</small></a></li>`
               )
               .join("")}
           </ul>

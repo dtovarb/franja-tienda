@@ -9,9 +9,19 @@
  * (ver docs/ARQUITECTURA.md).
  */
 import { readJSON, writeJSON, removeKey } from "./storage.js";
-import { uid } from "./format.js";
+import { uid, designSlug } from "./format.js";
 import { assetDisplayUrl } from "./asset-store.js";
 import { CATALOG } from "./api.js";
+
+/**
+ * Enlace a la ficha de un diseño. Con servidor es /diseno/nombre (con título,
+ * foto y precio para Google y para los links compartidos); en la demostración,
+ * producto.html con el diseño en la dirección.
+ */
+export function designPageUrl(design, productId) {
+  if (CATALOG) return `diseno/${encodeURIComponent(designSlug(design))}${productId ? `?id=${encodeURIComponent(productId)}` : ""}`;
+  return `producto.html?id=${encodeURIComponent(productId)}&diseno=${encodeURIComponent(design.id)}`;
+}
 
 const KEY = "store-designs.v1";
 export const STORE_DESIGN_SCHEMA = "nevrado.store-design/v1";

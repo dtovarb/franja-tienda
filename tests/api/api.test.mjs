@@ -120,6 +120,28 @@ test("salud y catálogo desde la base", async () => {
   assert.deepEqual(rv.body.reviews, []);
 });
 
+test("ficha de un diseño con título, foto y precio en el head, y mapa del sitio", async () => {
+  const r = await call("GET", "/api/pagina-diseno?nombre=dos-lunas&id=gorra");
+  assert.equal(r.status, 200);
+  const html = await r.text();
+  assert.match(html, /<title>Dos lunas · Gorra · nevrado<\/title>/);
+  assert.match(html, /<link rel="canonical" href="http:\/\/localhost:3000\/diseno\/dos-lunas">/);
+  assert.match(html, /<meta property="og:type" content="product">/);
+  assert.match(html, /<base href="\/">/);
+  const ld = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);
+  assert.equal(ld["@type"], "Product");
+  assert.equal(ld.offers.priceCurrency, "ARS");
+  assert.match(html, /"diseno","sd-lunas"/);
+  // Por id también (links viejos) y, si no existe, a la lista de diseños.
+  assert.equal((await call("GET", "/api/pagina-diseno?nombre=sd-lunas")).status, 200);
+  const missing = await call("GET", "/api/pagina-diseno?nombre=no-existe");
+  assert.equal(missing.status, 302);
+  assert.equal(missing.headers.get("location"), "/disenos.html");
+  const map = await (await call("GET", "/api/sitemap")).text();
+  assert.match(map, /<loc>http:\/\/localhost:3000\/diseno\/dos-lunas<\/loc>/);
+  assert.match(map, /<loc>http:\/\/localhost:3000\/preguntas\.html<\/loc>/);
+});
+
 test("envío por código postal: Córdoba Capital ya no es gratis", async () => {
   const q = async (cp) => (await jsonOf(await call("POST", "/api/shipping/quote", { body: { postalCode: cp } })));
   assert.equal((await q("5000")).body.options[0].id, "tabla:cordoba-provincia");
