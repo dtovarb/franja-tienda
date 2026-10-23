@@ -3,7 +3,7 @@
  * diálogos de confirmación.
  */
 import { SERVER, CATALOG } from "./api.js";
-import { readJSON, writeJSON } from "./storage.js";
+import { readJSON } from "./storage.js";
 import { normalizeAnnouncement, safeLink } from "./announcement.js";
 import { normalizeHomeImages } from "./home-images.js";
 import { normalizePopup, POPUP_DEFAULTS } from "./popup.js";
@@ -87,9 +87,6 @@ export function getAnnouncement() {
 
 /* ---------------- Ventana de oferta (panel, «Sitio») ---------------- */
 export const POPUP_KEY = "popup.v1";
-const POPUP_SEEN_KEY = "popup-visto.v2";
-/** Después de verla, no vuelve a aparecer en este navegador por un día (salvo que la dueña cambie la oferta). */
-const POPUP_QUIET_MS = 24 * 60 * 60 * 1000;
 export function getPopup() {
   return normalizePopup(CATALOG ? CATALOG.popup : readJSON(POPUP_KEY, null)).value;
 }
@@ -116,28 +113,11 @@ export function fillPopupPhoto(root, p) {
   if (img && p.photo) modelPhotoUrl({ modelPhoto: p.photo }).then((u) => u && (img.src = u));
 }
 
-/**
- * Muestra la ventana solo en el inicio, una vez: si la clienta la cierra,
- * toca el botón o ya la vio, no vuelve a salir (ni en el inicio) por un día.
- * Si la dueña cambia la oferta en el panel, aparece de nuevo.
- */
+/** Muestra la ventana en el inicio, cada vez que se abre o se recarga. En las otras páginas, nunca. */
 function maybeShowPopup(active) {
   if (active !== "home") return;
   const p = getPopup();
   if (!p.enabled || (!p.title && !p.text)) return;
-  const stamp = p.updatedAt || "demo";
-  const seen = readJSON(POPUP_SEEN_KEY, null);
-  if (seen && Date.now() - seen.at < POPUP_QUIET_MS) {
-    // Ya la vio hace poco. Solo vuelve si la oferta es más nueva que la que vio
-    // (el catálogo cacheado puede traer por un rato la versión anterior: esa no cuenta).
-    const newer = Date.parse(stamp) > Date.parse(seen.stamp);
-    if (!newer) return;
-  }
-  try {
-    writeJSON(POPUP_SEEN_KEY, { stamp, at: Date.now() });
-  } catch {
-    return; // sin almacenamiento no sabemos si ya la vio: mejor no insistir
-  }
   setTimeout(() => {
     if (document.querySelector("dialog[open]")) return;
     const d = document.createElement("dialog");

@@ -960,7 +960,7 @@ async function renderPopupAdmin() {
     <div class="admin-head admin-head--sep" id="sitio-oferta">
       <div>
         <h2 class="h3">Ventana de oferta</h2>
-        <p class="muted">Un cartel con tu oferta y un botón que aparece solo en el inicio de la tienda, una vez: después de cerrarlo o tocar el botón, esa clienta no lo vuelve a ver por un día (ni en el inicio ni en otras páginas). Si cambiás la oferta y guardás, la ven de nuevo también quienes ya habían cerrado la anterior.</p>
+        <p class="muted">Un cartel con tu oferta y un botón que aparece solo en el inicio de la tienda, cada vez que se abre o se recarga. En las otras páginas (prendas, diseños, carrito, etc.) no sale nunca.</p>
       </div>
     </div>
     <form class="admin-form" data-popup-form novalidate>
