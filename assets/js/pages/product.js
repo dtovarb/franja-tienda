@@ -1,4 +1,5 @@
 import { initPage, icon } from "../core/ui.js";
+import { track } from "../core/pixel.js";
 import { getProduct, getColor, stockLabel, validateVariant, defaultVariant, activeProducts } from "../data/catalog.js";
 import { garmentSvg, garmentPhoto, getPrintSpec, faceLabel, isMainFace } from "../data/garments.js";
 import { listReviews, reviewSummary } from "../data/reviews.js";
@@ -25,6 +26,12 @@ if (!product) {
   let designUrl = null;
   let photoUrl = null;
   const otherProducts = design ? activeProducts().filter((x) => x.id !== product.id && isAvailableFor(design, x.id)) : [];
+  track("ViewContent", {
+    content_ids: [design ? `${design.id}:${product.id}` : product.id],
+    content_name: design ? `${design.name} · ${product.name}` : product.name,
+    content_type: "product",
+    value: startingPrice(product, design ? [design.id] : []),
+  });
   const def = defaultVariant(product);
   const state = {
     colorId: product.colors.includes(p.get("color")) ? p.get("color") : def.colorId,

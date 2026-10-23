@@ -1,3 +1,4 @@
+import { track, trackOnce } from "../core/pixel.js";
 import { initPage, icon, toast, confirmDialog } from "../core/ui.js";
 import { getCart, setQty, removeItem, priceItem, cartTotals, onCartChange } from "../core/cart.js";
 import { getProduct, getColor } from "../data/catalog.js";
@@ -210,6 +211,8 @@ root.addEventListener("click", async (e) => {
   }
   if (e.target.closest("[data-checkout]")) {
     if (SERVER) {
+      const totals = cartTotals();
+      track("InitiateCheckout", { value: totals.total, num_items: totals.count });
       const { renderCheckout } = await import("./checkout.js");
       document.querySelector("[data-cart-title]").textContent = "Datos del pedido";
       renderCheckout(root, {
@@ -303,5 +306,9 @@ if (!storageAvailable()) {
   if (SERVER && ship.cp && !CATALOG?.freeShipping && getCart().items.length) quoteShipping(ship.cp, { quiet: true });
   // El código que quedó guardado (o que trajo la ventana de oferta) se vuelve a revisar.
   if (savedCouponCode() && getCart().items.length) applyCoupon(savedCouponCode(), { quiet: true });
-  if (added) toast("Prenda agregada al carrito.", "success");
+  if (added) {
+    toast("Prenda agregada al carrito.", "success");
+    const it = getCart().items.find((i) => i.id === added);
+    if (it) trackOnce(`cart:${it.id}`, "AddToCart", { content_ids: [it.productId], content_type: "product", value: priceItem(it)?.total || 0, num_items: it.qty });
+  }
 }

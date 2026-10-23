@@ -7,6 +7,7 @@
  */
 /* global fabric */
 import { injectSprite, toast, confirmDialog, icon } from "../core/ui.js";
+import { loadPixel } from "../core/pixel.js";
 import { getProduct, getColor, defaultVariant, validateVariant } from "../data/catalog.js";
 import { STAGE, garmentSvg, getPrintSpec, faceLabel, faceHint, luminance, editorWindow, isMainFace } from "../data/garments.js";
 import { computePrice } from "../core/pricing.js";
@@ -25,6 +26,7 @@ import { listStoreDesigns, getStoreDesign, isAvailableFor, storeDesignImageUrl }
 import { getAsset, assetDisplayUrl } from "../core/asset-store.js";
 
 injectSprite();
+loadPixel("editor");
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];

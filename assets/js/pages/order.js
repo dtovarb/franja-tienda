@@ -4,6 +4,7 @@
  * Mercado Pago vuelve acá después del pago.
  */
 import { initPage, icon } from "../core/ui.js";
+import { trackOnce } from "../core/pixel.js";
 import { SERVER, api } from "../core/api.js";
 import { getColor } from "../data/catalog.js";
 import { faceLabel } from "../data/garments.js";
@@ -42,8 +43,19 @@ function timeline(o) {
   ).join("")}</ol>`;
 }
 
+const PAID = ["pagado", "produccion", "despachado", "entregado"];
+
 function render(o, { fromPayment }) {
   title.textContent = `Pedido n.º ${o.number}`;
+  // La compra se cuenta una vez, cuando la clienta ve su pedido ya pagado
+  // (los pedidos de hace más de una semana no, para no contar compras viejas).
+  if (PAID.includes(o.status) && Date.now() - new Date(o.createdAt) < 7 * 864e5) {
+    trackOnce(`order:${o.id}`, "Purchase", {
+      value: o.total,
+      num_items: o.items.reduce((n, i) => n + i.qty, 0),
+      content_type: "product",
+    }, { eventID: `order-${o.id}` });
+  }
   const waiting = fromPayment && o.status === "pendiente_pago" && o.paymentStatus !== "rechazado";
   root.innerHTML = `
     <div class="order-view">

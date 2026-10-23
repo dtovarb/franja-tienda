@@ -12,6 +12,7 @@ import { TEXT_BY_KEY, normalizeSiteTexts, normalizeMarquee } from "./site-texts.
 import { listCollections, listStoreDesigns, modelPhotoUrl } from "./store-designs.js";
 import { cartCount, onCartChange } from "./cart.js";
 import { escapeHtml } from "./format.js";
+import { loadPixel } from "./pixel.js";
 import { CONTACT, whatsappUrl, instagramUrl, CONSUMER_COMPLAINTS_URL } from "../data/contact.js";
 
 /* ---------------- Íconos (SVG sprite, trazo 2px) ---------------- */
@@ -437,6 +438,7 @@ export function confirmDialog({ title, body = "", confirmLabel = "Confirmar", ca
 }
 
 export function initPage(active) {
+  loadPixel(active);
   injectSprite();
   document.body.dataset.page = active;
   if (active !== "admin") applySiteTexts();
