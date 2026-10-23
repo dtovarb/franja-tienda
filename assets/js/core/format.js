@@ -39,6 +39,11 @@ export function debounce(fn, ms = 200) {
   };
 }
 
+/** Parte de la dirección de un diseño de la tienda: /diseno/sol-de-cinco-franjas */
+export function designSlug(design) {
+  return slugify(design?.name || "").replace(/\.+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || design?.id || "";
+}
+
 export function slugify(s) {
   return String(s)
     .normalize("NFD")

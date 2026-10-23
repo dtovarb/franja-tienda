@@ -1,7 +1,7 @@
 import { initPage, icon, getHomeImages, getMarquee, siteText, siteTextHtml } from "../core/ui.js";
 import { activeProducts, getColor } from "../data/catalog.js";
 import { garmentSvg, luminance, GARMENTS } from "../data/garments.js";
-import { listStoreDesigns, listCollections, storeDesignImageUrl, modelPhotoUrl, designArt } from "../core/store-designs.js";
+import { listStoreDesigns, listCollections, storeDesignImageUrl, modelPhotoUrl, designArt, designPageUrl } from "../core/store-designs.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
 import { productMockup } from "./components.js";
 import { startingPrice } from "../core/pricing.js";
@@ -28,7 +28,7 @@ function showcase(d) {
   return {
     show,
     col: lightest(show),
-    href: `producto.html?id=${encodeURIComponent(show.id)}&diseno=${encodeURIComponent(d.id)}`,
+    href: designPageUrl(d, show.id),
     price: startingPrice(show, [d.id]),
   };
 }

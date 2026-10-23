@@ -2053,4 +2053,43 @@
 }
 .ship-form {
   border-top: 0;
+
+/* ---------- Producto con diseño de la tienda ---------- */
+.pdp__stage > .pdp__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pdp__actions {
+  display: grid;
+  gap: var(--sp-3);
+}
+.pdp__delivery {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+}
+.pdp__delivery .icon {
+  flex: none;
+  margin-top: 2px;
+}
+.pdp__others {
+  display: grid;
+  gap: var(--sp-2);
+}
+.pdp__zones {
+  border-top: var(--border);
+  padding-top: var(--sp-3);
+}
+.pdp__zones > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.pdp__zones[open] > summary {
+  margin-bottom: var(--sp-3);
+}
+.pdp__zones > .hint {
+  margin: 0 0 var(--sp-3);
 }

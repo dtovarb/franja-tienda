@@ -100,7 +100,7 @@ export const SITE_TEXTS = [
   // ---------------- Diseños ----------------
   T("designs.eyebrow", "disenos", "Arriba de todo", "Línea chica", "Diseños de la casa"),
   T("designs.title", "disenos", "Arriba de todo", "Título", "Diseños\nlistos", "multi"),
-  T("designs.lead", "disenos", "Arriba de todo", "Texto", "Elegí un diseño nuestro y la prenda donde lo querés. Entra al editor ya ubicado: lo podés pedir así o moverlo, cambiarle el tamaño y sumarle texto.", "paras"),
+  T("designs.lead", "disenos", "Arriba de todo", "Texto", "Elegí un diseño nuestro y la prenda donde lo querés, y agregalo al carrito. Si querés cambiarle algo, tocá «Personalizar».", "paras"),
 
   // ---------------- Preguntas ----------------
   T("faq.eyebrow", "preguntas", "Arriba de todo", "Línea chica", "Ayuda"),

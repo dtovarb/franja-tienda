@@ -1,7 +1,7 @@
 import { initPage } from "../core/ui.js";
 import { activeProducts, getColor } from "../data/catalog.js";
 import { garmentSvg, luminance } from "../data/garments.js";
-import { listStoreDesigns, listCollections, storeDesignImageUrl, modelPhotoUrl, designArt } from "../core/store-designs.js";
+import { listStoreDesigns, listCollections, storeDesignImageUrl, modelPhotoUrl, designArt, designPageUrl } from "../core/store-designs.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
 import { demoTag } from "./components.js";
 import { startingPrice } from "../core/pricing.js";
@@ -55,14 +55,14 @@ async function render() {
         <div class="dcard__body">
           <div class="pcard__row">
             <h2 class="pcard__name">${escapeHtml(d.name)}</h2>
-            <p class="price pcard__price">${d.price ? `+${formatPrice(d.price)}` : "Sin costo"}</p>
+            <p class="price pcard__price">${fits.length ? `desde ${formatPrice(Math.min(...fits.map((p) => startingPrice(p, [d.id]))))}` : ""}</p>
           </div>
           <p class="muted">${escapeHtml(d.description || "")}</p>
           <p class="mono dcard__label">Elegí la prenda</p>
           <ul class="dcard__products" role="list">
             ${fits
               .map(
-                (p) => `<li><a class="chip" href="producto.html?id=${encodeURIComponent(p.id)}&diseno=${encodeURIComponent(d.id)}">${escapeHtml(p.name)}<small>${formatPrice(startingPrice(p, [d.id]))}</small></a></li>`
+                (p) => `<li><a class="chip" href="${designPageUrl(d, p.id)}">${escapeHtml(p.name)}<small>${formatPrice(startingPrice(p, [d.id]))}</small></a></li>`
               )
               .join("")}
           </ul>
