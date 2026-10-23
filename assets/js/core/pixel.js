@@ -12,6 +12,7 @@ let ready = false;
 export function loadPixel(page) {
   if (ready || !LIVE || page === "admin") return;
   ready = true;
+  loadVercelAnalytics();
   /* eslint-disable */
   !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
   n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
@@ -38,4 +39,17 @@ export function trackOnce(key, event, params, options) {
   if (seen.includes(key)) return;
   track(event, params, options);
   try { localStorage.setItem(store, JSON.stringify([...seen, key].slice(-50))); } catch {}
+}
+
+/**
+ * Vercel Analytics: visitas por página y de dónde llegan, en el panel de
+ * Vercel (pestaña Analytics). No usa cookies. Hay que activarlo una vez en
+ * Vercel; mientras no esté activo, el script no carga y no pasa nada.
+ */
+function loadVercelAnalytics() {
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  const s = document.createElement("script");
+  s.defer = true;
+  s.src = "/_vercel/insights/script.js";
+  document.head.appendChild(s);
 }
