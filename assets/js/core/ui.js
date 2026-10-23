@@ -7,6 +7,7 @@ import { readJSON } from "./storage.js";
 import { normalizeAnnouncement, safeLink } from "./announcement.js";
 import { normalizeHomeImages } from "./home-images.js";
 import { normalizePopup, POPUP_DEFAULTS } from "./popup.js";
+import { rememberCoupon } from "./coupon-state.js";
 import { TEXT_BY_KEY, normalizeSiteTexts, normalizeMarquee } from "./site-texts.js";
 import { listCollections, listStoreDesigns, modelPhotoUrl } from "./store-designs.js";
 import { cartCount, onCartChange } from "./cart.js";
@@ -104,6 +105,7 @@ export function popupHtml(p) {
         ${p.kicker ? `<p class="eyebrow offer__kicker">${escapeHtml(p.kicker)}</p>` : ""}
         ${p.title ? `<h2 class="display offer__title" id="offer-title">${escapeHtml(p.title)}</h2>` : ""}
         ${p.text ? `<p class="offer__text">${escapeHtml(p.text).replace(/\n/g, "<br>")}</p>` : ""}
+        ${p.code ? `<p class="offer__code"><span class="hint">Tu código de descuento</span><b>${escapeHtml(p.code)}</b><span class="hint">Con el botón queda cargado en tu carrito.</span></p>` : ""}
         <a class="btn btn--primary btn--lg offer__cta" href="${escapeHtml(link)}"${ext} data-offer-cta>${escapeHtml(p.button || POPUP_DEFAULTS.button)} ${icon("arrowRight")}</a>
       </div>
     </div>`;
@@ -139,6 +141,8 @@ function maybeShowPopup(active) {
     document.body.appendChild(d);
     fillPopupPhoto(d, p);
     d.addEventListener("click", (e) => {
+      // Con código: el botón lo deja listo para el carrito.
+      if (p.code && e.target.closest("[data-offer-cta]")) rememberCoupon(p.code);
       // Clic afuera (en el fondo oscuro) o en la cruz: se cierra.
       if (e.target === d || e.target.closest("[data-offer-close]")) d.close();
     });

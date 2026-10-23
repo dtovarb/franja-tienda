@@ -244,7 +244,7 @@ async function loadDetail(host) {
       <div class="admin-grid">
         <div>
           <p class="eyebrow muted">Importes</p>
-          <p>Subtotal ${formatPrice(order.subtotal)} · envío ${order.shipping_cost ? formatPrice(order.shipping_cost) : "gratis"} · <b>total ${formatPrice(order.total)}</b><br>
+          <p>Subtotal ${formatPrice(order.subtotal)}${order.discount ? ` · descuento −${formatPrice(order.discount)} (código ${escapeHtml(order.coupon_code)}, ${order.coupon_percent}%)` : ""} · envío ${order.shipping_cost ? formatPrice(order.shipping_cost) : "gratis"} · <b>total ${formatPrice(order.total)}</b><br>
           <span class="hint">${PAYMENT[order.payment_status]}${order.mp_payment_id ? ` · Mercado Pago n.º ${escapeHtml(order.mp_payment_id)}` : ""}</span></p>
           <p><button class="btn btn--sm btn--ghost" type="button" data-copy="${escapeHtml(order.customerLink)}">${icon("copy")}Copiar el enlace de la clienta</button></p>
         </div>

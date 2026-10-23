@@ -1030,6 +1030,24 @@ fieldset {
 .offer__cta {
   margin-top: var(--sp-2);
 }
+.offer__code {
+  display: grid;
+  gap: 2px;
+  padding: 10px 16px;
+  border: 2px dashed var(--c-ciruela);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-ink);
+}
+.offer__code b {
+  font-family: var(--ff-mono);
+  font-size: var(--fs-lg);
+  letter-spacing: 0.08em;
+  color: var(--c-ciruela);
+}
+.offer__code .hint {
+  font-size: var(--fs-xs);
+}
 .offer__close {
   position: absolute;
   top: 10px;

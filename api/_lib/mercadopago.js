@@ -35,13 +35,23 @@ export function createMercadoPago(config, fetchImpl = fetch) {
         external_reference: order.id,
         statement_descriptor: "NEVRADO",
         items: [
-          ...items.map((it) => ({
-            id: it.product_id,
-            title: `${it.product_name} · ${it.color_id} · ${it.size_id}`.slice(0, 250),
-            quantity: it.qty,
-            unit_price: it.unit_price,
-            currency_id: "ARS",
-          })),
+          // Con descuento, las prendas van en una sola línea con el importe ya
+          // descontado (Mercado Pago no acepta líneas negativas).
+          ...(order.discount
+            ? [{
+                id: "prendas",
+                title: `Prendas nevrado · pedido ${order.number} · código ${order.coupon_code} (−${order.coupon_percent}%)`.slice(0, 250),
+                quantity: 1,
+                unit_price: order.subtotal - order.discount,
+                currency_id: "ARS",
+              }]
+            : items.map((it) => ({
+                id: it.product_id,
+                title: `${it.product_name} · ${it.color_id} · ${it.size_id}`.slice(0, 250),
+                quantity: it.qty,
+                unit_price: it.unit_price,
+                currency_id: "ARS",
+              }))),
           ...(order.shipping_cost ? [{ id: "envio", title: `Envío${order.shipping?.quote?.carrier ? ` · ${order.shipping.quote.carrier}` : ""}`.slice(0, 250), quantity: 1, unit_price: order.shipping_cost, currency_id: "ARS" }] : []),
         ],
         payer: { name: order.customer.name, email: order.customer.email },

@@ -12,6 +12,7 @@ import { emptyHomeImages, normalizeHomeImages } from "../../assets/js/core/home-
 import { DEFAULT_MARQUEE, normalizeMarquee, normalizeSiteTexts } from "../../assets/js/core/site-texts.js";
 import { normalizeGarmentPhotos } from "../../assets/js/core/garment-photos.js";
 import { emptyPopup, normalizePopup } from "../../assets/js/core/popup.js";
+import { normalizeCoupons } from "../../assets/js/core/coupons.js";
 
 export async function loadColors(q) {
   const rows = await q.query("select id, name, hex from garment_colors order by sort, id");
@@ -392,6 +393,24 @@ export async function savePopup(q, body) {
   const { value, errors } = normalizePopup(body);
   if (errors.length) throw new HttpError(422, errors.join(" "));
   return saveSetting(q, "popup", { ...value, updatedAt: new Date().toISOString() });
+}
+
+/* ------------------------- Códigos de descuento ------------------------- */
+export async function loadCoupons(q) {
+  const [row] = await q.query("select value from site_settings where key = 'coupons'");
+  return normalizeCoupons(row?.value).value;
+}
+
+export async function saveCoupons(q, body) {
+  const { value, errors } = normalizeCoupons(body);
+  if (errors.length) throw new HttpError(422, errors.join(" "));
+  return saveSetting(q, "coupons", value);
+}
+
+/** Cuántos pedidos pagados (o más adelante) usaron cada código. */
+export async function couponUses(q) {
+  const rows = await q.query("select coupon_code, count(*)::int as n from orders where coupon_code is not null and status not in ('pendiente_pago', 'cancelado') group by coupon_code");
+  return Object.fromEntries(rows.map((r) => [r.coupon_code, r.n]));
 }
 
 /**

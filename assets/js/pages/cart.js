@@ -7,11 +7,17 @@ import { formatPrice, escapeHtml, params } from "../core/format.js";
 import { storageAvailable } from "../core/storage.js";
 import { createDemoOrder } from "../core/orders.js";
 import { SERVER, CATALOG } from "../core/api.js";
+import { savedCouponCode, rememberCoupon, forgetCoupon, checkCoupon } from "../core/coupon-state.js";
+import { discountFor } from "../core/coupons.js";
 
 initPage("cart");
 
 const root = document.querySelector("[data-cart-root]");
 const added = params().get("added");
+/** Código de descuento aplicado ({ code, percent }) y el último aviso del campo. */
+let coupon = null;
+let couponMsg = "";
+let couponTyped = null; // lo último que escribió, para no borrárselo si el código no sirve
 
 function render() {
   const { items } = getCart();
@@ -25,6 +31,7 @@ function render() {
     return;
   }
   const t = cartTotals();
+  const discount = coupon ? discountFor(t.subtotal, coupon.percent) : 0;
   root.innerHTML = `
     <div class="cart-layout">
       <ul class="cart-items" role="list" aria-label="Artículos">
@@ -34,8 +41,20 @@ function render() {
         <h2 class="h3">Resumen</h2>
         <div class="row"><span>Prendas</span><span>${t.count}</span></div>
         <div class="row"><span>Subtotal</span><span>${formatPrice(t.subtotal)}</span></div>
+        ${
+          coupon
+            ? `<div class="row row--discount"><span>Descuento ${coupon.percent}% · ${escapeHtml(coupon.code)}<br><button class="link-btn" type="button" data-coupon-remove>Quitar</button></span><span>−${formatPrice(discount)}</span></div>`
+            : `<form class="coupon-form" data-coupon-form novalidate>
+                <label for="coupon-code">¿Tenés un código de descuento?</label>
+                <div class="coupon-form__row">
+                  <input class="input" id="coupon-code" name="code" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${escapeHtml(couponTyped ?? savedCouponCode())}">
+                  <button class="btn" type="submit">Aplicar</button>
+                </div>
+                ${couponMsg ? `<p class="hint coupon-form__error" role="alert">${escapeHtml(couponMsg)}</p>` : ""}
+              </form>`
+        }
         <div class="row muted"><span>Envío</span><span>${CATALOG?.freeShipping ? "Gratis a todo el país (promo)" : "Se calcula con tu código postal"}</span></div>
-        <div class="row row--total"><span>Total</span><span class="price" style="font-size:1.5rem" data-total>${formatPrice(t.total)}</span></div>
+        <div class="row row--total"><span>Total</span><span class="price" style="font-size:1.5rem" data-total>${formatPrice(t.total - discount)}</span></div>
         <button class="btn btn--primary btn--lg btn--block" type="button" data-checkout>${SERVER ? "Continuar con el pedido" : "Continuar (demo)"} ${icon("arrowRight")}</button>
         <div class="notice notice--info">${icon("info")}<span>${
           SERVER
@@ -85,7 +104,33 @@ function itemRow(item) {
     </li>`;
 }
 
+async function applyCoupon(code, { quiet = false } = {}) {
+  const r = await checkCoupon(code);
+  coupon = r.coupon || null;
+  couponMsg = r.error && !quiet ? r.error : "";
+  if (coupon) rememberCoupon(coupon.code);
+  else if (!quiet) forgetCoupon();
+  render();
+  if (coupon && !quiet) toast(`Código ${coupon.code} aplicado: ${coupon.percent}% off en las prendas.`, "success");
+}
+
+root.addEventListener("submit", (e) => {
+  const f = e.target.closest("[data-coupon-form]");
+  if (!f) return;
+  e.preventDefault();
+  f.querySelector("[type=submit]").disabled = true;
+  couponTyped = f.code.value;
+  applyCoupon(f.code.value);
+});
+
 root.addEventListener("click", async (e) => {
+  if (e.target.closest("[data-coupon-remove]")) {
+    coupon = null;
+    couponMsg = "";
+    forgetCoupon();
+    render();
+    return;
+  }
   const q = e.target.closest("[data-qty]");
   if (q && !q.disabled) {
     const it = getCart().items.find((i) => i.id === q.dataset.qty);
@@ -106,6 +151,7 @@ root.addEventListener("click", async (e) => {
       const { renderCheckout } = await import("./checkout.js");
       document.querySelector("[data-cart-title]").textContent = "Datos del pedido";
       renderCheckout(root, {
+        coupon,
         onBack: () => {
           document.querySelector("[data-cart-title]").textContent = "Tu carrito";
           render();
@@ -131,6 +177,7 @@ function cleanupDesign(designId) {
 function showDemoCheckout() {
   const { items } = getCart();
   const t = cartTotals();
+  const discount = coupon ? discountFor(t.subtotal, coupon.percent) : 0;
   const payload = {
     endpoint: "POST /api/orders (no existe todavía)",
     currency: "ARS",
@@ -147,7 +194,8 @@ function showDemoCheckout() {
         clientUnitPrice: priceItem(i)?.unit,
       };
     }),
-    clientTotal: t.total,
+    couponCode: coupon?.code || null,
+    clientTotal: t.total - discount,
     note: "El backend debe recalcular precios y validar stock; el total del cliente es solo informativo.",
   };
   const order = createDemoOrder({
@@ -162,7 +210,7 @@ function showDemoCheckout() {
       thumbnail: i.thumbnail,
       unit: priceItem(i)?.unit || 0,
     })),
-    total: t.total,
+    total: t.total - discount,
   });
   document.querySelector("[data-cart-title]").textContent = "Confirmación (demo)";
   root.innerHTML = `
@@ -188,5 +236,7 @@ if (!storageAvailable()) {
 } else {
   render();
   onCartChange(render);
+  // El código que quedó guardado (o que trajo la ventana de oferta) se vuelve a revisar.
+  if (savedCouponCode() && getCart().items.length) applyCoupon(savedCouponCode(), { quiet: true });
   if (added) toast("Prenda agregada al carrito.", "success");
 }

@@ -12,6 +12,8 @@
  */
 import { initPage, icon, toast, confirmDialog, getAnnouncement, ANNOUNCEMENT_KEY, announcementBar, getHomeImages, HOME_IMAGES_KEY, getPopup, POPUP_KEY, popupHtml, fillPopupPhoto } from "../core/ui.js";
 import { POPUP_LIMITS, POPUP_LABELS, POPUP_DEFAULTS, normalizePopup } from "../core/popup.js";
+import { normalizeCoupons, findCoupon, todayAR, MAX_COUPONS, MAX_PERCENT } from "../core/coupons.js";
+import { DEMO_COUPONS_KEY } from "../core/coupon-state.js";
 import { HOME_IMAGE_SLOTS, FIELD_LIMITS, FIELD_LABELS, normalizeHomeImages } from "../core/home-images.js";
 import { ANNOUNCEMENT_STYLES, MAX_MESSAGES, MAX_TEXT, normalizeAnnouncement } from "../core/announcement.js";
 import { renderSiteContent, resetSiteContent } from "./admin-texts.js";
@@ -133,6 +135,13 @@ const demoData = {
     writeJSON(ANNOUNCEMENT_KEY, value);
     return value;
   },
+  coupons: async () => ({ coupons: normalizeCoupons(readJSON(DEMO_COUPONS_KEY, [])).value, uses: {} }),
+  async saveCoupons(list) {
+    const { value, errors } = normalizeCoupons(list);
+    if (errors.length) throw new Error(errors.join(" "));
+    writeJSON(DEMO_COUPONS_KEY, value);
+    return { coupons: value, uses: {} };
+  },
   popup: async () => getPopup(),
   /** `changes`: { enabled, kicker, title, text, button, link, photo?: preparePhoto(), removePhoto? }. */
   async savePopup({ photo: newPhoto, removePhoto, ...fields }) {
@@ -211,6 +220,8 @@ const serverData = {
   saveZoneSettings: async (settings) => await api("admin/zone-prices", { method: "PUT", body: settings }),
   announcement: async () => (await api("admin/announcement")).announcement,
   saveAnnouncement: async (announcement) => (await api("admin/announcement", { method: "PUT", body: { announcement } })).announcement,
+  coupons: async () => await api("admin/coupons"),
+  saveCoupons: async (coupons) => await api("admin/coupons", { method: "PUT", body: { coupons } }),
   popup: async () => (await api("admin/popup")).popup,
   async savePopup({ photo: newPhoto, ...fields }) {
     let photo;
@@ -849,7 +860,7 @@ const sitePanel = $("[data-panel=sitio]");
 // Atajos a cada sección de la pestaña (es larga).
 // Son botones y no enlaces con #: cambiar el # de la dirección cambia de pestaña.
 const SITE_JUMP = `<nav class="admin-jump" aria-label="Secciones de Sitio">
-    <button type="button" data-jump="sitio-cintillo">Cintillo</button><button type="button" data-jump="sitio-oferta">Ventana de oferta</button><button type="button" data-jump="sitio-marquesina">Marquesina</button><button type="button" data-jump="sitio-fotos">Fotos del inicio</button><button type="button" data-jump="sitio-textos">Textos de la página</button>
+    <button type="button" data-jump="sitio-cintillo">Cintillo</button><button type="button" data-jump="sitio-oferta">Ventana de oferta</button><button type="button" data-jump="sitio-codigos">Códigos de descuento</button><button type="button" data-jump="sitio-marquesina">Marquesina</button><button type="button" data-jump="sitio-fotos">Fotos del inicio</button><button type="button" data-jump="sitio-textos">Textos de la página</button>
   </nav>`;
 sitePanel.addEventListener("click", (e) => {
   const b = e.target.closest("[data-jump]");
@@ -902,11 +913,13 @@ async function renderSite() {
       </div>
     </form>
     <div data-popup-admin></div>
+    <div data-coupons-admin></div>
     <div data-marquee-admin></div>
     <div data-home-images></div>
     <div data-site-texts></div>`;
   sitePanel.insertAdjacentHTML("afterbegin", SITE_JUMP);
   renderPopupAdmin();
+  renderCouponsAdmin();
   renderHomeImages();
   renderSiteContent({ marqueeHost: $("[data-marquee-admin]", sitePanel), textsHost: $("[data-site-texts]", sitePanel) });
   const form = $("[data-announce-form]", sitePanel);
@@ -964,6 +977,11 @@ async function renderPopupAdmin() {
       ${field("kicker")}
       ${field("title")}
       ${field("text", "textarea")}
+      <div class="field"><label for="po-code">Código de descuento (opcional)</label>
+        <input class="input" id="po-code" name="code" maxlength="20" value="${escapeHtml(p.code)}" placeholder="Ej.: NEVRADO15" style="text-transform:uppercase" list="po-code-list" autocomplete="off">
+        <datalist id="po-code-list" data-popup-codes></datalist>
+        <p class="hint">Se muestra en la ventana y, con el botón, queda cargado en el carrito de la clienta. Primero crealo en «Códigos de descuento» (más abajo): ahí ponés el porcentaje y las fechas.</p>
+        <p class="hint" data-popup-code-check></p></div>
       ${field("button")}
       <div class="field"><label for="po-link">Enlace del botón (opcional)</label>
         <input class="input" id="po-link" name="link" value="${escapeHtml(p.link)}" placeholder="${POPUP_DEFAULTS.link}">
@@ -982,9 +1000,20 @@ async function renderPopupAdmin() {
   const read = () => ({
     enabled: form.enabled.checked,
     ...Object.fromEntries(Object.keys(POPUP_LIMITS).map((f) => [f, form[f].value])),
+    code: form.code.value,
     link: form.link.value,
     removePhoto: !!form.removePhoto?.checked,
   });
+  // Avisa si el código de la ventana no existe o no está vigente hoy.
+  const coupons = (await data.coupons().catch(() => ({ coupons: [] }))).coupons;
+  $("[data-popup-codes]", form).innerHTML = coupons.map((c) => `<option value="${escapeHtml(c.code)}">${c.percent}% off</option>`).join("");
+  const checkCode = () => {
+    const v = form.code.value.trim();
+    const r = v ? findCoupon(coupons, v) : {};
+    $("[data-popup-code-check]", form).innerHTML = r.coupon ? `✓ ${escapeHtml(r.coupon.code)}: ${r.coupon.percent}% off en las prendas.` : r.error ? `<b>Ojo:</b> ${escapeHtml(r.error)} Revisalo en «Códigos de descuento».` : "";
+  };
+  form.code.addEventListener("input", checkCode);
+  checkCode();
   let localPhoto = null; // vista previa de una foto elegida y todavía sin guardar
   const preview = () => {
     const v = read();
@@ -1017,6 +1046,7 @@ async function savePopupForm(form) {
   const raw = {
     enabled: form.enabled.checked,
     ...Object.fromEntries(Object.keys(POPUP_LIMITS).map((f) => [f, form[f].value])),
+    code: form.code.value,
     link: form.link.value,
     removePhoto: !!form.removePhoto?.checked,
   };
@@ -1035,6 +1065,88 @@ async function savePopupForm(form) {
     renderPopupAdmin();
   } catch (err) {
     errEl.textContent = errText(err, "No se pudo guardar la ventana.");
+    btn.disabled = false;
+  }
+}
+
+/* ======================= Sitio: códigos de descuento ======================= */
+function couponRow(c, i, uses) {
+  const id = `cp-${i}`;
+  const n = uses[c.code] || 0;
+  return `<li class="admin-coupon" data-coupon-row>
+    <div class="field"><label for="${id}-code">Código</label>
+      <input class="input admin-coupon__code" id="${id}-code" name="code" maxlength="20" value="${escapeHtml(c.code)}" placeholder="Ej.: NEVRADO15" autocomplete="off"></div>
+    <div class="field"><label for="${id}-pct">% off</label>
+      <input class="input" id="${id}-pct" name="percent" type="number" min="1" max="${MAX_PERCENT}" step="1" inputmode="numeric" value="${c.percent ?? ""}" placeholder="15"></div>
+    <div class="field"><label for="${id}-from">Desde (opcional)</label>
+      <input class="input" id="${id}-from" name="startsOn" type="date" value="${c.startsOn || ""}"></div>
+    <div class="field"><label for="${id}-to">Hasta (opcional)</label>
+      <input class="input" id="${id}-to" name="endsOn" type="date" value="${c.endsOn || ""}"></div>
+    <label class="check"><input type="checkbox" name="active" ${c.active !== false ? "checked" : ""}> Activo</label>
+    <p class="hint admin-coupon__uses">${c.code ? `${n} ${n === 1 ? "pedido pagado" : "pedidos pagados"}` : "Nuevo"}</p>
+    <button class="btn btn--sm btn--ghost" type="button" data-coupon-del aria-label="Borrar este código">${icon("trash")}</button>
+  </li>`;
+}
+
+async function renderCouponsAdmin() {
+  const host = $("[data-coupons-admin]", sitePanel);
+  if (!host) return;
+  const { coupons, uses = {} } = await data.coupons();
+  const today = todayAR();
+  const rows = coupons.length ? coupons : [{ code: "", percent: "", active: true }];
+  host.innerHTML = `
+    <div class="admin-head admin-head--sep" id="sitio-codigos">
+      <div>
+        <h2 class="h3">Códigos de descuento</h2>
+        <p class="muted">La clienta escribe el código en el carrito y se le descuenta ese porcentaje de las prendas (el envío no cambia). Mercado Pago cobra el total con el descuento. Las fechas son opcionales: sin «hasta», el código sirve hasta que lo desactives. Hoy es ${today.split("-").reverse().join("/")}.</p>
+      </div>
+    </div>
+    <form class="admin-form" data-coupons-form novalidate>
+      <ol class="admin-coupons" role="list" data-coupon-list>${rows.map((c, i) => couponRow(c, i, uses)).join("")}</ol>
+      <p><button class="btn btn--sm" type="button" data-coupon-add>${icon("plus")}Agregar otro código</button></p>
+      <p class="hint">Para que un código deje de funcionar, destildá «Activo» (así queda el registro de cuántas veces se usó) o borralo. Hasta ${MAX_COUPONS} códigos.</p>
+      <div class="notice notice--danger form-errors" role="alert" data-coupons-errors></div>
+      <div class="admin-form__actions">
+        <button class="btn btn--primary" type="submit">Guardar códigos</button>
+      </div>
+    </form>`;
+  const form = $("[data-coupons-form]", host);
+  let next = rows.length;
+  form.addEventListener("click", (e) => {
+    if (e.target.closest("[data-coupon-add]")) {
+      $("[data-coupon-list]", form).insertAdjacentHTML("beforeend", couponRow({ code: "", percent: "", active: true }, next++, {}));
+      $$("[data-coupon-row]", form).at(-1).querySelector("[name=code]").focus();
+    }
+    const del = e.target.closest("[data-coupon-del]");
+    if (del) del.closest("[data-coupon-row]").remove();
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    saveCouponsForm(form);
+  });
+}
+
+async function saveCouponsForm(form) {
+  const errEl = $("[data-coupons-errors]", form);
+  const list = $$("[data-coupon-row]", form).map((li) => ({
+    code: $("[name=code]", li).value,
+    percent: $("[name=percent]", li).value === "" ? NaN : Number($("[name=percent]", li).value),
+    startsOn: $("[name=startsOn]", li).value,
+    endsOn: $("[name=endsOn]", li).value,
+    active: $("[name=active]", li).checked,
+  }));
+  const { errors } = normalizeCoupons(list);
+  if (errors.length) return (errEl.innerHTML = errors.map(escapeHtml).join("<br>"));
+  errEl.textContent = "";
+  const btn = form.querySelector("[type=submit]");
+  btn.disabled = true;
+  try {
+    await data.saveCoupons(list);
+    toast(`Códigos guardados${SERVER ? ". Ya se pueden usar en el carrito." : " en este navegador."}`, "success");
+    renderCouponsAdmin();
+    renderPopupAdmin(); // la lista de códigos de la ventana
+  } catch (err) {
+    errEl.textContent = errText(err, "No se pudieron guardar los códigos.");
     btn.disabled = false;
   }
 }
@@ -1248,6 +1360,7 @@ $("[data-reset]")?.addEventListener("click", async () => {
   resetCollections();
   removeKey(ANNOUNCEMENT_KEY);
   removeKey(POPUP_KEY);
+  removeKey(DEMO_COUPONS_KEY);
   resetSiteContent();
   clearOrders();
   editingDesign = null;

@@ -17,6 +17,8 @@ import { getAssets, sha256Hex } from "../core/asset-store.js";
 import { getProduct, getColor } from "../data/catalog.js";
 import { formatPrice, escapeHtml, debounce } from "../core/format.js";
 import { readJSON, writeJSON } from "../core/storage.js";
+import { forgetCoupon } from "../core/coupon-state.js";
+import { discountFor } from "../core/coupons.js";
 
 export const PROVINCES = [
   "Córdoba", "Buenos Aires", "Ciudad Autónoma de Buenos Aires", "Catamarca", "Chaco", "Chubut", "Corrientes", "Entre Ríos", "Formosa",
@@ -28,9 +30,12 @@ const MINE_KEY = "pedidos.mios.v1";
 
 let quote = null;
 let optionId = null;
+let coupon = null; // { code, percent } aplicado en el carrito
+const discountNow = () => (coupon ? discountFor(cartTotals().subtotal, coupon.percent) : 0);
 const chosenOption = () => quote?.options.find((o) => o.id === optionId) || null;
 
-export function renderCheckout(root, { onBack }) {
+export function renderCheckout(root, { onBack, coupon: applied = null }) {
+  coupon = applied;
   const saved = readJSON(FORM_KEY, {});
   const t = cartTotals();
   const pays = !!SERVER?.services?.payments;
@@ -78,8 +83,9 @@ export function renderCheckout(root, { onBack }) {
         <h2 class="h3">Tu pedido</h2>
         <div class="row"><span>Prendas</span><span>${t.count}</span></div>
         <div class="row"><span>Subtotal</span><span>${formatPrice(t.subtotal)}</span></div>
+        ${coupon ? `<div class="row row--discount"><span>Descuento ${coupon.percent}% · ${escapeHtml(coupon.code)}</span><span>−${formatPrice(discountNow())}</span></div>` : ""}
         <div class="row"><span>Envío</span><span data-ship>Ingresá tu código postal</span></div>
-        <div class="row row--total"><span>Total</span><span class="price" style="font-size:1.5rem" data-total>${formatPrice(t.subtotal)}</span></div>
+        <div class="row row--total"><span>Total</span><span class="price" style="font-size:1.5rem" data-total>${formatPrice(t.subtotal - discountNow())}</span></div>
         <div class="notice notice--danger form-errors" role="alert" data-co-errors></div>
         <p class="checkout__progress" data-progress aria-live="polite" hidden></p>
         <button class="btn btn--primary btn--lg btn--block" type="submit" data-co-submit>
@@ -141,7 +147,7 @@ function paintTotals(form) {
   const t = cartTotals();
   const o = chosenOption();
   form.querySelector("[data-ship]").textContent = o ? (o.price ? formatPrice(o.price) : "Gratis") : "Ingresá tu código postal";
-  form.querySelector("[data-total]").textContent = formatPrice(t.subtotal + (o?.price || 0));
+  form.querySelector("[data-total]").textContent = formatPrice(t.subtotal - discountNow() + (o?.price || 0));
 }
 
 function readForm(form) {
@@ -269,9 +275,11 @@ async function submit(form) {
         customer: { name: v.name, email: v.email, phone: v.phone },
         shipping: { optionId, street: v.street, number: v.number, apartment: v.apartment, city: v.city, province: v.province, postalCode: v.postalCode, notes: v.notes },
         items: prepared.map((p) => p.payload),
+        couponCode: coupon?.code || undefined,
       },
     });
     sessionStorage.removeItem("nevrado.checkout.key");
+    forgetCoupon();
     rememberOrder(res.order, res.token);
     // El carrito ya es un pedido: se vacía y se borran sus borradores de diseño.
     items.forEach((i) => i.designId && deleteDesign(i.designId));

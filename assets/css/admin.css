@@ -334,6 +334,38 @@
   padding: var(--sp-2) var(--sp-3);
   margin: 0;
 }
+.admin-coupons {
+  display: grid;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.admin-coupon {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.4fr) 80px minmax(130px, 1fr) minmax(130px, 1fr) auto auto auto;
+  gap: var(--sp-3);
+  align-items: end;
+  padding: var(--sp-3);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+}
+.admin-coupon .check,
+.admin-coupon__uses {
+  margin: 0 0 12px;
+  white-space: nowrap;
+}
+.admin-coupon__code {
+  text-transform: uppercase;
+  font-family: var(--ff-mono);
+}
+@media (max-width: 900px) {
+  .admin-coupon {
+    grid-template-columns: 1fr 1fr;
+  }
+  .admin-coupon > .field:first-child {
+    grid-column: 1 / -1;
+  }
+}
 .admin-popup__preview {
   max-width: 720px;
 }

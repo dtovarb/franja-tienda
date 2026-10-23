@@ -11,7 +11,7 @@ import { createMercadoPago } from "./mercadopago.js";
 import { createCarriers } from "./carriers.js";
 import { createMailer, sendOrderMails } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
-import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZoneSettings, saveZoneSettings, withoutDisabledZones, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadPopup, savePopup, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
+import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZoneSettings, saveZoneSettings, withoutDisabledZones, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadPopup, savePopup, loadCoupons, saveCoupons, couponUses, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
 import { loadSiteTexts, saveSiteTexts, loadMarquee, saveMarquee, loadGarmentPhotos, saveGarmentPhoto } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates, loadShippingSettings, saveShippingSettings } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
@@ -20,6 +20,7 @@ import { defaultSizesFor } from "../../assets/js/data/catalog.js";
 import { GARMENTS } from "../../assets/js/data/garments.js";
 import { createRegret } from "./regret.js";
 import { DEFAULT_ZONE_PRICES } from "../../assets/js/core/pricing.js";
+import { findCoupon } from "../../assets/js/core/coupons.js";
 
 export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
   const config = readConfig(overrides);
@@ -122,6 +123,15 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const { db, carriers } = await ctx();
       const body = await readJson(req, 16 * 1024);
       return json(await quoteShipping(db, body.postalCode, { carriers, lines: await shippingLines(db, body.items) }));
+    }],
+
+    // La clienta prueba un código en el carrito. Al crear el pedido se vuelve a validar.
+    ["POST", "/api/coupons/check", async (req) => {
+      const { db } = await ctx();
+      const body = await readJson(req, 1024);
+      const found = findCoupon(await loadCoupons(db), body.code);
+      if (found.error) throw new HttpError(404, found.error);
+      return json({ coupon: found.coupon });
     }],
 
     ["POST", "/api/uploads", async (req) => {
@@ -347,6 +357,18 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       await auth.require(req);
       const body = await readJson(req, 16 * 1024);
       return json({ announcement: await saveAnnouncement(db, body.announcement) });
+    }],
+
+    ["GET", "/api/admin/coupons", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      return json({ coupons: await loadCoupons(db), uses: await couponUses(db) });
+    }],
+    ["PUT", "/api/admin/coupons", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      const body = await readJson(req, 32 * 1024);
+      return json({ coupons: await saveCoupons(db, body.coupons), uses: await couponUses(db) });
     }],
 
     ["GET", "/api/admin/popup", async (req) => {
