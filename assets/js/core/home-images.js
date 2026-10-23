@@ -1,6 +1,6 @@
 /**
  * Fotos del inicio: las imágenes que la dueña cambia desde el panel
- * (pestaña «Sitio») para la portada y el lookbook. Con servidor se guardan
+ * (pestaña «Sitio») para la portada y las colecciones del inicio. Con servidor se guardan
  * en site_settings (clave 'home_images'); en la demostración, en este
  * navegador. Un lugar sin foto muestra lo de siempre (las prendas de muestra).
  *
@@ -9,13 +9,21 @@
  */
 import { safeLink } from "./announcement.js";
 
+/**
+ * Lugares con foto. `fields`: los textos que la dueña escribe en cada uno
+ * (además de la foto y el enlace). La clave 'lookbook' quedó del inicio
+ * anterior: ahora son las dos colecciones del mosaico.
+ */
 export const HOME_IMAGE_SLOTS = {
-  hero: { title: "Portada", count: 1 },
-  lookbook: { title: "Lookbook «Ropa para compartir»", count: 3 },
+  hero: { title: "Portada: fotos que pasan con flechas", count: 4, fields: ["kicker", "caption", "text", "button"] },
+  lookbook: { title: "Colecciones del inicio", count: 2, fields: ["kicker", "caption", "button"] },
 };
-export const MAX_CAPTION = 60;
+/** Máximo de caracteres por texto. `caption` es el título. */
+export const FIELD_LIMITS = { kicker: 40, caption: 70, text: 160, button: 28 };
+export const FIELD_LABELS = { kicker: "Línea chica de arriba", caption: "Título", text: "Texto", button: "Texto del botón" };
+const TEXT_FIELDS = Object.keys(FIELD_LIMITS);
 
-const emptyItem = () => ({ photo: null, caption: "", link: "" });
+const emptyItem = () => ({ photo: null, kicker: "", caption: "", text: "", button: "", link: "" });
 export const emptyHomeImages = () =>
   Object.fromEntries(Object.entries(HOME_IMAGE_SLOTS).map(([k, s]) => [k, Array.from({ length: s.count }, emptyItem)]));
 
@@ -44,11 +52,15 @@ export function normalizeHomeImages(raw) {
     for (let i = 0; i < slot.count; i++) {
       const it = list[i] && typeof list[i] === "object" ? list[i] : {};
       const where = slot.count > 1 ? `${slot.title}, foto ${i + 1}` : slot.title;
-      const caption = typeof it.caption === "string" ? it.caption.trim().replace(/\s+/g, " ") : "";
-      if (caption.length > MAX_CAPTION) errors.push(`${where}: el texto es demasiado largo (máximo ${MAX_CAPTION} caracteres).`);
+      const texts = {};
+      for (const f of TEXT_FIELDS) {
+        const v = typeof it[f] === "string" ? it[f].trim().replace(/\s+/g, " ") : "";
+        if (v.length > FIELD_LIMITS[f]) errors.push(`${where}: «${FIELD_LABELS[f]}» es demasiado largo (máximo ${FIELD_LIMITS[f]} caracteres).`);
+        texts[f] = v.slice(0, FIELD_LIMITS[f]);
+      }
       const link = safeLink(it.link);
       if (link === null) errors.push(`${where}: el enlace no es válido. Usá una página del sitio (por ejemplo disenos.html) o una dirección que empiece con https://.`);
-      value[key][i] = { photo: cleanPhoto(it.photo), caption: caption.slice(0, MAX_CAPTION), link: link || "" };
+      value[key][i] = { photo: cleanPhoto(it.photo), ...texts, link: link || "" };
     }
   }
   return { value, errors };

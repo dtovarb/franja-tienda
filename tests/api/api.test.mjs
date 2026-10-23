@@ -501,11 +501,11 @@ test("panel: cintillo de anuncios y foto con modelo de un diseño", async () => 
   assert.equal(r.body.storeDesign.modelPhoto, null);
 });
 
-test("panel: fotos del inicio (portada y lookbook)", async () => {
+test("panel: fotos del inicio (portada y colecciones)", async () => {
   const cookie = await login();
   let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
-  assert.equal(cat.homeImages.hero.length, 1);
-  assert.equal(cat.homeImages.lookbook.length, 3);
+  assert.equal(cat.homeImages.hero.length, 4);
+  assert.equal(cat.homeImages.lookbook.length, 2);
   assert.ok(cat.homeImages.lookbook.every((x) => x.photo === null));
   assert.equal((await call("PUT", "/api/admin/home-images", { body: { homeImages: {} } })).status, 401);
 
@@ -518,19 +518,32 @@ test("panel: fotos del inicio (portada y lookbook)", async () => {
   assert.equal(r.status, 422);
   r = await jsonOf(await call("PUT", "/api/admin/home-images", { cookie, body: { homeImages: { hero: [{ photo: { ...photo, mime: "image/svg+xml" } }] } } }));
   assert.equal(r.status, 422);
+  // Textos de más largos: no.
+  r = await jsonOf(await call("PUT", "/api/admin/home-images", { cookie, body: { homeImages: { hero: [{ button: "x".repeat(29) }] } } }));
+  assert.equal(r.status, 422);
   r = await jsonOf(
     await call("PUT", "/api/admin/home-images", {
       cookie,
-      body: { homeImages: { hero: [{ photo, caption: "Nueva colección", link: "disenos.html" }], lookbook: [{}, { photo, caption: "  Tote  crudo " }, {}] } },
+      body: {
+        homeImages: {
+          hero: [{ photo, kicker: "Colección Atardecer", caption: "Nueva colección", text: "Dibujados en el taller.", button: "Ver la colección", link: "disenos.html" }],
+          lookbook: [{}, { photo, caption: "  Tote  crudo ", wat: "x" }],
+        },
+      },
     })
   );
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.homeImages.hero[0].photo.width, 1200);
   assert.equal(r.body.homeImages.lookbook[1].caption, "Tote crudo");
+  assert.equal(r.body.homeImages.lookbook[1].wat, undefined);
+  assert.deepEqual(
+    [r.body.homeImages.hero[0].kicker, r.body.homeImages.hero[0].text, r.body.homeImages.hero[0].button],
+    ["Colección Atardecer", "Dibujados en el taller.", "Ver la colección"]
+  );
   const img = await app.handle(new Request(BASE + r.body.homeImages.hero[0].photo.url));
   assert.equal(sha(Buffer.from(await img.arrayBuffer())), photo.sha256);
   // Guardar sin mandar la foto conserva la que había; removePhoto la quita.
-  r = await jsonOf(await call("PUT", "/api/admin/home-images", { cookie, body: { homeImages: { hero: [{ caption: "Otra" }], lookbook: [{}, { removePhoto: true }, {}] } } }));
+  r = await jsonOf(await call("PUT", "/api/admin/home-images", { cookie, body: { homeImages: { hero: [{ caption: "Otra" }], lookbook: [{}, { removePhoto: true }] } } }));
   assert.ok(r.body.homeImages.hero[0].photo, "sin foto nueva queda la anterior");
   assert.equal(r.body.homeImages.lookbook[1].photo, null);
   cat = (await jsonOf(await call("GET", "/api/catalog"))).body;

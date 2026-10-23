@@ -22,6 +22,7 @@ const ICONS = {
   copy: '<rect x="8" y="8" width="12" height="12" rx="1"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
   layers: '<path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/>',
   back: '<path d="M15 18 9 12l6-6"/>',
+  next: '<path d="m9 18 6-6-6-6"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   check: '<path d="m5 12 5 5L20 7"/>',
   alert: '<path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.5v.5"/>',
@@ -167,9 +168,8 @@ function startAnnouncementRotation(root) {
 /* ---------------- Header / Footer ---------------- */
 const NAV = [
   { href: "index.html", label: "Inicio", key: "home" },
-  { href: "catalogo.html", label: "Prendas", key: "catalog" },
   { href: "disenos.html", label: "Diseños", key: "designs" },
-  { href: "index.html#como-funciona", label: "Cómo funciona", key: "how" },
+  { href: "catalogo.html", label: "Prendas", key: "catalog" },
   { href: "quienes-somos.html", label: "Nosotros", key: "about" },
   { href: "preguntas.html", label: "Preguntas", key: "faq" },
   { href: "catalogo.html?diseñar=1", label: "Diseñar", key: "design" },
@@ -305,9 +305,7 @@ export function renderFooter({ whatsapp = true } = {}) {
       <div>
         <h2>Info</h2>
         <ul role="list">
-          <li><a href="index.html#como-funciona">Cómo funciona</a></li>
           <li><a href="quienes-somos.html">Quiénes somos</a></li>
-          <li><a href="index.html#taller">El taller</a></li>
           <li><a href="preguntas.html">Preguntas frecuentes</a></li>
           <li><a href="terminos.html">Términos y condiciones</a></li>
           <li><a href="privacidad.html">Privacidad</a></li>

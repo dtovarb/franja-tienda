@@ -118,22 +118,26 @@ console.log("\nEscritorio 1440×900");
   const page = await ctx.newPage();
   watch(page, "desktop");
 
-  await t("Tienda", "Inicio carga con header, hero, destacados y footer", async () => {
+  await t("Tienda", "Inicio carga con header, portada, nuevos diseños y footer", async () => {
     await page.goto(`${BASE}/index.html`, { waitUntil: "networkidle" });
-    assert(await page.locator(".hero__title").isVisible(), "sin hero");
-    const n = await page.locator("[data-featured] .pcard").count();
-    assert(n === 4, `destacados: ${n}`);
-    assert(!(await page.locator(".ed-card svg svg").count()), "las prendas del inicio no deberían tener estampa");
-    assert(!/buzo canguro/i.test(await page.textContent("[data-editorial]")), "el lookbook no debería tener el buzo canguro");
+    assert(await page.locator(".hslide.is-on .hslide__title").isVisible(), "sin portada");
+    assert((await page.locator("h1").count()) === 1, "tiene que haber un solo h1");
+    const n = await page.locator("[data-new-grid] .ncard").count();
+    assert(n === 4, `nuevos diseños: ${n}`);
+    // Las flechas pasan de foto
+    await page.click(".hero__arrow--next");
+    assert((await page.locator(".hslide").nth(1).getAttribute("class")).includes("is-on"), "la flecha no pasó de foto");
+    assert(await page.locator(".tile--editor").isVisible(), "sin el bloque del editor");
+    assert((await page.locator("[data-cats] .cat").count()) >= 5, "faltan prendas");
     assert(await page.locator(".site-footer").isVisible(), "sin footer");
     assert((await page.locator("[data-cart-count]").textContent()) === "0", "carrito no vacío");
     assert((await overflowX(page)) <= 0, "desborde horizontal");
     await page.screenshot({ path: join(SHOTS, "desktop-inicio.png"), fullPage: true });
-    return "4 destacados, sin desborde";
+    return "4 diseños nuevos, flechas, sin desborde";
   });
 
   await t("Tienda", "Catálogo lista prendas y filtra por tipo", async () => {
-    await page.click("text=Ver todo el catálogo");
+    await page.click('#main-nav a:has-text("Prendas")');
     await page.waitForSelector("[data-grid] .pcard");
     const all = await page.locator("[data-grid] .pcard").count();
     await page.click('[data-filter="hoodie"]');
@@ -934,12 +938,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     return "ficha con talles a la venta; 4 tablas en preguntas; sin «A definir»";
   });
 
-  await t("Ayuda", "Opiniones de ejemplo en inicio y producto, siempre marcadas como ejemplo", async () => {
-    await page.goto(`${BASE}/index.html#opiniones`);
-    await page.waitForSelector("[data-review]");
-    assert((await page.locator("#opiniones [data-review]").count()) === 3, "inicio muestra 3");
-    assert(/simuladas/i.test(await page.textContent("#opiniones .reviews__note")), "falta aviso de ejemplo");
-    assert((await page.textContent("#opiniones .reviews__summary")).includes("10 opiniones de ejemplo"), "resumen");
+  await t("Ayuda", "Opiniones de ejemplo en producto, siempre marcadas como ejemplo", async () => {
     await page.goto(`${BASE}/producto.html?id=remera-oversize`);
     await page.waitForSelector("#opiniones [data-review]");
     const cards = page.locator("#opiniones [data-review]");
@@ -949,7 +948,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     // Ninguna página publica opiniones simuladas como datos estructurados
     assert(!(await page.locator('script[type="application/ld+json"]').count()), "no debe haber JSON-LD");
     await page.screenshot({ path: join(SHOTS, "desktop-opiniones.png"), fullPage: true });
-    return "inicio 3 · oversize 2 (4,5)";
+    return "oversize 2 (4,5)";
   });
 
   await ctx.close();
@@ -976,7 +975,7 @@ console.log("\nMóvil 390×844 (táctil)");
   });
 
   await t("Móvil", "Preguntas frecuentes y opiniones sin desborde", async () => {
-    for (const u of ["preguntas.html", "producto.html?id=gorra", "index.html#opiniones"]) {
+    for (const u of ["preguntas.html", "producto.html?id=gorra", "index.html"]) {
       await page.goto(`${BASE}/${u}`, { waitUntil: "networkidle" });
       const ov = await overflowX(page);
       assert(ov <= 0, `${u} desborde ${ov}`);

@@ -44,10 +44,10 @@ test("los textos de siempre entran en su límite y las claves no se repiten", ()
 });
 
 test("normalizar textos y marquesina", () => {
-  assert.deepEqual(normalizeSiteTexts({ "home.cta.line1": " Hola  vos\n" }).value, { "home.cta.line1": "Hola vos" });
+  assert.deepEqual(normalizeSiteTexts({ "home.hero.cta1": " Hola  vos\n" }).value, { "home.hero.cta1": "Hola vos" });
   assert.deepEqual(normalizeSiteTexts(["x"]).value, {});
-  assert.deepEqual(normalizeSiteTexts({ "home.cta.line1": 5 }).value, {});
-  assert.equal(normalizeSiteTexts({ "home.cta.line1": "x".repeat(161) }).errors.length, 1);
+  assert.deepEqual(normalizeSiteTexts({ "home.hero.cta1": 5 }).value, {});
+  assert.equal(normalizeSiteTexts({ "home.hero.cta1": "x".repeat(161) }).errors.length, 1);
   assert.equal(normalizeMarquee(null).value.enabled, true);
   assert.deepEqual(normalizeMarquee({ enabled: false, items: [] }), { value: { enabled: false, items: [] }, errors: [] });
   assert.equal(normalizeMarquee({ items: ["x".repeat(41)] }).errors.length, 1);
