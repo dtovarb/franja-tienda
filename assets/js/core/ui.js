@@ -87,9 +87,6 @@ export function getAnnouncement() {
 
 /* ---------------- Ventana de oferta (panel, «Sitio») ---------------- */
 export const POPUP_KEY = "popup.v1";
-const POPUP_SEEN_KEY = "nevrado.popup-visto";
-/** Páginas donde aparece: las de mirar. En el carrito, el editor, pedidos y textos legales, no. */
-const POPUP_PAGES = new Set(["home", "catalog", "designs", "about", "faq"]);
 export function getPopup() {
   return normalizePopup(CATALOG ? CATALOG.popup : readJSON(POPUP_KEY, null)).value;
 }
@@ -116,21 +113,11 @@ export function fillPopupPhoto(root, p) {
   if (img && p.photo) modelPhotoUrl({ modelPhoto: p.photo }).then((u) => u && (img.src = u));
 }
 
-/**
- * Muestra la ventana una vez por visita (hasta cerrar el navegador). Si la
- * dueña la cambia en el panel, aparece de nuevo aunque ya hayan cerrado la anterior.
- */
+/** Muestra la ventana en el inicio, cada vez que se abre o se recarga. En las otras páginas, nunca. */
 function maybeShowPopup(active) {
-  if (!POPUP_PAGES.has(active)) return;
+  if (active !== "home") return;
   const p = getPopup();
   if (!p.enabled || (!p.title && !p.text)) return;
-  const stamp = p.updatedAt || "demo";
-  try {
-    if (sessionStorage.getItem(POPUP_SEEN_KEY) === stamp) return;
-    sessionStorage.setItem(POPUP_SEEN_KEY, stamp);
-  } catch {
-    return; // sin almacenamiento no sabemos si ya la vio: mejor no insistir en cada página
-  }
   setTimeout(() => {
     if (document.querySelector("dialog[open]")) return;
     const d = document.createElement("dialog");
