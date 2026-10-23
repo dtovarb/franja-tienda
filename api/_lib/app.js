@@ -633,6 +633,15 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
 
   async function handle(request) {
     const url = new URL(request.url);
+    // En Vercel las reescrituras de vercel.json (/diseno/:nombre, /sitemap.xml)
+    // llegan a la función con la dirección original, no con la de destino.
+    const ficha = url.pathname.match(/^\/diseno\/([^/]+)\/?$/);
+    if (ficha) {
+      url.pathname = "/api/pagina-diseno";
+      let nombre = ficha[1];
+      try { nombre = decodeURIComponent(nombre); } catch {}
+      url.searchParams.set("nombre", nombre);
+    } else if (url.pathname === "/sitemap.xml") url.pathname = "/api/sitemap";
     let pathMatched = false;
     try {
       for (const [method, pattern, fn] of routes) {

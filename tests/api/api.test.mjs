@@ -137,6 +137,12 @@ test("ficha de un diseño con título, foto y precio en el head, y mapa del siti
   const missing = await call("GET", "/api/pagina-diseno?nombre=no-existe");
   assert.equal(missing.status, 302);
   assert.equal(missing.headers.get("location"), "/disenos.html");
+  // En Vercel la función recibe la dirección original de la reescritura.
+  const direct = await call("GET", "/diseno/dos-lunas?id=gorra");
+  assert.equal(direct.status, 200);
+  assert.match(await direct.text(), /Dos lunas/i);
+  assert.equal((await call("GET", "/diseno/no-existe")).status, 302);
+  assert.match(await (await call("GET", "/sitemap.xml")).text(), /<urlset/);
   const map = await (await call("GET", "/api/sitemap")).text();
   assert.match(map, /<loc>http:\/\/localhost:3000\/diseno\/dos-lunas<\/loc>/);
   assert.match(map, /<loc>http:\/\/localhost:3000\/preguntas\.html<\/loc>/);
