@@ -20,7 +20,7 @@ import { processUpload, UploadError } from "./upload.js";
 import { createProps } from "./props.js";
 import { createLayers } from "./layers.js";
 import { renderProductPanel } from "./product-panel.js";
-import { openFinalize } from "./finalize.js";
+import { openFinalize, quickAddToCart } from "./finalize.js";
 import { listStoreDesigns, getStoreDesign, isAvailableFor, storeDesignImageUrl } from "../core/store-designs.js";
 import { getAsset, assetDisplayUrl } from "../core/asset-store.js";
 
@@ -517,7 +517,7 @@ async function storeDesignAsset(d) {
   return processUpload(new File([blob], d.source.name, { type: blob.type || "image/svg+xml" }));
 }
 
-export async function addStoreDesign(id) {
+export async function addStoreDesign(id, { quiet = false } = {}) {
   const d = getStoreDesign(id);
   if (!isAvailableFor(d, product.id)) {
     toast("Ese diseño no está disponible para esta prenda.", "warning");
@@ -530,7 +530,7 @@ export async function addStoreDesign(id) {
     img.set({ storeDesignId: d.id, assetName: `${d.name} (diseño nevrado)` });
     commit();
     renderUploads();
-    toast(`Agregaste «${d.name}». Podés moverlo, cambiarle el tamaño o sumarle texto.`, "success");
+    if (!quiet) toast(`Agregaste «${d.name}». Podés moverlo, cambiarle el tamaño o sumarle texto.`, "success");
     if (isMobile()) closeSheet();
     return img;
   } catch (err) {
@@ -868,10 +868,26 @@ async function boot() {
     }
     if (ed.cartItemId) toast("Editando un artículo del carrito. Los cambios se aplican al finalizar.", "info", 5000);
   }
+  // «Agregar al carrito» desde la página del diseño: se coloca y se guarda sin
+  // pasar por el editor. Si algo falla, la clienta queda acá con el diseño puesto.
+  const quick = !sourceDesign && q.get("storeDesign") && q.get("agregar") === "1";
   if (!sourceDesign && q.get("storeDesign")) {
     loadingText.textContent = "Colocando el diseño…";
-    await addStoreDesign(q.get("storeDesign"));
+    const placed = await addStoreDesign(q.get("storeDesign"), { quiet: quick });
+    if (quick && placed) {
+      try {
+        canvas.discardActiveObject();
+        ed.faces[ed.face] = snapshot(canvas);
+        const item = await quickAddToCart({ ed, product, printedFaces, usedStoreDesigns });
+        location.replace(`carrito.html?added=${encodeURIComponent(item.id)}`);
+        return;
+      } catch (err) {
+        console.error(err);
+        toast(`${err.message || "No se pudo agregar al carrito."} Revisalo acá y tocá «Finalizar diseño».`, "error", 8000);
+      }
+    }
   }
+  document.documentElement.classList.remove("quick-add");
   $("[data-loading]").hidden = true;
   root.setAttribute("aria-busy", "false");
   refresh();

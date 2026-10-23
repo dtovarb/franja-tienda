@@ -19,6 +19,7 @@ import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkTo
 import { defaultSizesFor } from "../../assets/js/data/catalog.js";
 import { GARMENTS } from "../../assets/js/data/garments.js";
 import { createRegret } from "./regret.js";
+import { designPage, sitemap } from "./pages.js";
 import { DEFAULT_ZONE_PRICES } from "../../assets/js/core/pricing.js";
 import { findCoupon } from "../../assets/js/core/coupons.js";
 
@@ -115,6 +116,26 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       // links del mail van siempre al dominio de la tienda.
       const sent = await sendPaymentReminders({ db: c.db, mailer: c.mailer, config }, config.publicUrl || "https://www.nevrado.com", { getOrder });
       return json({ sent });
+    }],
+
+    // Ficha de un diseño con su título, foto y precio en el <head> (vercel.json
+    // reescribe /diseno/:nombre acá). Si no existe, a la lista de diseños.
+    ["GET", "/api/pagina-diseno", async (req, url) => {
+      const { db } = await ctx();
+      const html = await designPage(db, { slug: url.searchParams.get("nombre"), productId: url.searchParams.get("id"), origin: baseUrl(req) });
+      if (!html) return new Response(null, { status: 302, headers: { location: "/disenos.html" } });
+      return new Response(html, {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=0, s-maxage=60, stale-while-revalidate=600" },
+      });
+    }],
+
+    ["GET", "/api/sitemap", async (req) => {
+      const { db } = await ctx();
+      return new Response(await sitemap(db, { origin: baseUrl(req) }), {
+        status: 200,
+        headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=0, s-maxage=3600" },
+      });
     }],
 
     ["GET", "/api/reviews", async (req, url) => {
@@ -618,7 +639,8 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
         const m = typeof pattern === "string" ? (url.pathname === pattern ? [] : null) : url.pathname.match(pattern)?.slice(1);
         if (!m) continue;
         pathMatched = true;
-        if (method !== request.method) continue;
+        // HEAD se atiende como GET (algunos lectores de links preguntan así primero).
+        if (method !== (request.method === "HEAD" ? "GET" : request.method)) continue;
         return await fn(request, url, m);
       }
       throw pathMatched ? new HttpError(405, "Método no permitido.") : new HttpError(404, "No existe esa ruta de la API.");

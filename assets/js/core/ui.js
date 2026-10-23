@@ -438,6 +438,7 @@ export function confirmDialog({ title, body = "", confirmLabel = "Confirmar", ca
 
 export function initPage(active) {
   injectSprite();
+  document.body.dataset.page = active;
   if (active !== "admin") applySiteTexts();
   renderHeader(active);
   renderFooter({ whatsapp: active !== "admin" });

@@ -914,3 +914,18 @@ input[type="color"].ink-picker {
   outline: 2px solid var(--c-focus);
   outline-offset: 2px;
 }
+
+/* ---------- «Agregar al carrito» directo desde un diseño de la tienda ---------- */
+.quick-add-msg { display: none; }
+html.quick-add .ed { visibility: hidden; }
+html.quick-add .quick-add-msg {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-bg, #fdf6f1);
+  font-weight: 600;
+}

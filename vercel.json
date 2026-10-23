@@ -55,13 +55,22 @@
   ],
   "rewrites": [
     {
+      "source": "/diseno/:nombre",
+      "destination": "/api/pagina-diseno?nombre=:nombre"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api"
     }
   ],
   "functions": {
     "api/index.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "producto.html"
     }
   },
   "crons": [
