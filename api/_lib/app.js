@@ -9,7 +9,7 @@ import { createStorage, BUCKETS } from "./storage.js";
 import { createAuth, checkOrigin } from "./auth.js";
 import { createMercadoPago } from "./mercadopago.js";
 import { createCarriers } from "./carriers.js";
-import { createMailer, sendOrderMails } from "./mails.js";
+import { createMailer, sendOrderMails, sendPaymentReminders } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
 import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZoneSettings, saveZoneSettings, withoutDisabledZones, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadPopup, savePopup, loadCoupons, saveCoupons, couponUses, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
 import { loadSiteTexts, saveSiteTexts, loadMarquee, saveMarquee, loadGarmentPhotos, saveGarmentPhoto } from "./catalog.js";
@@ -102,6 +102,19 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       if (t[6] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms, colecciones ${t[5] - t[4]} ms, sitio ${t[6] - t[5]} ms`);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
       return json({ colors, products: withoutDisabledZones(products, disabledZones), storeDesigns, zonePrices, disabledZones, designCollections, announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos, popup }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
+    }],
+
+    // Tarea diaria (vercel.json → crons): recordatorio a quien no terminó de pagar.
+    ["GET", "/api/cron/recordatorios", async (req) => {
+      const auth = req.headers.get("authorization") || "";
+      const ok = config.cronSecret ? auth === `Bearer ${config.cronSecret}` : /vercel-cron/i.test(req.headers.get("user-agent") || "");
+      if (!ok) throw new HttpError(401, "No autorizado.");
+      const c = await ctx();
+      if (!c.mp) return json({ skipped: "sin cobro online" });
+      // El aviso de Vercel puede llegar por la dirección interna del proyecto: los
+      // links del mail van siempre al dominio de la tienda.
+      const sent = await sendPaymentReminders({ db: c.db, mailer: c.mailer, config }, config.publicUrl || "https://www.nevrado.com", { getOrder });
+      return json({ sent });
     }],
 
     ["GET", "/api/reviews", async (req, url) => {

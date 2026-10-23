@@ -24,6 +24,9 @@
  *                                 manda ningún mail.
  *   MAIL_FROM                     remitente (por defecto nevrado <pedidos@nevrado.com>)
  *   MAIL_REPLY_TO                 a dónde van las respuestas de las clientas (opcional)
+ *   CRON_SECRET                   clave de las tareas programadas (vercel.json → crons).
+ *                                 Vercel la manda sola; sin ella solo se acepta
+ *                                 el aviso con el agente «vercel-cron».
  *
  * Sin DATABASE_URL, fuera de Vercel, se usa una base local (PGlite) en
  * .data/db y los archivos van a .data/archivos: sirve para desarrollar y
@@ -65,6 +68,7 @@ export function readConfig(overrides = {}) {
       accountPassword: e.MICORREO_ACCOUNT_PASSWORD || null,
     },
     resendApiKey: e.RESEND_API_KEY || null,
+    cronSecret: e.CRON_SECRET || null,
     resendApi: (e.RESEND_API_URL || "https://api.resend.com").replace(/\/$/, ""),
     mailFrom: e.MAIL_FROM || "nevrado <pedidos@nevrado.com>",
     mailReplyTo: e.MAIL_REPLY_TO || null,

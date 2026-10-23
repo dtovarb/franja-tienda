@@ -109,7 +109,64 @@ export async function sendOrderMails({ db, mailer, config }, order, baseUrl) {
   return results;
 }
 
-const LABELS = { comprobante: "Comprobante de compra", pedido_recibido: "Mail de pedido recibido", aviso_duena: "Aviso de pedido nuevo" };
+const LABELS = {
+  comprobante: "Comprobante de compra",
+  pedido_recibido: "Mail de pedido recibido",
+  aviso_duena: "Aviso de pedido nuevo",
+  recordatorio_pago: "Recordatorio de pago",
+};
+
+/** Manda un mail ya reservado y deja asentado cómo salió. */
+async function deliver({ db, mailer }, order, kind, to, mail) {
+  try {
+    const id = await mailer.send({ to, ...mail, idempotencyKey: `nevrado-${order.id}-${kind}` });
+    await db.query("update order_emails set status = 'enviado', provider_id = $3, error = null, updated_at = now() where order_id = $1 and kind = $2", [order.id, kind, id]);
+    await db.query("insert into order_events (order_id, kind, note, actor) values ($1, 'mail', $2, 'sistema')", [order.id, `${LABELS[kind]} enviado a ${to.join(", ")}`]);
+    return true;
+  } catch (err) {
+    console.error(`Mail ${kind} del pedido ${order.number}:`, err);
+    await db.query("update order_emails set status = 'error', error = $3, updated_at = now() where order_id = $1 and kind = $2", [order.id, kind, String(err.message || err).slice(0, 300)]);
+    return false;
+  }
+}
+
+/**
+ * Recordatorio a quien dejó un pedido sin pagar en Mercado Pago. Va una sola
+ * vez por pedido, entre 20 y 72 horas después de hecho, y no va si la misma
+ * clienta ya pagó otro pedido después, ni si el cobro online no está activo
+ * (esos pedidos se coordinan a mano).
+ */
+export async function sendPaymentReminders({ db, mailer, config }, baseUrl, { getOrder, limit = 30 } = {}) {
+  if (!mailer) return [];
+  const rows = await db.query(
+    `select o.id from orders o
+      where o.status = 'pendiente_pago'
+        and o.payment_status in ('pendiente', 'rechazado')
+        and o.created_at < now() - interval '20 hours'
+        and o.created_at > now() - interval '72 hours'
+        and not exists (select 1 from order_emails e where e.order_id = o.id and e.kind = 'recordatorio_pago' and e.status <> 'error')
+        and not exists (
+          select 1 from orders p
+           where p.id <> o.id and lower(p.customer->>'email') = lower(o.customer->>'email')
+             and p.created_at > o.created_at and p.status <> 'pendiente_pago' and p.status <> 'cancelado'
+        )
+      order by o.created_at
+      limit $1`,
+    [limit]
+  );
+  const colors = rows.length ? await loadColors(db).catch(() => ({})) : {};
+  const results = [];
+  for (const { id } of rows) {
+    const order = await getOrder(db, id);
+    if (!order?.customer?.email) continue;
+    const to = [order.customer.email];
+    if (!(await claim(db, order.id, "recordatorio_pago", to))) continue;
+    const link = `${baseUrl}/pedido.html?id=${order.id}&t=${orderToken(config.sessionSecret, order.id)}`;
+    const mail = renderMail("recordatorio_pago", order, { colors, link });
+    results.push({ order: order.number, sent: await deliver({ db, mailer }, order, "recordatorio_pago", to, mail) });
+  }
+  return results;
+}
 
 /* ------------------------------ Contenido ------------------------------ */
 function itemsOf(order, colors) {
@@ -150,6 +207,14 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
       after: "El plazo de 5 a 7 días hábiles, con el envío incluido, empieza cuando se acredita el pago.",
       cta: "Ver mi pedido",
     },
+    recordatorio_pago: {
+      subject: `Tu pedido #${n} te está esperando · nevrado`,
+      title: "Tu pedido te está esperando",
+      intro: `Hola ${first}, tu pedido #${n} quedó guardado pero el pago no se completó. Si todavía lo querés, lo podés pagar desde el botón de abajo.`,
+      payment: "Pago pendiente · Mercado Pago (débito, crédito o transferencia)",
+      after: "El plazo de 5 a 7 días hábiles, con el envío incluido, empieza cuando se acredita el pago. Si ya no lo querés, no hace falta que hagas nada.",
+      cta: "Pagar mi pedido",
+    },
     aviso_duena: {
       subject: `Pedido #${n} ${order.status === "pagado" ? "pagado" : "nuevo, cobro a coordinar"} · ${price(order.total)}`,
       title: order.status === "pagado" ? `Pedido #${n} pagado` : `Pedido #${n}: cobro a coordinar`,
@@ -185,7 +250,7 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
     "",
     `${content.cta}: ${ctaLink}`,
     "",
-    ...(kind === "aviso_duena" ? [] : ["Este mail es tu comprobante de compra; no es una factura.", `¿Dudas? WhatsApp ${CONTACT.whatsappLabel} · ${CONTACT.email} · Instagram @${CONTACT.instagram}`, ""]),
+    ...(kind === "aviso_duena" ? [] : [...(kind === "recordatorio_pago" ? [] : ["Este mail es tu comprobante de compra; no es una factura."]), `¿Dudas? WhatsApp ${CONTACT.whatsappLabel} · ${CONTACT.email} · Instagram @${CONTACT.instagram}`, ""]),
     "nevrado · Córdoba, Argentina",
   ].join("\n");
 
@@ -230,7 +295,7 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
     <p style="margin:0 0 28px"><a href="${esc(ctaLink)}" style="display:inline-block;background:#7d3a5e;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px">${esc(content.cta)}</a></p>
   </td></tr>
   <tr><td colspan="5" style="padding:16px 28px;border-top:1px solid #e4e0dc;font-size:12px;color:#5b5256;line-height:1.5">
-    ${kind === "aviso_duena" ? "" : `Este mail es tu comprobante de compra; no es una factura.<br>¿Dudas? WhatsApp ${esc(CONTACT.whatsappLabel)} · ${esc(CONTACT.email)} · Instagram @${esc(CONTACT.instagram)}<br>`}nevrado · Córdoba, Argentina
+    ${kind === "aviso_duena" ? "" : `${kind === "recordatorio_pago" ? "" : "Este mail es tu comprobante de compra; no es una factura.<br>"}¿Dudas? WhatsApp ${esc(CONTACT.whatsappLabel)} · ${esc(CONTACT.email)} · Instagram @${esc(CONTACT.instagram)}<br>`}nevrado · Córdoba, Argentina
   </td></tr>
 </table>
 </td></tr></table>
