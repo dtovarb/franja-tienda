@@ -1,14 +1,14 @@
 import { initPage, icon } from "../core/ui.js";
-import { getProduct, getColor, stockLabel, validateVariant, defaultVariant } from "../data/catalog.js";
+import { getProduct, getColor, stockLabel, validateVariant, defaultVariant, activeProducts } from "../data/catalog.js";
 import { garmentSvg, garmentPhoto, getPrintSpec, faceLabel, isMainFace } from "../data/garments.js";
 import { listReviews, reviewSummary } from "../data/reviews.js";
 import { sizeChartTable, measureHelp } from "../data/size-charts.js";
 import { reviewsBlock, demoTag, IS_DEMO } from "./components.js";
-import { computePrice, ZONE_PRICES } from "../core/pricing.js";
+import { computePrice, startingPrice, ZONE_PRICES } from "../core/pricing.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
-import { getStoreDesign, isAvailableFor, storeDesignImageUrl, designArt } from "../core/store-designs.js";
+import { getStoreDesign, isAvailableFor, storeDesignImageUrl, modelPhotoUrl, designArt } from "../core/store-designs.js";
 
-initPage("catalog");
+initPage(new URLSearchParams(location.search).has("diseno") ? "designs" : "catalog");
 
 const root = document.querySelector("[data-pdp]");
 const p = params();
@@ -17,32 +17,36 @@ const product = getProduct(p.get("id"));
 if (!product) {
   root.innerHTML = `<div class="empty"><h1 class="display h1">Prenda no encontrada</h1><p class="muted">El enlace puede estar incompleto.</p><a class="btn btn--primary" href="catalogo.html">Ver catálogo</a></div>`;
 } else {
-  document.title = `${product.name} · nevrado`;
   const askedDesign = p.get("diseno") ? getStoreDesign(p.get("diseno")) : null;
   const design = isAvailableFor(askedDesign, product.id) ? askedDesign : null;
+  // Con un diseño de la tienda la página es del diseño: su nombre, su foto
+  // con modelo y «Agregar al carrito». La prenda pasa a ser una elección más.
+  document.title = design ? `${design.name} · ${product.name} · nevrado` : `${product.name} · nevrado`;
   let designUrl = null;
+  let photoUrl = null;
+  const otherProducts = design ? activeProducts().filter((x) => x.id !== product.id && isAvailableFor(design, x.id)) : [];
   const def = defaultVariant(product);
   const state = {
     colorId: product.colors.includes(p.get("color")) ? p.get("color") : def.colorId,
     sizeId: product.sizes.some((s) => s.id === p.get("size") && s.stock !== "out") ? p.get("size") : def.sizeId,
     qty: Math.min(50, Math.max(1, parseInt(p.get("qty"), 10) || 1)),
     face: "front",
-    guides: true,
+    guides: !design,
   };
   // La foto muestra frente y espalda; las zonas chicas se marcan sobre esas vistas.
   const mainFaces = product.faces.filter((f) => isMainFace(product.type, f));
   const zoneCost = (f) => (ZONE_PRICES[f] ? `+${formatPrice(ZONE_PRICES[f])}` : "incluida");
 
   root.innerHTML = `
-    <nav aria-label="Ruta" class="mono muted" style="padding-top:var(--sp-5)"><a href="catalogo.html">Prendas</a> / ${escapeHtml(product.name)}</nav>
+    <nav aria-label="Ruta" class="mono muted" style="padding-top:var(--sp-5)">${design ? `<a href="disenos.html">Diseños</a> / ${escapeHtml(design.name)}` : `<a href="catalogo.html">Prendas</a> / ${escapeHtml(product.name)}`}</nav>
     <div class="pdp">
       <div class="pdp__gallery">
         <div class="pdp__stage" data-stage></div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-          <div class="seg" role="group" aria-label="Cara de la prenda">
+          <div class="seg" role="group" aria-label="Cara de la prenda" data-faces>
             ${mainFaces.map((f) => `<button type="button" data-face="${f}" aria-pressed="${f === state.face}">${faceLabel(f)}</button>`).join("")}
           </div>
-          <label style="display:inline-flex;gap:8px;align-items:center;font-size:var(--fs-sm)"><input type="checkbox" data-guides checked> Mostrar área de impresión</label>
+          ${design ? "" : `<label style="display:inline-flex;gap:8px;align-items:center;font-size:var(--fs-sm)"><input type="checkbox" data-guides checked> Mostrar área de impresión</label>`}
         </div>
         <p class="mono muted" data-stage-note></p>
       </div>
@@ -54,16 +58,14 @@ if (!product) {
             ${demoTag("Producto de demostración")}
             ${IS_DEMO ? `<span class="tag" style="color:var(--c-ink-3)">${product.sku}</span>` : ""}
           </div>
-          <h1 class="display pdp__title">${escapeHtml(product.name)}</h1>
-          <p class="lead">${escapeHtml(product.description)}</p>
+          ${design ? `<p class="eyebrow muted" data-chosen-design="${design.id}">${escapeHtml(product.name)}</p>` : ""}
+          <h1 class="display pdp__title">${escapeHtml(design ? design.name : product.name)}</h1>
+          <p class="lead">${escapeHtml(design ? design.description || product.description : product.description)}</p>
+          ${design ? `<p class="hint">${escapeHtml(product.name)}: ${escapeHtml(product.tagline || product.description)}</p>` : ""}
         </div>
         ${
           design
-            ? `<div class="pdp__design" data-chosen-design="${design.id}">
-                <img alt="" data-design-thumb>
-                <div><p><b>Con el diseño «${escapeHtml(design.name)}»</b></p>
-                <p class="hint">${design.price ? `Suma ${formatPrice(design.price)} por prenda.` : "Sin costo de diseño."} En el editor lo podés mover o agrandar. <a href="producto.html?id=${encodeURIComponent(product.id)}">Quitar diseño</a></p></div>
-              </div>`
+            ? ""
             : p.get("diseno")
               ? `<div class="notice notice--warning">${icon("alert")}<span>Ese diseño no está disponible para esta prenda. Podés elegir otro en <a href="disenos.html">Diseños</a>.</span></div>`
               : ""
@@ -118,20 +120,42 @@ if (!product) {
             <span class="mono">Precio por unidad</span>
             <span class="price pdp__price" data-unit></span>
           </div>
-          <div class="breakdown" data-breakdown style="margin-top:var(--sp-3)"></div>
-          <p class="hint" style="margin-top:var(--sp-2)">El precio ya incluye el estampado del frente. ${product.faces.length > 1 ? "Cada otra zona que estampes suma su recargo (ver abajo). " : ""}El precio final se ajusta en el editor según las zonas que diseñes.</p>
+          ${design ? "" : `<div class="breakdown" data-breakdown style="margin-top:var(--sp-3)"></div>`}
+          <p class="hint" style="margin-top:var(--sp-2)">${
+            design
+              ? `Incluye el estampado de «${escapeHtml(design.name)}» en el frente.`
+              : `El precio ya incluye el estampado del frente. ${product.faces.length > 1 ? "Cada otra zona que estampes suma su recargo (ver abajo). " : ""}El precio final se ajusta en el editor según las zonas que diseñes.`
+          }</p>
         </div>
 
         <div class="notice notice--danger form-errors" role="alert" data-errors></div>
 
-        <button class="btn btn--primary btn--lg btn--block" type="submit">${design ? "Ver y ajustar en el editor" : "Personalizar en el editor"} ${icon("arrowRight")}</button>
+        <div class="pdp__actions">
+          ${
+            design
+              ? `<button class="btn btn--primary btn--lg btn--block" type="submit" data-add>${icon("bag")} Agregar al carrito</button>
+                 <button class="btn btn--block" type="button" data-customize>${icon("edit")} Personalizar</button>
+                 <p class="hint" style="margin:0;text-align:center">Movelo, cambiale el tamaño o sumale texto antes de comprar.</p>`
+              : `<button class="btn btn--primary btn--lg btn--block" type="submit">Personalizar en el editor ${icon("arrowRight")}</button>`
+          }
+          <p class="hint pdp__delivery">${icon("package")} Te llega en 5 a 7 días hábiles, con el envío incluido en ese plazo. Enviamos a todo el país.</p>
+        </div>
 
+        ${design ? otherProducts.length
+              ? `<div class="pdp__others"><p class="mono dcard__label">También en</p>
+                  <ul class="dcard__products" role="list">${otherProducts
+                    .map((x) => `<li><a class="chip" href="producto.html?id=${encodeURIComponent(x.id)}&diseno=${encodeURIComponent(design.id)}">${escapeHtml(x.name)}<small>${formatPrice(startingPrice(x, [design.id]))}</small></a></li>`)
+                    .join("")}</ul></div>`
+              : "" : ""}
+
+        ${design ? `<details class="pdp__zones"><summary>Estampar en más lugares</summary><p class="hint">Desde «Personalizar» podés sumar estampas en otras zonas. Cada una tiene su recargo:</p>` : ""}
         <dl class="spec-list">
           ${product.faces.map((f) => `<dt>${faceLabel(f)}</dt><dd data-zone-size="${f}"></dd>`).join("")}
           <dt>Medidas</dt><dd data-zone-note></dd>
           <dt>Técnica</dt><dd>DTG: impresión directa sobre la prenda</dd>
-          <dt>Archivos</dt><dd>JPG, PNG o SVG · hasta 25 MB, o un <a href="disenos.html">diseño de la tienda</a></dd>
+          ${design ? "" : `<dt>Archivos</dt><dd>JPG, PNG o SVG · hasta 25 MB, o un <a href="disenos.html">diseño de la tienda</a></dd>`}
         </dl>
+        ${design ? `</details>` : ""}
       </form>
     </div>
     ${IS_DEMO ? `<section class="section reviews" id="opiniones" aria-labelledby="rv-title">
@@ -152,6 +176,11 @@ if (!product) {
   const qtyInput = root.querySelector("[data-qty-input]");
 
   function renderStage() {
+    if (state.face === "photo" && photoUrl) {
+      stage.innerHTML = `<img class="pdp__photo" src="${escapeHtml(photoUrl)}" alt="${escapeHtml(`${design.name} puesta`)}">`;
+      root.querySelector("[data-stage-note]").textContent = "";
+      return;
+    }
     const col = getColor(state.colorId);
     const spec = getPrintSpec(product.type, state.face, state.sizeId);
     const art = design && state.face === product.faces[0] ? designArt(designUrl) : "";
@@ -189,7 +218,8 @@ if (!product) {
     });
     const price = computePrice(product, state, { printedFaces: [product.faces[0]], storeDesignIds: design ? [design.id] : [] });
     root.querySelector("[data-unit]").textContent = formatPrice(price.unit);
-    root.querySelector("[data-breakdown]").innerHTML =
+    const breakdown = root.querySelector("[data-breakdown]");
+    if (breakdown) breakdown.innerHTML =
       price.lines.map((l) => `<div><span>${l.label}</span><span>${formatPrice(l.amount)}</span></div>`).join("") +
       `<div class="total"><span>Total × ${price.qty}</span><span>${formatPrice(price.total)}</span></div>`;
     const url = new URL(location.href);
@@ -222,8 +252,15 @@ if (!product) {
     if (b && !b.disabled) (state.sizeId = b.dataset.size), sync();
   });
   radioKeys(root.querySelector("[data-sizes]"), "data-size", (b) => ((state.sizeId = b.dataset.size), sync()));
-  root.querySelectorAll("[data-face]").forEach((b) => b.addEventListener("click", () => ((state.face = b.dataset.face), sync())));
-  root.querySelector("[data-guides]").addEventListener("change", (e) => ((state.guides = e.target.checked), renderStage()));
+  root.querySelector("[data-faces]").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-face]");
+    if (b) (state.face = b.dataset.face), sync();
+  });
+  root.querySelector("[data-guides]")?.addEventListener("change", (e) => ((state.guides = e.target.checked), renderStage()));
+  // Al elegir un color se muestra la prenda de ese color (no la foto con modelo).
+  root.querySelector("[data-colors]").addEventListener("click", () => {
+    if (state.face === "photo") (state.face = product.faces[0]), sync();
+  });
   root.querySelectorAll("[data-qty]").forEach((b) =>
     b.addEventListener("click", () => {
       state.qty = Math.min(50, Math.max(1, state.qty + Number(b.dataset.qty)));
@@ -235,8 +272,7 @@ if (!product) {
     sync();
   });
 
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
+  function goToEditor(add) {
     const v = validateVariant(product, state);
     const errEl = root.querySelector("[data-errors]");
     if (!v.ok) {
@@ -246,16 +282,35 @@ if (!product) {
     errEl.innerHTML = "";
     const q = new URLSearchParams({ product: product.id, color: state.colorId, size: state.sizeId, qty: String(state.qty) });
     if (design) q.set("storeDesign", design.id);
+    if (design && add) q.set("agregar", "1");
+    const btn = add ? root.querySelector("[data-add]") : null;
+    if (btn) (btn.disabled = true), (btn.innerHTML = `<span class="spinner"></span> Agregando…`);
     location.href = `editor.html?${q}`;
+  }
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    goToEditor(true);
+  });
+  root.querySelector("[data-customize]")?.addEventListener("click", () => goToEditor(false));
+  // Al volver con «atrás» el botón no debe quedar en «Agregando…».
+  addEventListener("pageshow", (e) => {
+    const btn = root.querySelector("[data-add]");
+    if (e.persisted && btn) (btn.disabled = false), (btn.innerHTML = `${icon("bag")} Agregar al carrito`);
   });
 
   sync();
   if (design) {
     storeDesignImageUrl(design).then((url) => {
       designUrl = url;
-      const th = root.querySelector("[data-design-thumb]");
-      if (th && url) th.src = url;
       renderStage();
+    });
+    // Foto con modelo (si está cargada): va primero.
+    modelPhotoUrl(design).then((url) => {
+      if (!url) return;
+      photoUrl = url;
+      root.querySelector("[data-faces]").insertAdjacentHTML("afterbegin", `<button type="button" data-face="photo">Foto</button>`);
+      state.face = "photo";
+      sync();
     });
   }
 }

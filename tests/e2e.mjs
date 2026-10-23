@@ -676,7 +676,7 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     await page.waitForSelector("[data-chosen-design]");
     const unit = priceNum(await page.textContent("[data-unit]"));
     assert(unit === 14900 + 3000, `precio ficha ${unit}`);
-    await page.click("[data-form] button[type=submit]");
+    await page.click("[data-customize]");
     await page.waitForURL(/editor\.html.*storeDesign=sd-lunas/);
     await editorReady(page);
     await page.waitForFunction(() => window.__editor.canvas.getObjects().length === 1, null, { timeout: 8000 });
@@ -697,6 +697,24 @@ print(len(names), ok, ','.join(sorted(n.split('/')[0] for n in names)))`;
     const row = await page.textContent(".cart-item:last-child");
     assert(/Diseño «Dos lunas»/.test(row) && /17\.900/.test(row), row.slice(0, 200));
     return "ficha $17.900 → editor con el diseño ubicado → carrito con el cargo del diseño";
+  });
+
+  await t("Diseños", "«Agregar al carrito» desde la ficha de un diseño lo suma sin pasar por el editor", async () => {
+    await page.goto(`${BASE}/producto.html?id=remera-clasica&diseno=sd-ramito&size=M`);
+    await page.waitForSelector("[data-chosen-design]");
+    assert((await page.textContent(".pdp__title")).includes("Ramito"), "el título debería ser el diseño");
+    assert(!(await page.locator("[data-guides]").count()), "sin casilla de área de impresión");
+    const before = await page.evaluate(() => JSON.parse(localStorage.getItem("nevrado.cart.v1") || '{"items":[]}').items.length);
+    await page.click("[data-add]");
+    await page.waitForURL(/carrito\.html\?added=/, { timeout: 30000 });
+    await page.waitForSelector(".cart-item");
+    const items = await page.evaluate(() => JSON.parse(localStorage.getItem("nevrado.cart.v1")).items);
+    assert(items.length === before + 1, `artículos ${before} → ${items.length}`);
+    const it = items[items.length - 1];
+    assert(it.storeDesignIds.includes("sd-ramito") && it.printedFaces.join() === "front" && it.variant.sizeId === "M", JSON.stringify(it).slice(0, 200));
+    const row = await page.textContent(".cart-item:last-child");
+    assert(/Ramito/.test(row), row.slice(0, 200));
+    return "ficha → carrito directo, con el diseño en el frente";
   });
 
   await t("Diseños", "Agregar un diseño de la tienda desde el editor (se cobra una vez)", async () => {

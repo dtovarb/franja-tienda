@@ -55,7 +55,7 @@ async function render() {
         <div class="dcard__body">
           <div class="pcard__row">
             <h2 class="pcard__name">${escapeHtml(d.name)}</h2>
-            <p class="price pcard__price">${d.price ? `+${formatPrice(d.price)}` : "Sin costo"}</p>
+            <p class="price pcard__price">${fits.length ? `desde ${formatPrice(Math.min(...fits.map((p) => startingPrice(p, [d.id]))))}` : ""}</p>
           </div>
           <p class="muted">${escapeHtml(d.description || "")}</p>
           <p class="mono dcard__label">Elegí la prenda</p>

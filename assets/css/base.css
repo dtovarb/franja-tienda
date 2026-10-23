@@ -1260,3 +1260,9 @@ fieldset {
     margin-left: auto;
   }
 }
+
+/* En el carrito del celu el botón flotante tapaba «Aplicar» del código:
+   ahí queda solo el enlace de WhatsApp del pie. */
+@media (max-width: 760px) {
+  body[data-page="cart"] .wa-float { display: none; }
+}
