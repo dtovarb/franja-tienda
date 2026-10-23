@@ -2051,3 +2051,6 @@
   .about-mv { grid-template-columns: 1fr; }
   .about-traits { grid-template-columns: 1fr; gap: var(--sp-3); }
 }
+.ship-form {
+  border-top: 0;
+}
