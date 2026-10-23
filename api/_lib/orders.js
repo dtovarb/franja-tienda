@@ -15,8 +15,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { priceWith } from "../../assets/js/core/pricing.js";
 import { faceLabel } from "../../assets/js/data/garments.js";
 import { HttpError } from "./http.js";
-import { getProduct, storeDesignsByIds, loadZoneSettings, withoutDisabledZones, loadCoupons } from "./catalog.js";
-import { findCoupon, discountFor } from "../../assets/js/core/coupons.js";
+import { getProduct, storeDesignsByIds, loadZoneSettings, withoutDisabledZones, loadCoupons, loadDesignCollections } from "./catalog.js";
+import { findCoupon, couponDiscount } from "../../assets/js/core/coupons.js";
 import { quoteShipping } from "./shipping.js";
 import { PAYMENT_STATUS } from "./mercadopago.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
@@ -174,7 +174,7 @@ export async function createOrder({ db, storage, secret, carriers = [] }, body) 
     }
     const price = priceWith(product, { sizeId: size.id, qty }, { printedFaces: analysis.printedFaces, storeDesigns: designs, zonePrices });
     const files = requiredFiles(it, analysis);
-    lines.push({ product, size, qty, analysis, price, files, design: { schema: it.design.schema || "nevrado.design/v1", faces: it.design.faces }, colorId: it.colorId });
+    lines.push({ product, size, qty, analysis, price, files, collectionIds: designs.map((d) => d.collectionId).filter(Boolean), design: { schema: it.design.schema || "nevrado.design/v1", faces: it.design.faces }, colorId: it.colorId });
   }
 
   // El envío se vuelve a cotizar acá con el pedido real; la clienta eligió una opción por su id.
@@ -194,7 +194,13 @@ export async function createOrder({ db, storage, secret, carriers = [] }, body) 
     if (found.error) throw new HttpError(409, `${found.error} Sacalo en el carrito para seguir.`);
     coupon = found.coupon;
   }
-  const discount = coupon ? discountFor(subtotal, coupon.percent) : 0;
+  let discount = 0;
+  if (coupon) {
+    const col = coupon.collectionId && (await loadDesignCollections(db)).find((c) => c.id === coupon.collectionId);
+    const r = couponDiscount({ ...coupon, collectionName: col?.name }, lines.map((l) => ({ total: l.price.total, qty: l.qty, collectionIds: l.collectionIds })));
+    if (r.missing) throw new HttpError(409, `${r.missing} Sacalo en el carrito para seguir.`);
+    discount = r.discount;
+  }
   const total = subtotal - discount + shipping.price;
   const id = crypto.randomUUID();
 

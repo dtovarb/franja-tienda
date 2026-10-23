@@ -6,7 +6,9 @@
  */
 import { SERVER, api } from "./api.js";
 import { readJSON, writeJSON, removeKey } from "./storage.js";
-import { cleanCode, findCoupon, normalizeCoupons } from "./coupons.js";
+import { cleanCode, findCoupon, normalizeCoupons, couponDiscount } from "./coupons.js";
+import { getCart, priceItem } from "./cart.js";
+import { getStoreDesign, listCollections } from "./store-designs.js";
 
 const KEY = "cupon.v1";
 /** En la demostración, los códigos que se cargan en el panel de este navegador. */
@@ -27,10 +29,24 @@ export const forgetCoupon = () => removeKey(KEY);
 export async function checkCoupon(code) {
   const clean = cleanCode(code);
   if (!clean) return { error: "Escribí el código." };
-  if (!SERVER) return findCoupon(normalizeCoupons(readJSON(DEMO_COUPONS_KEY, [])).value, clean);
+  if (!SERVER) {
+    const r = findCoupon(normalizeCoupons(readJSON(DEMO_COUPONS_KEY, [])).value, clean);
+    if (r.coupon?.collectionId) r.coupon.collectionName = listCollections().find((c) => c.id === r.coupon.collectionId)?.name || null;
+    return r;
+  }
   try {
     return await api("coupons/check", { method: "POST", body: { code: clean } });
   } catch (err) {
     return { error: err.status === 404 ? err.message : "No pudimos revisar el código. Probá de nuevo en un rato." };
   }
+}
+
+/** Descuento del código en el carrito de ahora: { discount } o { discount: 0, missing }. */
+export function cartCouponDiscount(coupon) {
+  const lines = getCart().items.map((i) => ({
+    total: priceItem(i)?.total || 0,
+    qty: i.qty,
+    collectionIds: (i.storeDesignIds || []).map((id) => getStoreDesign(id)?.collectionId).filter(Boolean),
+  }));
+  return couponDiscount(coupon, lines);
 }

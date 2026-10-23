@@ -17,8 +17,7 @@ import { getAssets, sha256Hex } from "../core/asset-store.js";
 import { getProduct, getColor } from "../data/catalog.js";
 import { formatPrice, escapeHtml, debounce } from "../core/format.js";
 import { readJSON, writeJSON } from "../core/storage.js";
-import { forgetCoupon } from "../core/coupon-state.js";
-import { discountFor } from "../core/coupons.js";
+import { forgetCoupon, cartCouponDiscount } from "../core/coupon-state.js";
 
 export const PROVINCES = [
   "Córdoba", "Buenos Aires", "Ciudad Autónoma de Buenos Aires", "Catamarca", "Chaco", "Chubut", "Corrientes", "Entre Ríos", "Formosa",
@@ -31,7 +30,7 @@ const MINE_KEY = "pedidos.mios.v1";
 let quote = null;
 let optionId = null;
 let coupon = null; // { code, percent } aplicado en el carrito
-const discountNow = () => (coupon ? discountFor(cartTotals().subtotal, coupon.percent) : 0);
+const discountNow = () => (coupon ? cartCouponDiscount(coupon).discount : 0);
 const chosenOption = () => quote?.options.find((o) => o.id === optionId) || null;
 
 export function renderCheckout(root, { onBack, coupon: applied = null }) {
