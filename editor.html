@@ -25,8 +25,10 @@
   <link rel="stylesheet" href="assets/css/editor.css">
   <!-- Fabric.js 5.3.0 servido localmente (sin CDN): el editor funciona sin conexión externa. -->
   <script src="vendor/fabric/fabric.min.js" defer></script>
+  <script>if (/[?&]agregar=1(&|$)/.test(location.search)) document.documentElement.classList.add("quick-add")</script>
 </head>
 <body class="editor-body">
+  <div class="quick-add-msg" role="status"><span class="spinner"></span><span>Agregando a tu carrito…</span></div>
   <div class="ed" data-editor data-sheet="" aria-busy="true">
     <!-- BARRA SUPERIOR -->
     <header class="ed-top">
