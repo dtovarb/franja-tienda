@@ -7,8 +7,7 @@ import { formatPrice, escapeHtml, params } from "../core/format.js";
 import { storageAvailable } from "../core/storage.js";
 import { createDemoOrder } from "../core/orders.js";
 import { SERVER, CATALOG } from "../core/api.js";
-import { savedCouponCode, rememberCoupon, forgetCoupon, checkCoupon } from "../core/coupon-state.js";
-import { discountFor } from "../core/coupons.js";
+import { savedCouponCode, rememberCoupon, forgetCoupon, checkCoupon, cartCouponDiscount } from "../core/coupon-state.js";
 
 initPage("cart");
 
@@ -31,7 +30,8 @@ function render() {
     return;
   }
   const t = cartTotals();
-  const discount = coupon ? discountFor(t.subtotal, coupon.percent) : 0;
+  const cd = coupon ? cartCouponDiscount(coupon) : { discount: 0 };
+  const discount = cd.discount;
   root.innerHTML = `
     <div class="cart-layout">
       <ul class="cart-items" role="list" aria-label="Artículos">
@@ -43,7 +43,9 @@ function render() {
         <div class="row"><span>Subtotal</span><span>${formatPrice(t.subtotal)}</span></div>
         ${
           coupon
-            ? `<div class="row row--discount"><span>Descuento ${coupon.percent}% · ${escapeHtml(coupon.code)}<br><button class="link-btn" type="button" data-coupon-remove>Quitar</button></span><span>−${formatPrice(discount)}</span></div>`
+            ? cd.missing
+              ? `<div class="coupon-pending"><p>${escapeHtml(cd.missing)}</p><button class="link-btn" type="button" data-coupon-remove>Quitar código</button></div>`
+              : `<div class="row row--discount"><span>Descuento ${coupon.percent}% · ${escapeHtml(coupon.code)}<br><button class="link-btn" type="button" data-coupon-remove>Quitar</button></span><span>−${formatPrice(discount)}</span></div>`
             : `<form class="coupon-form" data-coupon-form novalidate>
                 <label for="coupon-code">¿Tenés un código de descuento?</label>
                 <div class="coupon-form__row">
@@ -111,7 +113,10 @@ async function applyCoupon(code, { quiet = false } = {}) {
   if (coupon) rememberCoupon(coupon.code);
   else if (!quiet) forgetCoupon();
   render();
-  if (coupon && !quiet) toast(`Código ${coupon.code} aplicado: ${coupon.percent}% off en las prendas.`, "success");
+  if (coupon && !quiet) {
+    const { missing } = cartCouponDiscount(coupon);
+    toast(missing ? `Código ${coupon.code} guardado. ${missing}` : `Código ${coupon.code} aplicado: ${coupon.percent}% off.`, missing ? "info" : "success", missing ? 6000 : 3800);
+  }
 }
 
 root.addEventListener("submit", (e) => {
@@ -151,7 +156,8 @@ root.addEventListener("click", async (e) => {
       const { renderCheckout } = await import("./checkout.js");
       document.querySelector("[data-cart-title]").textContent = "Datos del pedido";
       renderCheckout(root, {
-        coupon,
+        // Si todavía no cumple la condición del código, el pedido va sin código.
+        coupon: coupon && !cartCouponDiscount(coupon).missing ? coupon : null,
         onBack: () => {
           document.querySelector("[data-cart-title]").textContent = "Tu carrito";
           render();
@@ -177,7 +183,7 @@ function cleanupDesign(designId) {
 function showDemoCheckout() {
   const { items } = getCart();
   const t = cartTotals();
-  const discount = coupon ? discountFor(t.subtotal, coupon.percent) : 0;
+  const discount = coupon ? cartCouponDiscount(coupon).discount : 0;
   const payload = {
     endpoint: "POST /api/orders (no existe todavía)",
     currency: "ARS",
@@ -194,7 +200,7 @@ function showDemoCheckout() {
         clientUnitPrice: priceItem(i)?.unit,
       };
     }),
-    couponCode: coupon?.code || null,
+    couponCode: discount ? coupon.code : null,
     clientTotal: t.total - discount,
     note: "El backend debe recalcular precios y validar stock; el total del cliente es solo informativo.",
   };

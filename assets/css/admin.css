@@ -341,7 +341,7 @@
 }
 .admin-coupon {
   display: grid;
-  grid-template-columns: minmax(130px, 1.4fr) 80px minmax(130px, 1fr) minmax(130px, 1fr) auto auto auto;
+  grid-template-columns: minmax(140px, 1.3fr) 80px minmax(140px, 1fr) minmax(140px, 1fr);
   gap: var(--sp-3);
   align-items: end;
   padding: var(--sp-3);
@@ -349,9 +349,20 @@
   border-radius: var(--radius-sm);
   background: var(--c-surface);
 }
-.admin-coupon .check,
-.admin-coupon__uses {
-  margin: 0 0 12px;
+.admin-coupon > .field:nth-child(5) {
+  grid-column: 1 / 3;
+}
+.admin-coupon__end {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+}
+.admin-coupon__end .check {
+  margin: 0;
+}
+.admin-coupon__end .hint {
+  margin: 0 0 0 auto;
   white-space: nowrap;
 }
 .admin-coupon__code {
@@ -362,10 +373,13 @@
   .admin-coupon {
     grid-template-columns: 1fr 1fr;
   }
-  .admin-coupon > .field:first-child {
+  .admin-coupon > .field:first-child,
+  .admin-coupon > .field:nth-child(5),
+  .admin-coupon__end {
     grid-column: 1 / -1;
   }
 }
+
 .admin-popup__preview {
   max-width: 720px;
 }

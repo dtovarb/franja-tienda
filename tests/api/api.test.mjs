@@ -608,7 +608,7 @@ test("códigos de descuento: panel, carrito, pedido y Mercado Pago", async () =>
   assert.deepEqual(r.body.coupons.map((c) => c.code), ["NEVRADO15", "VIEJO", "APAGADO"]);
 
   const check = async (code) => jsonOf(await call("POST", "/api/coupons/check", { body: { code } }));
-  assert.deepEqual((await check("nevrado15")).body.coupon, { code: "NEVRADO15", percent: 15 });
+  assert.deepEqual((await check("nevrado15")).body.coupon, { code: "NEVRADO15", percent: 15, collectionId: null, minQty: null, collectionName: null });
   assert.match((await check("VIEJO")).body.error, /venció/);
   assert.equal((await check("APAGADO")).status, 404);
   assert.equal((await check("NOEXISTE")).status, 404);
@@ -632,6 +632,29 @@ test("códigos de descuento: panel, carrito, pedido y Mercado Pago", async () =>
   await call("PATCH", `/api/admin/orders/${r.body.order.id}`, { cookie, body: { status: "pagado" } });
   const uses = (await jsonOf(await call("GET", "/api/admin/coupons", { cookie }))).body.uses;
   assert.equal(uses.NEVRADO15, 1);
+  // Código con condiciones: solo la colección y desde 2 prendas de ella.
+  const col = (await jsonOf(await call("POST", "/api/admin/design-collections", { cookie, body: { name: "Chappell" } }))).body.designCollection;
+  assert.equal((await call("PATCH", "/api/admin/store-designs/sd-sol", { cookie, body: { name: "Sol de cinco franjas", price: 3500, collectionId: col.id } })).status, 200);
+  r = await jsonOf(
+    await call("PUT", "/api/admin/coupons", {
+      cookie,
+      body: { coupons: [{ code: "NEVRADO15", percent: 15 }, { code: "NEVRADOCHAPPELL", percent: 10, collectionId: col.id, minQty: 2 }] },
+    })
+  );
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual((await check("nevradochappell")).body.coupon, { code: "NEVRADOCHAPPELL", percent: 10, collectionId: col.id, minQty: 2, collectionName: "Chappell" });
+  const tote = (qty) => cartItem({ productId: "tote-bag", colorId: "crudo", sizeId: "Único", qty, storeDesignId: "sd-sol" });
+  const order = async (items) => jsonOf(await call("POST", "/api/orders", { body: { customer, shipping, items, couponCode: "NEVRADOCHAPPELL" } }));
+  // Una sola prenda de la colección (más otra sin colección): no alcanza.
+  r = await order([await tote(1), await cartItem({ qty: 3 })]);
+  assert.equal(r.status, 409);
+  assert.match(r.body.error, /desde 2 prendas de la colección Chappell: te falta 1/);
+  // Dos de la colección y una remera sin colección: solo se descuentan las de la colección.
+  const plain = await cartItem({ qty: 1 });
+  r = await order([await tote(2), plain]);
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const toteLine = r.body.order.items.find((i) => i.productName.toLowerCase().includes("tote"));
+  assert.equal(r.body.order.discount, Math.round((toteLine.unitPrice * 2 * 10) / 100));
   // La ventana de oferta guarda el código en mayúsculas.
   r = await jsonOf(await call("PUT", "/api/admin/popup", { cookie, body: { popup: { enabled: false, title: "15% off", code: "nevrado15" } } }));
   assert.equal(r.body.popup.code, "NEVRADO15");

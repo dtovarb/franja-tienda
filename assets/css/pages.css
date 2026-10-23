@@ -1178,6 +1178,19 @@
   text-decoration: underline;
   cursor: pointer;
 }
+.coupon-pending {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px dashed var(--c-ciruela);
+  border-radius: var(--radius-sm);
+  background: var(--c-magenta-tint);
+  font-size: var(--fs-sm);
+}
+.coupon-pending p {
+  margin: 0;
+}
 .coupon-form {
   display: grid;
   gap: 6px;

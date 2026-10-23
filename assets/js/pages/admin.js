@@ -12,7 +12,7 @@
  */
 import { initPage, icon, toast, confirmDialog, getAnnouncement, ANNOUNCEMENT_KEY, announcementBar, getHomeImages, HOME_IMAGES_KEY, getPopup, POPUP_KEY, popupHtml, fillPopupPhoto } from "../core/ui.js";
 import { POPUP_LIMITS, POPUP_LABELS, POPUP_DEFAULTS, normalizePopup } from "../core/popup.js";
-import { normalizeCoupons, findCoupon, todayAR, MAX_COUPONS, MAX_PERCENT } from "../core/coupons.js";
+import { normalizeCoupons, findCoupon, todayAR, MAX_COUPONS, MAX_PERCENT, MAX_MIN_QTY } from "../core/coupons.js";
 import { DEMO_COUPONS_KEY } from "../core/coupon-state.js";
 import { HOME_IMAGE_SLOTS, FIELD_LIMITS, FIELD_LABELS, normalizeHomeImages } from "../core/home-images.js";
 import { ANNOUNCEMENT_STYLES, MAX_MESSAGES, MAX_TEXT, normalizeAnnouncement } from "../core/announcement.js";
@@ -1070,6 +1070,8 @@ async function savePopupForm(form) {
 }
 
 /* ======================= Sitio: códigos de descuento ======================= */
+const couponCollections = () => (state.collections.length ? state.collections : listCollections());
+
 function couponRow(c, i, uses) {
   const id = `cp-${i}`;
   const n = uses[c.code] || 0;
@@ -1082,9 +1084,18 @@ function couponRow(c, i, uses) {
       <input class="input" id="${id}-from" name="startsOn" type="date" value="${c.startsOn || ""}"></div>
     <div class="field"><label for="${id}-to">Hasta (opcional)</label>
       <input class="input" id="${id}-to" name="endsOn" type="date" value="${c.endsOn || ""}"></div>
-    <label class="check"><input type="checkbox" name="active" ${c.active !== false ? "checked" : ""}> Activo</label>
-    <p class="hint admin-coupon__uses">${c.code ? `${n} ${n === 1 ? "pedido pagado" : "pedidos pagados"}` : "Nuevo"}</p>
-    <button class="btn btn--sm btn--ghost" type="button" data-coupon-del aria-label="Borrar este código">${icon("trash")}</button>
+    <div class="field"><label for="${id}-col">Solo para la colección</label>
+      <select class="input" id="${id}-col" name="collectionId">
+        <option value="">Todas las prendas</option>
+        ${couponCollections().map((col) => `<option value="${escapeHtml(col.id)}" ${c.collectionId === col.id ? "selected" : ""}>${escapeHtml(col.name)}</option>`).join("")}
+      </select></div>
+    <div class="field"><label for="${id}-min">Mínimo de prendas</label>
+      <input class="input" id="${id}-min" name="minQty" type="number" min="1" max="${MAX_MIN_QTY}" step="1" inputmode="numeric" value="${c.minQty || ""}" placeholder="1"></div>
+    <div class="admin-coupon__end">
+      <label class="check"><input type="checkbox" name="active" ${c.active !== false ? "checked" : ""}> Activo</label>
+      <span class="hint">${c.code ? `${n} ${n === 1 ? "pedido pagado" : "pedidos pagados"}` : "Nuevo"}</span>
+      <button class="btn btn--sm btn--ghost" type="button" data-coupon-del aria-label="Borrar este código">${icon("trash")}</button>
+    </div>
   </li>`;
 }
 
@@ -1098,7 +1109,7 @@ async function renderCouponsAdmin() {
     <div class="admin-head admin-head--sep" id="sitio-codigos">
       <div>
         <h2 class="h3">Códigos de descuento</h2>
-        <p class="muted">La clienta escribe el código en el carrito y se le descuenta ese porcentaje de las prendas (el envío no cambia). Mercado Pago cobra el total con el descuento. Las fechas son opcionales: sin «hasta», el código sirve hasta que lo desactives. Hoy es ${today.split("-").reverse().join("/")}.</p>
+        <p class="muted">La clienta escribe el código en el carrito y se le descuenta ese porcentaje de las prendas (el envío no cambia). Mercado Pago cobra el total con el descuento. Las fechas son opcionales: sin «hasta», el código sirve hasta que lo desactives. Con una colección elegida, solo se descuentan las prendas con diseños de esa colección; con un mínimo, el código vale cuando hay esa cantidad de prendas (de la colección, si elegiste una). Si le falta algo, el carrito le avisa qué. Hoy es ${today.split("-").reverse().join("/")}.</p>
       </div>
     </div>
     <form class="admin-form" data-coupons-form novalidate>
@@ -1134,6 +1145,8 @@ async function saveCouponsForm(form) {
     startsOn: $("[name=startsOn]", li).value,
     endsOn: $("[name=endsOn]", li).value,
     active: $("[name=active]", li).checked,
+    collectionId: $("[name=collectionId]", li).value || null,
+    minQty: $("[name=minQty]", li).value,
   }));
   const { errors } = normalizeCoupons(list);
   if (errors.length) return (errEl.innerHTML = errors.map(escapeHtml).join("<br>"));

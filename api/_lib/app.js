@@ -131,7 +131,8 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const body = await readJson(req, 1024);
       const found = findCoupon(await loadCoupons(db), body.code);
       if (found.error) throw new HttpError(404, found.error);
-      return json({ coupon: found.coupon });
+      const col = found.coupon.collectionId && (await loadDesignCollections(db)).find((c) => c.id === found.coupon.collectionId);
+      return json({ coupon: { ...found.coupon, collectionName: col?.name || null } });
     }],
 
     ["POST", "/api/uploads", async (req) => {
