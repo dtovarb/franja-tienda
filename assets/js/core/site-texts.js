@@ -69,11 +69,11 @@ export const SITE_TEXTS = [
   // ---------------- Quiénes somos ----------------
   T("about.eyebrow", "nosotros", "Arriba de todo", "Línea chica", "Quiénes somos"),
   T("about.title", "nosotros", "Arriba de todo", "Título", "Un taller chico\ncon ideas grandes", "multi"),
-  T("about.lead", "nosotros", "Arriba de todo", "Texto", "nevrado es una marca de ropa personalizada de Córdoba. Diseñamos, estampamos y terminamos cada prenda en nuestro propio taller.", "paras"),
+  T("about.lead", "nosotros", "Arriba de todo", "Texto", "nevrado es una marca de Córdoba hecha por y para la comunidad LGBTQ+, con mucho amor lésbico y abierta a todes. Dibujamos nuestros diseños y los estampamos y terminamos en nuestro propio taller. También personalizamos la tuya.", "paras"),
   T("about.story.title", "nosotros", "Quiénes somos", "Título", "Quiénes somos"),
   T("about.story.text", "nosotros", "Quiénes somos", "Texto", "Empezamos con una idea simple: que la ropa que usás diga algo tuyo. Por eso armamos un taller propio donde estampamos remeras, buzos, gorras y totes a pedido, uno por uno.\n\nNo tercerizamos la impresión. Cada prenda pasa por nuestras manos: miramos tu archivo, la estampamos con DTG y la revisamos antes de mandarla. Si algo no va a quedar bien, te escribimos antes de producir.\n\nNos gusta pensar nevrado como un lugar más que como una tienda: prendas para compartir, para regalar y para usar todos los días.", "paras"),
   T("about.mission.title", "nosotros", "Misión", "Título", "Misión"),
-  T("about.mission.text", "nosotros", "Misión", "Texto", "Que cualquiera pueda llevar puesta su idea. Hacemos fácil diseñar una prenda propia y la producimos con cuidado, a pedido y en nuestro taller, para que llegue tal como la imaginaste.", "paras"),
+  T("about.mission.text", "nosotros", "Misión", "Texto", "Hacer prendas con diseños que dan ganas de usar todos los días, dibujados y estampados en nuestro taller, a pedido y con cuidado. Que cada persona se sienta cómoda siendo quien es con lo que lleva puesto. Y si tenés una idea propia, que sea fácil llevarla puesta.", "paras"),
   T("about.vision.title", "nosotros", "Visión", "Título", "Visión"),
   T("about.vision.text", "nosotros", "Visión", "Texto", "Ser el taller de ropa personalizada de referencia en Argentina para quienes buscan prendas con identidad: hechas cerca, con buena calidad y con diseños que no se ven en cualquier vidriera.", "paras"),
   T("about.tone.eyebrow", "nosotros", "Tono de la marca", "Línea chica", "Tono de la marca"),
@@ -108,7 +108,7 @@ export const SITE_TEXTS = [
   T("faq.lead", "preguntas", "Arriba de todo", "Texto", "Cómo hacemos las prendas, qué archivos sirven y qué pasa después de pedir.", "paras"),
 
   // ---------------- Pie de página ----------------
-  T("footer.blurb", "general", "Pie de página", "Texto debajo del logo", "Prendas que imprimimos y terminamos en nuestro taller de Córdoba. Vos traés la idea.", "paras"),
+  T("footer.blurb", "general", "Pie de página", "Texto debajo del logo", "Diseños propios, estampados y terminados en nuestro taller de Córdoba, para usar como se te dé la gana. Si tenés una idea tuya, también la hacemos.", "paras"),
   T("footer.legal", "general", "Pie de página", "Línea de abajo, a la derecha", "Envíos a todo el país · Pagos con Mercado Pago"),
 ];
 

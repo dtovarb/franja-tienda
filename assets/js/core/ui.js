@@ -352,8 +352,8 @@ export function renderFooter({ whatsapp = true } = {}) {
         <h2>Tienda</h2>
         <ul role="list">
           <li><a href="catalogo.html">Prendas</a></li>
-          <li><a href="catalogo.html?diseñar=1">Diseñar una prenda</a></li>
-          <li><a href="disenos.html">Diseños listos</a></li>
+          <li><a href="disenos.html">Diseños</a></li>
+          <li><a href="catalogo.html?diseñar=1">Diseñá la tuya</a></li>
           <li><a href="carrito.html">Carrito</a></li>
           ${SERVER ? '<li><a href="pedido.html">Mis pedidos</a></li>' : '<li><a href="admin.html">Panel de la tienda (demo)</a></li>'}
         </ul>
