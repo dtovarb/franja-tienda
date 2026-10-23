@@ -367,8 +367,9 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
         next[key] = [];
         for (let i = 0; i < list.length; i++) {
           const it = (Array.isArray(src[key]) && src[key][i]) || {};
-          const photo = it.photo ? await modelPhotoSource(c, it.photo) : it.removePhoto ? null : list[i].photo;
-          next[key].push({ caption: it.caption, link: it.link, photo });
+          const { photo: newPhoto, removePhoto, ...texts } = it;
+          const photo = newPhoto ? await modelPhotoSource(c, newPhoto) : removePhoto ? null : list[i].photo;
+          next[key].push({ ...texts, photo });
         }
       }
       return json({ homeImages: await saveHomeImages(c.db, next) });

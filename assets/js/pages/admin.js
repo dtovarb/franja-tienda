@@ -11,7 +11,7 @@
  * La diferencia está en `data` (abajo) y en la pestaña de pedidos.
  */
 import { initPage, icon, toast, confirmDialog, getAnnouncement, ANNOUNCEMENT_KEY, announcementBar, getHomeImages, HOME_IMAGES_KEY } from "../core/ui.js";
-import { HOME_IMAGE_SLOTS, MAX_CAPTION, normalizeHomeImages } from "../core/home-images.js";
+import { HOME_IMAGE_SLOTS, FIELD_LIMITS, FIELD_LABELS, normalizeHomeImages } from "../core/home-images.js";
 import { ANNOUNCEMENT_STYLES, MAX_MESSAGES, MAX_TEXT, normalizeAnnouncement } from "../core/announcement.js";
 import { renderSiteContent, resetSiteContent } from "./admin-texts.js";
 import { photosBlock, bindPhotos, loadGarmentPhotos } from "./admin-photos.js";
@@ -133,7 +133,7 @@ const demoData = {
     return value;
   },
   homeImages: async () => normalizeHomeImages(readJSON(HOME_IMAGES_KEY, null)).value,
-  /** `changes`: por lugar, { caption, link, photo?: preparePhoto(), removePhoto? }. */
+  /** `changes`: por lugar, { kicker, caption, text, button, link, photo?: preparePhoto(), removePhoto? }. */
   async saveHomeImages(changes) {
     const cur = await this.homeImages();
     const next = {};
@@ -147,7 +147,7 @@ const demoData = {
           await putAsset({ id: meta.sha256, blob, name: meta.name, type: meta.mime, size: meta.bytes, width: meta.width, height: meta.height, isVector: false });
           photo = { assetId: meta.sha256, name: meta.name, width: meta.width, height: meta.height };
         } else if (ch.removePhoto) photo = null;
-        next[key].push({ caption: ch.caption, link: ch.link, photo });
+        next[key].push({ ...ch, photo });
       }
     }
     const { value, errors } = normalizeHomeImages(next);
@@ -208,7 +208,7 @@ const serverData = {
           const { target } = await api("admin/uploads", { method: "POST", body: { file: photo } });
           await putToTarget(target, ch.photo.blob);
         }
-        homeImages[key].push({ caption: ch.caption, link: ch.link, photo, removePhoto: !!ch.removePhoto });
+        homeImages[key].push({ ...ch, photo, removePhoto: !!ch.removePhoto });
       }
     }
     return (await api("admin/home-images", { method: "PUT", body: { homeImages } })).homeImages;
@@ -901,26 +901,36 @@ async function renderSite() {
 
 /* ======================= Sitio: fotos del inicio ======================= */
 const SLOT_HINTS = {
-  hero: "La foto grande de arriba de todo, a la derecha del título. Si la cargás, reemplaza a los diseños que van pasando ahí. El texto aparece en una tarjeta sobre la foto con un botón al enlace (si no ponés enlace, va a Diseños).",
-  lookbook: "Los tres arcos de «Ropa para compartir». Cada foto reemplaza a la prenda de muestra de ese arco; el texto va en la etiqueta de abajo.",
+  hero: "Las fotos grandes de arriba de todo, a todo el ancho. Pasan solas cada unos segundos y con las flechas. Cargá de 1 a 4; las que no tienen foto no se muestran. Si no cargás ninguna, pasan tus diseños publicados (primero los que tienen «Foto con modelo»). Quedan mejor horizontales o con bastante fondo a la izquierda, porque ahí va el título.",
+  lookbook: "Los dos cuadros grandes de «Colecciones», al lado del bloque del editor. Si un cuadro no tiene foto, muestra solo una de tus colecciones con su primer diseño. Poné en el enlace la colección, por ejemplo disenos.html?coleccion=… (lo copiás de la barra del navegador en la página Diseños).",
+};
+const SLOT_ITEM = { hero: "Foto", lookbook: "Colección" };
+const FIELD_PLACEHOLDERS = {
+  hero: { kicker: "Ej.: Colección Atardecer · nueva", caption: "Ej.: Diseños que se usan", text: "Ej.: Dibujados y estampados en nuestro taller.", button: "Ej.: Ver la colección" },
+  lookbook: { kicker: "Ej.: Atardecer", caption: "Ej.: Colores de fin de tarde", button: "Ej.: Ver colección" },
 };
 
 async function renderHomeImages() {
   const host = $("[data-home-images]", sitePanel);
   if (!host) return;
   const imgs = await data.homeImages();
-  const slotRow = (key, i, it, many) => {
+  const slotRow = (key, i, it, slot) => {
     const id = `hi-${key}-${i}`;
+    const ph = FIELD_PLACEHOLDERS[key] || {};
     return `<li class="admin-home__slot" data-slot="${key}" data-i="${i}">
-      <div class="admin-home__thumb">${it.photo ? `<img data-thumb alt="Foto actual">` : `<span class="hint">Sin foto: se ve la de muestra</span>`}</div>
+      <div class="admin-home__thumb">${it.photo ? `<img data-thumb alt="Foto actual">` : `<span class="hint">Sin foto</span>`}</div>
       <div class="admin-home__fields">
-        ${many ? `<p class="label">Arco ${i + 1}</p>` : ""}
+        <p class="label">${SLOT_ITEM[key] || "Foto"} ${i + 1}</p>
         <div class="field"><label for="${id}-file">${it.photo ? "Cambiar foto" : "Subir foto"}</label>
           <input class="input" id="${id}-file" name="photo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"></div>
-        ${it.photo ? `<label class="check"><input type="checkbox" name="removePhoto"> Quitar esta foto (vuelve la de muestra)</label>` : ""}
-        <div class="field"><label for="${id}-cap">Texto (opcional)</label>
-          <input class="input" id="${id}-cap" name="caption" maxlength="${MAX_CAPTION}" value="${escapeHtml(it.caption)}" placeholder="${key === "hero" ? "Ej.: Nueva colección" : "Ej.: Remera Sol · blanca"}"></div>
-        <div class="field"><label for="${id}-link">Enlace (opcional)</label>
+        ${it.photo ? `<label class="check"><input type="checkbox" name="removePhoto"> Quitar esta foto</label>` : ""}
+        ${slot.fields
+          .map(
+            (f) => `<div class="field"><label for="${id}-${f}">${FIELD_LABELS[f]} (opcional)</label>
+          <input class="input" id="${id}-${f}" name="${f}" maxlength="${FIELD_LIMITS[f]}" value="${escapeHtml(it[f])}" placeholder="${escapeHtml(ph[f] || "")}"></div>`
+          )
+          .join("")}
+        <div class="field"><label for="${id}-link">Enlace del botón (opcional)</label>
           <input class="input" id="${id}-link" name="link" value="${escapeHtml(it.link)}" placeholder="Ej.: disenos.html"></div>
       </div>
     </li>`;
@@ -929,7 +939,7 @@ async function renderHomeImages() {
     <div class="admin-head admin-head--sep" id="sitio-fotos">
       <div>
         <h2 class="h3">Fotos del inicio</h2>
-        <p class="muted">Cambiá las fotos de la portada y del lookbook. Quedan mejor verticales (4:5); antes de subirlas las achicamos a 1600 px. Las fotos de «Diseños de la casa» son la «Foto con modelo» de cada diseño, en la pestaña Diseños.</p>
+        <p class="muted">Las fotos de la portada y de las colecciones del inicio, con sus textos. Antes de subirlas las achicamos a 1600 px. Las fotos de «Nuevos diseños» son la «Foto con modelo» de cada diseño, en la pestaña Diseños.</p>
       </div>
     </div>
     <form class="admin-form" data-home-form novalidate>
@@ -938,7 +948,7 @@ async function renderHomeImages() {
           ([key, slot]) => `<fieldset class="field">
             <legend>${escapeHtml(slot.title)}</legend>
             <p class="hint">${SLOT_HINTS[key] || ""}</p>
-            <ol class="admin-home" role="list">${imgs[key].map((it, i) => slotRow(key, i, it, slot.count > 1)).join("")}</ol>
+            <ol class="admin-home" role="list">${imgs[key].map((it, i) => slotRow(key, i, it, slot)).join("")}</ol>
           </fieldset>`
         )
         .join("")}
@@ -966,7 +976,7 @@ async function saveHomeImagesForm(form) {
       const key = li.dataset.slot;
       const file = $("[name=photo]", li).files[0];
       (changes[key] ||= [])[Number(li.dataset.i)] = {
-        caption: $("[name=caption]", li).value,
+        ...Object.fromEntries(HOME_IMAGE_SLOTS[key].fields.map((f) => [f, $(`[name=${f}]`, li).value])),
         link: $("[name=link]", li).value,
         photo: file ? await preparePhoto(file) : undefined,
         removePhoto: !!$("[name=removePhoto]", li)?.checked,
