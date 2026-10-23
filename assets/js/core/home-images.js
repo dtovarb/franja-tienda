@@ -28,7 +28,7 @@ export const emptyHomeImages = () =>
   Object.fromEntries(Object.entries(HOME_IMAGE_SLOTS).map(([k, s]) => [k, Array.from({ length: s.count }, emptyItem)]));
 
 /** Solo lo que hace falta para mostrar la foto: con servidor `url`, en la demo `assetId`. */
-function cleanPhoto(p) {
+export function cleanPhoto(p) {
   if (!p || typeof p !== "object") return null;
   const side = (v) => (Number.isInteger(v) && v > 0 && v <= 10000 ? v : null);
   const base = { name: String(p.name || "foto").slice(0, 120), width: side(p.width), height: side(p.height) };

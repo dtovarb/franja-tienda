@@ -334,6 +334,18 @@
   padding: var(--sp-2) var(--sp-3);
   margin: 0;
 }
+.admin-popup__preview {
+  max-width: 720px;
+}
+.admin-popup__preview .offer {
+  background: var(--p-rosa-2);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-pop);
+}
+.admin-popup__preview .offer:not(.offer--photo) {
+  max-width: 460px;
+}
 @media (max-width: 640px) {
   .admin-announce__row {
     grid-template-columns: 24px minmax(0, 1fr);

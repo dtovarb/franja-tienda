@@ -6,8 +6,9 @@ import { SERVER, CATALOG } from "./api.js";
 import { readJSON } from "./storage.js";
 import { normalizeAnnouncement, safeLink } from "./announcement.js";
 import { normalizeHomeImages } from "./home-images.js";
+import { normalizePopup, POPUP_DEFAULTS } from "./popup.js";
 import { TEXT_BY_KEY, normalizeSiteTexts, normalizeMarquee } from "./site-texts.js";
-import { listCollections, listStoreDesigns } from "./store-designs.js";
+import { listCollections, listStoreDesigns, modelPhotoUrl } from "./store-designs.js";
 import { cartCount, onCartChange } from "./cart.js";
 import { escapeHtml } from "./format.js";
 import { CONTACT, whatsappUrl, instagramUrl, CONSUMER_COMPLAINTS_URL } from "../data/contact.js";
@@ -81,6 +82,70 @@ export const DEMO_ANNOUNCEMENT = {
 export function getAnnouncement() {
   if (CATALOG) return CATALOG.announcement || null;
   return normalizeAnnouncement(readJSON(ANNOUNCEMENT_KEY, DEMO_ANNOUNCEMENT)).value;
+}
+
+/* ---------------- Ventana de oferta (panel, «Sitio») ---------------- */
+export const POPUP_KEY = "popup.v1";
+const POPUP_SEEN_KEY = "nevrado.popup-visto";
+/** Páginas donde aparece: las de mirar. En el carrito, el editor, pedidos y textos legales, no. */
+const POPUP_PAGES = new Set(["home", "catalog", "designs", "about", "faq"]);
+export function getPopup() {
+  return normalizePopup(CATALOG ? CATALOG.popup : readJSON(POPUP_KEY, null)).value;
+}
+
+/** HTML de la ventana (también para la vista previa del panel). La foto se pone después, con `data-popup-photo`. */
+export function popupHtml(p) {
+  const link = safeLink(p.link) || POPUP_DEFAULTS.link;
+  const ext = link.startsWith("https://") ? ' target="_blank" rel="noopener"' : "";
+  return `<div class="offer${p.photo ? " offer--photo" : ""}">
+      ${p.photo ? '<div class="offer__media"><img data-popup-photo alt=""></div>' : ""}
+      <div class="offer__body">
+        <div class="stripes offer__stripes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+        ${p.kicker ? `<p class="eyebrow offer__kicker">${escapeHtml(p.kicker)}</p>` : ""}
+        ${p.title ? `<h2 class="display offer__title" id="offer-title">${escapeHtml(p.title)}</h2>` : ""}
+        ${p.text ? `<p class="offer__text">${escapeHtml(p.text).replace(/\n/g, "<br>")}</p>` : ""}
+        <a class="btn btn--primary btn--lg offer__cta" href="${escapeHtml(link)}"${ext} data-offer-cta>${escapeHtml(p.button || POPUP_DEFAULTS.button)} ${icon("arrowRight")}</a>
+      </div>
+    </div>`;
+}
+
+export function fillPopupPhoto(root, p) {
+  const img = root.querySelector("[data-popup-photo]");
+  if (img && p.photo) modelPhotoUrl({ modelPhoto: p.photo }).then((u) => u && (img.src = u));
+}
+
+/**
+ * Muestra la ventana una vez por visita (hasta cerrar el navegador). Si la
+ * dueña la cambia en el panel, aparece de nuevo aunque ya hayan cerrado la anterior.
+ */
+function maybeShowPopup(active) {
+  if (!POPUP_PAGES.has(active)) return;
+  const p = getPopup();
+  if (!p.enabled || (!p.title && !p.text)) return;
+  const stamp = p.updatedAt || "demo";
+  try {
+    if (sessionStorage.getItem(POPUP_SEEN_KEY) === stamp) return;
+    sessionStorage.setItem(POPUP_SEEN_KEY, stamp);
+  } catch {
+    return; // sin almacenamiento no sabemos si ya la vio: mejor no insistir en cada página
+  }
+  setTimeout(() => {
+    if (document.querySelector("dialog[open]")) return;
+    const d = document.createElement("dialog");
+    d.className = "dialog dialog--offer";
+    if (p.title) d.setAttribute("aria-labelledby", "offer-title");
+    else d.setAttribute("aria-label", "Oferta");
+    d.innerHTML = `<button class="icon-btn offer__close" type="button" aria-label="Cerrar" data-offer-close>${icon("close")}</button>${popupHtml(p)}`;
+    document.body.appendChild(d);
+    fillPopupPhoto(d, p);
+    d.addEventListener("click", (e) => {
+      // Clic afuera (en el fondo oscuro) o en la cruz: se cierra.
+      if (e.target === d || e.target.closest("[data-offer-close]")) d.close();
+    });
+    d.addEventListener("close", () => d.remove());
+    d.showModal();
+    d.querySelector("[data-offer-cta]").focus();
+  }, 1200);
 }
 
 /* ---------------- Fotos del inicio (se cambian en el panel, «Sitio») ---------------- */
@@ -385,6 +450,7 @@ export function initPage(active) {
   if (active !== "admin") applySiteTexts();
   renderHeader(active);
   renderFooter({ whatsapp: active !== "admin" });
+  maybeShowPopup(active);
 }
 
 export { injectSprite };

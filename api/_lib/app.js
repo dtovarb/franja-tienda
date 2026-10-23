@@ -11,7 +11,7 @@ import { createMercadoPago } from "./mercadopago.js";
 import { createCarriers } from "./carriers.js";
 import { createMailer, sendOrderMails } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
-import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZoneSettings, saveZoneSettings, withoutDisabledZones, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
+import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZoneSettings, saveZoneSettings, withoutDisabledZones, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadPopup, savePopup, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
 import { loadSiteTexts, saveSiteTexts, loadMarquee, saveMarquee, loadGarmentPhotos, saveGarmentPhoto } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates, loadShippingSettings, saveShippingSettings } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
@@ -96,11 +96,11 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       t.push(Date.now());
       const designCollections = await loadDesignCollections(db).catch((err) => (console.error("catálogo: colecciones", err), []));
       t.push(Date.now());
-      const { announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos } = await loadSiteSettings(db).catch((err) => (console.error("catálogo: sitio", err), { announcement: null, homeImages: null, freeShipping: false, siteTexts: null, marquee: null, garmentPhotos: {} }));
+      const { announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos, popup } = await loadSiteSettings(db).catch((err) => (console.error("catálogo: sitio", err), { announcement: null, homeImages: null, freeShipping: false, siteTexts: null, marquee: null, garmentPhotos: {}, popup: null }));
       t.push(Date.now());
       if (t[6] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms, colecciones ${t[5] - t[4]} ms, sitio ${t[6] - t[5]} ms`);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
-      return json({ colors, products: withoutDisabledZones(products, disabledZones), storeDesigns, zonePrices, disabledZones, designCollections, announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
+      return json({ colors, products: withoutDisabledZones(products, disabledZones), storeDesigns, zonePrices, disabledZones, designCollections, announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos, popup }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
     }],
 
     ["GET", "/api/reviews", async (req, url) => {
@@ -347,6 +347,22 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       await auth.require(req);
       const body = await readJson(req, 16 * 1024);
       return json({ announcement: await saveAnnouncement(db, body.announcement) });
+    }],
+
+    ["GET", "/api/admin/popup", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      return json({ popup: await loadPopup(db) });
+    }],
+    // `photo` (archivo ya subido) la reemplaza, `removePhoto` la quita y, sin
+    // ninguno de los dos, queda la que estaba.
+    ["PUT", "/api/admin/popup", async (req) => {
+      const c = await ctx();
+      await c.auth.require(req);
+      const body = await readJson(req, 16 * 1024);
+      const { photo: newPhoto, removePhoto, ...fields } = body.popup && typeof body.popup === "object" ? body.popup : {};
+      const photo = newPhoto ? await modelPhotoSource(c, newPhoto) : removePhoto ? null : (await loadPopup(c.db)).photo;
+      return json({ popup: await savePopup(c.db, { ...fields, photo }) });
     }],
 
     ["GET", "/api/admin/home-images", async (req) => {
