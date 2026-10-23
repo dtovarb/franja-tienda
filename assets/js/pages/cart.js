@@ -31,8 +31,8 @@ function render() {
     root.innerHTML = `
       <div class="empty">
         <p class="h3">Tu carrito está vacío</p>
-        <p class="muted">Diseñá una prenda y agregala desde «Finalizar diseño».</p>
-        <a class="btn btn--primary" href="catalogo.html?diseñar=1">Empezar a diseñar ${icon("arrowRight")}</a>
+        <p class="muted">Mirá nuestros diseños y elegí tu prenda.</p>
+        <a class="btn btn--primary" href="disenos.html">Ver diseños ${icon("arrowRight")}</a>
       </div>`;
     return;
   }
@@ -200,7 +200,7 @@ root.addEventListener("click", async (e) => {
   }
   const r = e.target.closest("[data-remove]");
   if (r) {
-    const ok = await confirmDialog({ title: "¿Eliminar este artículo?", body: "Se quita del carrito junto con su diseño guardado en este navegador.", confirmLabel: "Eliminar", danger: true });
+    const ok = await confirmDialog({ title: "¿Eliminar este artículo?", body: "Se quita del carrito junto con su diseño.", confirmLabel: "Eliminar", danger: true });
     if (ok) {
       const it = getCart().items.find((i) => i.id === r.dataset.remove);
       removeItem(r.dataset.remove);
@@ -284,7 +284,7 @@ function showDemoCheckout() {
       <p>Lo guardamos como <b>pedido de prueba n.º ${order.number}</b> en este navegador, para que lo veas en el <a href="admin.html#pedidos">panel de la tienda</a>.</p>
       <p class="muted">Así quedaría el pedido que la tienda real enviaría a su API (${items.length} artículo${items.length === 1 ? "" : "s"}, ${formatPrice(t.total)}):</p>
       <pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre>
-      <p class="muted">Tu carrito sigue guardado en este navegador.</p>
+      <p class="muted">Tu carrito sigue guardado en este dispositivo.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <a class="btn btn--primary" href="carrito.html">${icon("back")}Volver al carrito</a>
         <a class="btn" href="catalogo.html">Seguir diseñando</a>
