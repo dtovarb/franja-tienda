@@ -6,7 +6,7 @@ import { sizeChartTable, measureHelp } from "../data/size-charts.js";
 import { reviewsBlock, demoTag, IS_DEMO } from "./components.js";
 import { computePrice, startingPrice, ZONE_PRICES } from "../core/pricing.js";
 import { formatPrice, escapeHtml, params } from "../core/format.js";
-import { getStoreDesign, isAvailableFor, storeDesignImageUrl, modelPhotoUrl, designArt } from "../core/store-designs.js";
+import { getStoreDesign, isAvailableFor, storeDesignImageUrl, modelPhotoUrl, designArt, designPageUrl } from "../core/store-designs.js";
 
 initPage(new URLSearchParams(location.search).has("diseno") ? "designs" : "catalog");
 
@@ -144,7 +144,7 @@ if (!product) {
         ${design ? otherProducts.length
               ? `<div class="pdp__others"><p class="mono dcard__label">También en</p>
                   <ul class="dcard__products" role="list">${otherProducts
-                    .map((x) => `<li><a class="chip" href="producto.html?id=${encodeURIComponent(x.id)}&diseno=${encodeURIComponent(design.id)}">${escapeHtml(x.name)}<small>${formatPrice(startingPrice(x, [design.id]))}</small></a></li>`)
+                    .map((x) => `<li><a class="chip" href="${designPageUrl(design, x.id)}">${escapeHtml(x.name)}<small>${formatPrice(startingPrice(x, [design.id]))}</small></a></li>`)
                     .join("")}</ul></div>`
               : "" : ""}
 
