@@ -1711,6 +1711,16 @@
 }
 .ship-option:has(input:checked) { border-color: var(--c-magenta); box-shadow: inset 4px 0 0 var(--c-magenta); }
 .checkout__quote p { margin: 0; }
+.transfer-box {
+  display: grid; gap: var(--sp-3); padding: var(--sp-4);
+  border: 2px solid var(--c-magenta); border-radius: var(--radius-lg); background: var(--c-surface);
+}
+.transfer-box .h3, .transfer-box .hint { margin: 0; }
+.transfer-box__data { display: grid; gap: var(--sp-2); margin: 0; }
+.transfer-box__data div { display: grid; grid-template-columns: minmax(7rem, auto) minmax(0, 1fr); gap: var(--sp-3); align-items: center; }
+.transfer-box__data dt { color: var(--c-ink-2); }
+.transfer-box__data dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); overflow-wrap: anywhere; }
+@media (max-width: 520px) { .transfer-box__data div { grid-template-columns: 1fr; gap: 0; } }
 
 /* ---------- Páginas legales y botón de arrepentimiento ---------- */
 .legal {

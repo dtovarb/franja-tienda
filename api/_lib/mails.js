@@ -5,7 +5,11 @@
  *                    (aviso de Mercado Pago o cambio a mano en el panel).
  *   pedido_recibido  a la clienta, al crear un pedido sin cobro online
  *                    («cobro a coordinar»).
- *   aviso_duena      a OWNER_EMAILS, en esos mismos dos momentos.
+ *   pedido_transferencia  a la clienta, al crear un pedido que paga por
+ *                    transferencia: monto y datos bancarios del panel.
+ *   pedido_vencido   a la clienta, si su pedido por transferencia se canceló
+ *                    solo porque no llegó la transferencia a tiempo.
+ *   aviso_duena      a OWNER_EMAILS, al crear o pagar un pedido.
  *
  * `sendOrderMails` mira el estado actual del pedido y manda lo que
  * corresponda. Cada mail se reserva antes en `order_emails` (pedido + tipo),
@@ -15,7 +19,7 @@
  *
  * Sin RESEND_API_KEY no se manda nada y los pedidos funcionan igual.
  */
-import { loadColors } from "./catalog.js";
+import { loadColors, loadTransfer } from "./catalog.js";
 import { orderToken } from "./orders.js";
 import { CONTACT } from "../../assets/js/data/contact.js";
 import { faceLabel } from "../../assets/js/data/garments.js";
@@ -56,11 +60,16 @@ export function createMailer(config, fetchImpl = fetch) {
 /** Qué mails corresponden al pedido en el estado en que está ahora. */
 function dueMails(order, ownerEmails) {
   const paid = order.status === "pagado";
-  const toCoordinate = order.status === "pendiente_pago" && order.payment_status === "sin_configurar";
+  const pending = order.status === "pendiente_pago";
+  const byTransfer = pending && order.payment_method === "transferencia";
+  const toCoordinate = pending && !byTransfer && order.payment_status === "sin_configurar";
   const kinds = [];
   if (paid) kinds.push({ kind: "comprobante", to: [order.customer.email] });
   if (toCoordinate) kinds.push({ kind: "pedido_recibido", to: [order.customer.email] });
-  if ((paid || toCoordinate) && ownerEmails.length) kinds.push({ kind: "aviso_duena", to: ownerEmails });
+  if (byTransfer) kinds.push({ kind: "pedido_transferencia", to: [order.customer.email] });
+  const expired = order.status === "cancelado" && order.payment_method === "transferencia" && (order.events || []).some((e) => e.actor === "vencimiento");
+  if (expired) kinds.push({ kind: "pedido_vencido", to: [order.customer.email] });
+  if ((paid || toCoordinate || byTransfer) && ownerEmails.length) kinds.push({ kind: "aviso_duena", to: ownerEmails });
   return kinds;
 }
 
@@ -81,11 +90,12 @@ export async function sendOrderMails({ db, mailer, config }, order, baseUrl) {
   const due = dueMails(order, config.ownerEmails);
   if (!due.length) return [];
   const colors = await loadColors(db).catch(() => ({}));
+  const transfer = order.payment_method === "transferencia" ? await loadTransfer(db).catch(() => null) : null;
   const link = `${baseUrl}/pedido.html?id=${order.id}&t=${orderToken(config.sessionSecret, order.id)}`;
   const results = [];
   for (const { kind, to } of due) {
     if (!(await claim(db, order.id, kind, to))) continue;
-    const mail = renderMail(kind, order, { colors, link, adminLink: `${baseUrl}/admin.html` });
+    const mail = renderMail(kind, order, { colors, link, adminLink: `${baseUrl}/admin.html`, transfer });
     try {
       const id = await mailer.send({ to, ...mail, idempotencyKey: `nevrado-${order.id}-${kind}` });
       await db.query("update order_emails set status = 'enviado', provider_id = $3, error = null, updated_at = now() where order_id = $1 and kind = $2", [
@@ -112,6 +122,8 @@ export async function sendOrderMails({ db, mailer, config }, order, baseUrl) {
 const LABELS = {
   comprobante: "Comprobante de compra",
   pedido_recibido: "Mail de pedido recibido",
+  pedido_transferencia: "Mail con los datos para transferir",
+  pedido_vencido: "Aviso de pedido vencido",
   aviso_duena: "Aviso de pedido nuevo",
   recordatorio_pago: "Recordatorio de pago",
 };
@@ -134,7 +146,8 @@ async function deliver({ db, mailer }, order, kind, to, mail) {
  * Recordatorio a quien dejó un pedido sin pagar en Mercado Pago. Va una sola
  * vez por pedido, entre 20 y 72 horas después de hecho, y no va si la misma
  * clienta ya pagó otro pedido después, ni si el cobro online no está activo
- * (esos pedidos se coordinan a mano).
+ * (esos pedidos se coordinan a mano), ni a los pedidos por transferencia
+ * (ya tienen el mail con los datos y la tienda los sigue a mano).
  */
 export async function sendPaymentReminders({ db, mailer, config }, baseUrl, { getOrder, limit = 30 } = {}) {
   if (!mailer) return [];
@@ -142,6 +155,7 @@ export async function sendPaymentReminders({ db, mailer, config }, baseUrl, { ge
     `select o.id from orders o
       where o.status = 'pendiente_pago'
         and o.payment_status in ('pendiente', 'rechazado')
+        and o.payment_method <> 'transferencia'
         and o.created_at < now() - interval '20 hours'
         and o.created_at > now() - interval '72 hours'
         and not exists (select 1 from order_emails e where e.order_id = o.id and e.kind = 'recordatorio_pago' and e.status <> 'error')
@@ -186,16 +200,31 @@ function shippingLabel(order) {
   return [q.carrier, q.service].filter(Boolean).join(" · ") || "Envío";
 }
 
-export function renderMail(kind, order, { colors = {}, link, adminLink }) {
+/** Renglones con los datos para transferir (alias, CBU/CVU, titular…). */
+function bankLines(t) {
+  if (!t) return [];
+  return [
+    t.alias && ["Alias", t.alias],
+    t.cbu && ["CBU / CVU", t.cbu],
+    t.holder && ["Titular", t.holder],
+    t.cuit && ["CUIT / CUIL", t.cuit],
+    t.bank && ["Banco o billetera", t.bank],
+  ].filter(Boolean);
+}
+
+export function renderMail(kind, order, { colors = {}, link, adminLink, transfer = null }) {
   const items = itemsOf(order, colors);
   const n = order.number;
   const first = String(order.customer.name || "").split(/\s+/)[0];
+  const byTransfer = order.payment_method === "transferencia";
+  const bank = kind === "pedido_transferencia" ? bankLines(transfer) : [];
+  const receipt = `mandanos el comprobante por WhatsApp al ${CONTACT.whatsappLabel} o respondiendo este mail, con tu número de pedido (#${n})`;
   const content = {
     comprobante: {
       subject: `Tu compra en nevrado · pedido #${n}`,
       title: "¡Gracias por tu compra!",
-      intro: `Hola ${first}, recibimos el pago de tu pedido #${n}. Ya está en la cola de producción.`,
-      payment: `Pagado con Mercado Pago${order.mp_payment_id ? ` · operación ${order.mp_payment_id}` : ""}`,
+      intro: `Hola ${first}, recibimos ${byTransfer ? "tu transferencia" : "el pago"} del pedido #${n}. Ya está en la cola de producción.`,
+      payment: byTransfer ? "Pagado por transferencia" : `Pagado con Mercado Pago${order.mp_payment_id ? ` · operación ${order.mp_payment_id}` : ""}`,
       after: "Te llega en 5 a 7 días hábiles desde la acreditación del pago, con el envío incluido. Si necesitás cancelar, podés hacerlo mientras el pedido no haya pasado a producción.",
       cta: "Seguir mi pedido",
     },
@@ -207,6 +236,22 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
       after: "El plazo de 5 a 7 días hábiles, con el envío incluido, empieza cuando se acredita el pago.",
       cta: "Ver mi pedido",
     },
+    pedido_transferencia: {
+      subject: `Tu pedido #${n}: datos para transferir · nevrado`,
+      title: "Ya casi: falta la transferencia",
+      intro: `Hola ${first}, tu pedido #${n} quedó guardado. Para confirmarlo, transferí ${price(order.total)} a la cuenta de abajo y ${receipt}.`,
+      payment: `Pago por transferencia${order.transfer_discount ? ` · ya tiene el ${order.transfer_percent}% de descuento` : ""}`,
+      after: `Apenas veamos la transferencia te llega otro mail confirmándola y el pedido pasa a producción. El plazo de 5 a 7 días hábiles, con el envío incluido, empieza ahí.${transfer?.expiresHours ? ` Si no recibimos la transferencia en ${transfer.expiresHours} horas, el pedido se cancela solo.` : ""}`,
+      cta: "Ver mi pedido",
+    },
+    pedido_vencido: {
+      subject: `Cancelamos tu pedido #${n} · nevrado`,
+      title: "Tu pedido se canceló",
+      intro: `Hola ${first}, cancelamos tu pedido #${n} porque no nos llegó la transferencia a tiempo.`,
+      payment: "Sin pago",
+      after: `Si ya transferiste, escribinos por WhatsApp al ${CONTACT.whatsappLabel} con el comprobante y lo reactivamos. Si todavía lo querés, podés volver a hacerlo en nevrado.com.`,
+      cta: "Ver mi pedido",
+    },
     recordatorio_pago: {
       subject: `Tu pedido #${n} te está esperando · nevrado`,
       title: "Tu pedido te está esperando",
@@ -216,10 +261,15 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
       cta: "Pagar mi pedido",
     },
     aviso_duena: {
-      subject: `Pedido #${n} ${order.status === "pagado" ? "pagado" : "nuevo, cobro a coordinar"} · ${price(order.total)}`,
-      title: order.status === "pagado" ? `Pedido #${n} pagado` : `Pedido #${n}: cobro a coordinar`,
+      subject: `Pedido #${n} ${order.status === "pagado" ? "pagado" : byTransfer ? "nuevo, espera transferencia" : "nuevo, cobro a coordinar"} · ${price(order.total)}`,
+      title: order.status === "pagado" ? `Pedido #${n} pagado` : byTransfer ? `Pedido #${n}: espera transferencia` : `Pedido #${n}: cobro a coordinar`,
       intro: `${order.customer.name} · ${order.customer.email} · ${order.customer.phone}`,
-      payment: order.status === "pagado" ? `Mercado Pago${order.mp_payment_id ? ` · operación ${order.mp_payment_id}` : ""}` : "Sin cobro online: hay que contactarla para coordinar el pago.",
+      payment:
+        order.status === "pagado"
+          ? byTransfer ? "Transferencia" : `Mercado Pago${order.mp_payment_id ? ` · operación ${order.mp_payment_id}` : ""}`
+          : byTransfer
+            ? `Por transferencia: cuando te llegue ${price(order.total)}, pasalo a «Pagado» en el panel.`
+            : "Sin cobro online: hay que contactarla para coordinar el pago.",
       after: "Los archivos de impresión están en el panel.",
       cta: "Abrir el panel",
     },
@@ -237,9 +287,11 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
     ...items.map((i) => `- ${i.qty} × ${i.name} (${i.detail}): ${price(i.total)}`),
     `Subtotal: ${price(order.subtotal)}`,
     ...(order.discount ? [`Descuento (código ${order.coupon_code}, ${order.coupon_percent}%): −${price(order.discount)}`] : []),
+    ...(order.transfer_discount ? [`Descuento por transferencia (${order.transfer_percent}%): −${price(order.transfer_discount)}`] : []),
     `${shippingLabel(order)}: ${order.shipping_cost ? price(order.shipping_cost) : "gratis"}`,
     `Total: ${price(order.total)}`,
     content.payment,
+    ...(bank.length ? ["", `Datos para transferir ${price(order.total)}:`, ...bank.map(([k, v]) => `${k}: ${v}`)] : []),
     "",
     "Envío a:",
     order.customer.name,
@@ -250,7 +302,7 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
     "",
     `${content.cta}: ${ctaLink}`,
     "",
-    ...(kind === "aviso_duena" ? [] : [...(kind === "recordatorio_pago" ? [] : ["Este mail es tu comprobante de compra; no es una factura."]), `¿Dudas? WhatsApp ${CONTACT.whatsappLabel} · ${CONTACT.email} · Instagram @${CONTACT.instagram}`, ""]),
+    ...(kind === "aviso_duena" ? [] : [...(["recordatorio_pago", "pedido_transferencia", "pedido_vencido"].includes(kind) ? [] : ["Este mail es tu comprobante de compra; no es una factura."]), `¿Dudas? WhatsApp ${CONTACT.whatsappLabel} · ${CONTACT.email} · Instagram @${CONTACT.instagram}`, ""]),
     "nevrado · Córdoba, Argentina",
   ].join("\n");
 
@@ -285,17 +337,27 @@ export function renderMail(kind, order, { colors = {}, link, adminLink }) {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px">
       ${row("Subtotal", price(order.subtotal))}
       ${order.discount ? row(`Descuento · código ${order.coupon_code} (${order.coupon_percent}%)`, `−${price(order.discount)}`) : ""}
+      ${order.transfer_discount ? row(`Descuento por transferencia (${order.transfer_percent}%)`, `−${price(order.transfer_discount)}`) : ""}
       ${row(shippingLabel(order), order.shipping_cost ? price(order.shipping_cost) : "Gratis")}
       ${row("Total", price(order.total), true)}
     </table>
     <p style="margin:12px 0 0;font-size:13px;color:#5b5256">${esc(content.payment)}</p>
+    ${
+      bank.length
+        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;background:#faf7f2;border:1px solid #e4e0dc">
+      <tr><td colspan="2" style="padding:12px 16px 4px;font-weight:700">Transferí ${esc(price(order.total))} a</td></tr>
+      ${bank.map(([k, v]) => `<tr><td style="padding:3px 16px;color:#5b5256;font-size:14px">${esc(k)}</td><td align="right" style="padding:3px 16px;font-size:14px;font-weight:700;word-break:break-all">${esc(v)}</td></tr>`).join("")}
+      <tr><td colspan="2" style="padding:8px 16px 12px;font-size:13px;color:#5b5256;line-height:1.4">Después, ${esc(receipt)}.</td></tr>
+    </table>`
+        : ""
+    }
     <h2 style="margin:24px 0 6px;font-size:15px">Envío a</h2>
     <p style="margin:0;line-height:1.5">${[order.customer.name, ...addr].map(esc).join("<br>")}${notes ? `<br><span style="color:#5b5256">${esc(notes)}</span>` : ""}</p>
     <p style="margin:20px 0;line-height:1.5">${esc(content.after)}</p>
     <p style="margin:0 0 28px"><a href="${esc(ctaLink)}" style="display:inline-block;background:#7d3a5e;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px">${esc(content.cta)}</a></p>
   </td></tr>
   <tr><td colspan="5" style="padding:16px 28px;border-top:1px solid #e4e0dc;font-size:12px;color:#5b5256;line-height:1.5">
-    ${kind === "aviso_duena" ? "" : `${kind === "recordatorio_pago" ? "" : "Este mail es tu comprobante de compra; no es una factura.<br>"}¿Dudas? WhatsApp ${esc(CONTACT.whatsappLabel)} · ${esc(CONTACT.email)} · Instagram @${esc(CONTACT.instagram)}<br>`}nevrado · Córdoba, Argentina
+    ${kind === "aviso_duena" ? "" : `${["recordatorio_pago", "pedido_transferencia", "pedido_vencido"].includes(kind) ? "" : "Este mail es tu comprobante de compra; no es una factura.<br>"}¿Dudas? WhatsApp ${esc(CONTACT.whatsappLabel)} · ${esc(CONTACT.email)} · Instagram @${esc(CONTACT.instagram)}<br>`}nevrado · Córdoba, Argentina
   </td></tr>
 </table>
 </td></tr></table>

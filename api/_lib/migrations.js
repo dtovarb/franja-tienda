@@ -362,4 +362,16 @@ alter table orders add column if not exists coupon_code text;
 alter table orders add column if not exists coupon_percent integer;
 `,
   },
+  {
+    // Pago por transferencia con descuento (pedido de la tienda, 24/10/2026):
+    // el pedido guarda cómo se paga y los pesos descontados por transferir.
+    // Los datos bancarios y el porcentaje viven en site_settings ('transfer').
+    // Columnas con valor por defecto: el código anterior sigue funcionando.
+    id: "0015_pago_transferencia",
+    sql: `
+alter table orders add column if not exists payment_method text not null default 'mercadopago';
+alter table orders add column if not exists transfer_discount integer not null default 0;
+alter table orders add column if not exists transfer_percent integer;
+`,
+  },
 ];

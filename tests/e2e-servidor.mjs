@@ -215,6 +215,54 @@ try {
     return "producción visible; token inválido rechazado";
   });
 
+  let transferUrl;
+  await t("Cobros", "Transferencia con descuento: panel → checkout → datos para transferir", async () => {
+    await page.goto(`${BASE}/admin.html#cobros`);
+    await page.waitForSelector("[data-transfer-form]");
+    await page.check("[data-transfer-form] [name=enabled]");
+    await page.click("[data-transfer-form] [type=submit]");
+    await page.waitForFunction(() => /alias|CBU/.test(document.querySelector("[data-transfer-errors]").textContent));
+    await page.fill("#tr-percent", "10");
+    await page.fill("#tr-alias", "nevrado.tienda");
+    await page.fill("#tr-holder", "Daniela Tovar");
+    await page.fill("#tr-bank", "Mercado Pago");
+    await page.click("[data-transfer-form] [type=submit]");
+    await page.waitForFunction(() => document.querySelector("#tr-alias")?.value === "nevrado.tienda" && !document.querySelector("[data-transfer-errors]").textContent);
+    await page.screenshot({ path: join(SHOTS, "servidor-panel-cobros.png"), fullPage: true });
+
+    await page.goto(`${BASE}/editor.html?product=remera-clasica&color=negro&size=M&qty=1`);
+    await page.waitForSelector("[data-loading]", { state: "hidden", timeout: 15000 });
+    await page.fill("#quicktext", "NEVRADO");
+    await page.click("[data-quicktext] button");
+    await page.click('[data-action="finalize"]');
+    await page.waitForSelector("[data-add-cart]", { timeout: 30000 });
+    if (await page.locator("[data-ack]").count()) await page.check("[data-ack]");
+    await page.click("[data-add-cart]");
+    await page.waitForURL(/carrito\.html/);
+    await page.click("[data-checkout]");
+    await page.waitForSelector("[data-pay-options]");
+    // Los datos de la clienta quedaron guardados del pedido anterior.
+    await page.waitForSelector(".ship-option input[name=shippingOption]");
+    const before = digits(await page.textContent("[data-total]"));
+    await page.check('[name=paymentMethod][value="transferencia"]');
+    const after = digits(await page.textContent("[data-total]"));
+    assert(before - after === 1890, `descuento ${before - after}`);
+    assert(/transferir/.test(await page.textContent("[data-co-submit]")), "botón");
+    await page.screenshot({ path: join(SHOTS, "servidor-checkout-transferencia.png"), fullPage: true });
+    await page.click("[data-co-submit]");
+    await page.waitForURL(/pedido\.html\?id=.+&nuevo=1/, { timeout: 60000 });
+    await page.waitForSelector(".transfer-box");
+    transferUrl = page.url();
+    const box = await page.textContent(".transfer-box");
+    assert(/nevrado\.tienda/.test(box) && /Daniela Tovar/.test(box) && digits(box.match(/Transferí ([^M]+)/)[1]) === after, box);
+    assert((await page.locator("[data-pay]").count()) === 0, "sin botón de Mercado Pago");
+    await page.screenshot({ path: join(SHOTS, "servidor-pedido-transferencia.png"), fullPage: true });
+
+    await page.goto(`${BASE}/admin.html#pedidos`);
+    await page.waitForSelector('[data-order-row] summary:has-text("Espera transferencia")');
+    return `$${before} → $${after} con 10% off; alias y titular en el pedido`;
+  });
+
   await t("Móvil", "Checkout y pedido sin desborde horizontal", async () => {
     const m = await browser.newContext({ viewport: { width: 375, height: 760 }, isMobile: true, hasTouch: true });
     const mp = await m.newPage();
@@ -222,6 +270,13 @@ try {
     await mp.waitForSelector(".order-view");
     const over = await mp.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     await mp.screenshot({ path: join(SHOTS, "servidor-movil-pedido.png"), fullPage: true });
+    if (transferUrl) {
+      await mp.goto(transferUrl);
+      await mp.waitForSelector(".transfer-box");
+      const over2 = await mp.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      await mp.screenshot({ path: join(SHOTS, "servidor-movil-transferencia.png"), fullPage: true });
+      assert(over2 <= 1, `desborde transferencia ${over2}px`);
+    }
     await m.close();
     assert(over <= 1, `desborde ${over}px`);
   });

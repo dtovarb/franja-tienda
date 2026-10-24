@@ -829,3 +829,96 @@ test("zonas de estampa: el frente tiene recargo editable y las zonas se apagan d
   assert.deepEqual(back.body.disabledZones, []);
   assert.equal((await order({ front: null, "sleeve-left": null })).body.order.subtotal, 18900 + 2500);
 });
+
+test("pago por transferencia: panel, catálogo, descuento con y sin código, y sin Mercado Pago", async () => {
+  const cookie = await login();
+  assert.equal((await call("GET", "/api/admin/transfer")).status, 401);
+  // Apagada de fábrica: no se ofrece y un pedido por transferencia se rechaza.
+  let cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.equal(cat.transfer, null);
+  const item = await cartItem({ qty: 1 });
+  const place = async (extra = {}) => jsonOf(await call("POST", "/api/orders", { body: { customer, shipping: { ...shipping, postalCode: "1425" }, items: [item], paymentMethod: "transferencia", ...extra } }));
+  assert.equal((await place()).status, 409);
+
+  // Datos inválidos o incompletos: no se guarda.
+  const put = async (transfer) => jsonOf(await call("PUT", "/api/admin/transfer", { cookie, body: { transfer } }));
+  assert.equal((await put({ enabled: true, percent: 10, holder: "Daniela" })).status, 422); // sin alias ni CBU
+  assert.equal((await put({ enabled: true, percent: 10, alias: "nevrado.tienda" })).status, 422); // sin titular
+  assert.equal((await put({ enabled: true, percent: 80, alias: "nevrado.tienda", holder: "D" })).status, 422);
+  assert.equal((await put({ enabled: true, percent: 10, cbu: "123", holder: "D" })).status, 422);
+  let r = await put({ enabled: true, percent: 10, alias: " Nevrado.Tienda ", cbu: "0000-0031-0001-2345-6789-01", holder: "Daniela Tovar" });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.transfer.alias, "nevrado.tienda");
+  assert.equal(r.body.transfer.cbu, "0000003100012345678901");
+  assert.equal((await jsonOf(await call("GET", "/api/admin/transfer", { cookie }))).body.transfer.holder, "Daniela Tovar");
+
+  // El catálogo dice el porcentaje, no los datos bancarios.
+  cat = (await jsonOf(await call("GET", "/api/catalog"))).body;
+  assert.deepEqual(cat.transfer, { percent: 10, stacksWithCoupons: true, expiresHours: 72 });
+
+  // Pedido por transferencia: 10% de las prendas, el envío entero, sin preferencia de Mercado Pago.
+  const prefs = mpCalls.length;
+  r = await place();
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const o = r.body.order;
+  assert.equal(o.paymentMethod, "transferencia");
+  assert.equal(o.transferDiscount, 1890);
+  assert.equal(o.transferPercent, 10);
+  assert.equal(o.total, 18900 - 1890 + 7500);
+  assert.equal(r.body.payment.provider, "transferencia");
+  assert.equal(r.body.payment.checkoutUrl, null);
+  assert.equal(mpCalls.length, prefs);
+  assert.deepEqual(o.bank, { alias: "nevrado.tienda", cbu: "0000003100012345678901", holder: "Daniela Tovar", bank: "", cuit: "" });
+  // Ese total no se puede pagar en Mercado Pago.
+  assert.equal((await call("POST", `/api/orders/${o.id}/pay?t=${r.body.token}`, { body: {} })).status, 409);
+
+  // En el panel figura como transferencia; marcado pagado, la clienta ya no ve los datos.
+  const list = (await jsonOf(await call("GET", "/api/admin/orders", { cookie }))).body.orders;
+  assert.equal(list.find((x) => x.id === o.id).payment_method, "transferencia");
+  assert.equal((await call("PATCH", `/api/admin/orders/${o.id}`, { cookie, body: { status: "pagado" } })).status, 200);
+  const seen = (await jsonOf(await call("GET", `/api/orders/${o.id}?t=${r.body.token}`))).body.order;
+  assert.equal(seen.bank, null);
+  assert.equal(seen.paymentStatus, "aprobado");
+
+  // Con código: se suma sobre el precio ya con el código…
+  await call("PUT", "/api/admin/coupons", { cookie, body: { coupons: [{ code: "NEVRADO15", percent: 15 }] } });
+  r = await place({ couponCode: "NEVRADO15" });
+  assert.equal(r.body.order.discount, 2835);
+  assert.equal(r.body.order.transferDiscount, Math.round((18900 - 2835) * 0.1));
+  // …o, si en el panel no se suma, el código solo.
+  await put({ enabled: true, percent: 10, alias: "nevrado.tienda", holder: "Daniela Tovar", stacksWithCoupons: false });
+  r = await place({ couponCode: "NEVRADO15" });
+  assert.equal(r.body.order.discount, 2835);
+  assert.equal(r.body.order.transferDiscount, 0);
+  assert.equal(r.body.order.total, 18900 - 2835 + 7500);
+
+  // Vence a las 72 h: se cancela al abrir el panel (o el pedido), y si la plata llega tarde se puede pasar a pagado.
+  const { db } = await app.init();
+  const late = (await place()).body;
+  await db.query("update orders set created_at = now() - interval '73 hours' where id = $1", [late.order.id]);
+  const fresh = (await place()).body;
+  await call("GET", "/api/admin/orders", { cookie });
+  const detail = (await jsonOf(await call("GET", `/api/admin/orders/${late.order.id}`, { cookie }))).body.order;
+  assert.equal(detail.status, "cancelado");
+  assert.deepEqual(detail.next, ["pagado"]);
+  assert.equal(detail.events.at(-1).actor, "vencimiento");
+  assert.equal((await jsonOf(await call("GET", `/api/orders/${fresh.order.id}?t=${fresh.token}`))).body.order.status, "pendiente_pago");
+  assert.ok((await jsonOf(await call("GET", `/api/orders/${fresh.order.id}?t=${fresh.token}`))).body.order.transferDeadline);
+  assert.equal((await call("PATCH", `/api/admin/orders/${late.order.id}`, { cookie, body: { status: "pagado" } })).status, 200);
+  // Con plazo 0 no vence nunca.
+  await put({ enabled: true, percent: 10, alias: "nevrado.tienda", holder: "Daniela Tovar", expiresHours: 0 });
+  await db.query("update orders set created_at = now() - interval '500 hours' where id = $1", [fresh.order.id]);
+  await call("GET", "/api/admin/orders", { cookie });
+  assert.equal((await jsonOf(await call("GET", `/api/orders/${fresh.order.id}?t=${fresh.token}`))).body.order.status, "pendiente_pago");
+  await call("PATCH", `/api/admin/orders/${fresh.order.id}`, { cookie, body: { status: "cancelado" } });
+
+  // Apagada otra vez: el catálogo no la ofrece. Mercado Pago sigue igual.
+  await put({ enabled: false, percent: 10, alias: "nevrado.tienda", holder: "Daniela Tovar" });
+  assert.equal((await jsonOf(await call("GET", "/api/catalog"))).body.transfer, null);
+  assert.equal((await place()).status, 409);
+  r = await place({ paymentMethod: undefined });
+  assert.equal(r.status, 201);
+  assert.equal(r.body.order.paymentMethod, "mercadopago");
+  assert.equal(r.body.order.transferDiscount, 0);
+  await call("PUT", "/api/admin/coupons", { cookie, body: { coupons: [] } });
+});

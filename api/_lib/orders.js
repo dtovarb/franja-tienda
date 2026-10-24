@@ -8,14 +8,16 @@
  *     de la base;
  *   - controla color, talle y stock;
  *   - lee cada archivo del balde y comprueba hash, tamaño y tipo real;
- *   - cotiza el envío por código postal.
+ *   - cotiza el envío por código postal;
+ *   - si se paga por transferencia, aplica el descuento del panel.
  * Recién ahí crea el pedido, en estado "pendiente_pago".
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { priceWith } from "../../assets/js/core/pricing.js";
 import { faceLabel } from "../../assets/js/data/garments.js";
 import { HttpError } from "./http.js";
-import { getProduct, storeDesignsByIds, loadZoneSettings, withoutDisabledZones, loadCoupons, loadDesignCollections } from "./catalog.js";
+import { getProduct, storeDesignsByIds, loadZoneSettings, withoutDisabledZones, loadCoupons, loadDesignCollections, loadTransfer } from "./catalog.js";
+import { transferReady, transferDiscount, bankDetails, transferDeadline } from "../../assets/js/core/transfer.js";
 import { findCoupon, couponDiscount } from "../../assets/js/core/coupons.js";
 import { quoteShipping } from "./shipping.js";
 import { PAYMENT_STATUS } from "./mercadopago.js";
@@ -145,6 +147,7 @@ export async function createOrder({ db, storage, secret, carriers = [] }, body) 
   const items = Array.isArray(body.items) ? body.items : [];
   if (!items.length) throw new HttpError(422, "El carrito está vacío.");
   if (items.length > MAX_ITEMS) throw new HttpError(422, `Un pedido puede tener hasta ${MAX_ITEMS} prendas distintas.`);
+  const byTransfer = body.paymentMethod === "transferencia";
   const idem = typeof body.idempotencyKey === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(body.idempotencyKey) ? body.idempotencyKey : null;
 
   if (idem) {
@@ -201,7 +204,15 @@ export async function createOrder({ db, storage, secret, carriers = [] }, body) 
     if (r.missing) throw new HttpError(409, `${r.missing} Sacalo en el carrito para seguir.`);
     discount = r.discount;
   }
-  const total = subtotal - discount + shipping.price;
+  // Transferencia: se vuelve a leer el porcentaje del panel, como el código.
+  let transfer = null;
+  let transferOff = 0;
+  if (byTransfer) {
+    transfer = await loadTransfer(db);
+    if (!transferReady(transfer)) throw new HttpError(409, "El pago por transferencia ya no está disponible. Elegí otra forma de pago.");
+    transferOff = transferDiscount(transfer, subtotal - discount, { hasCoupon: !!coupon });
+  }
+  const total = subtotal - discount - transferOff + shipping.price;
   const id = crypto.randomUUID();
 
   await db.tx(async (q) => {
@@ -212,9 +223,13 @@ export async function createOrder({ db, storage, secret, carriers = [] }, body) 
       );
     }
     await q.query(
-      `insert into orders (id, customer, shipping, subtotal, shipping_cost, total, idempotency_key, discount, coupon_code, coupon_percent)
-       values ($1, $2::text::jsonb, $3::text::jsonb, $4, $5, $6, $7, $8, $9, $10)`,
-      [id, JSON.stringify(customer), JSON.stringify({ ...address, quote: shipping }), subtotal, shipping.price, total, idem, discount, coupon?.code || null, coupon?.percent || null]
+      `insert into orders (id, customer, shipping, subtotal, shipping_cost, total, idempotency_key, discount, coupon_code, coupon_percent,
+         payment_method, transfer_discount, transfer_percent)
+       values ($1, $2::text::jsonb, $3::text::jsonb, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [
+        id, JSON.stringify(customer), JSON.stringify({ ...address, quote: shipping }), subtotal, shipping.price, total, idem, discount, coupon?.code || null, coupon?.percent || null,
+        byTransfer ? "transferencia" : "mercadopago", transferOff, transferOff ? transfer.percent : null,
+      ]
     );
     for (const [pos, l] of lines.entries()) {
       await q.query(
@@ -244,8 +259,12 @@ export async function getOrder(q, id) {
   return o;
 }
 
-/** Lo que ve la clienta con su enlace: sin archivos ni datos internos. */
-export function publicOrder(o) {
+/**
+ * Lo que ve la clienta con su enlace: sin archivos ni datos internos. Si
+ * paga por transferencia y todavía no pagó, van los datos para transferir
+ * (`transfer`, los del panel ahora).
+ */
+export function publicOrder(o, { transfer = null } = {}) {
   return {
     id: o.id,
     number: o.number,
@@ -259,6 +278,11 @@ export function publicOrder(o) {
     discount: o.discount || 0,
     couponCode: o.coupon_code || null,
     couponPercent: o.coupon_percent || null,
+    paymentMethod: o.payment_method || "mercadopago",
+    transferDiscount: o.transfer_discount || 0,
+    transferPercent: o.transfer_percent || null,
+    bank: o.payment_method === "transferencia" && o.status === "pendiente_pago" && transfer ? bankDetails(transfer) : null,
+    transferDeadline: o.payment_method === "transferencia" && o.status === "pendiente_pago" && transfer ? transferDeadline(o.created_at, transfer) : null,
     shippingCost: o.shipping_cost,
     total: o.total,
     items: o.items.map((it) => ({
@@ -273,20 +297,58 @@ export function publicOrder(o) {
 }
 
 /* ------------------------------- Estado -------------------------------- */
+/**
+ * A qué estados puede pasar un pedido. Una transferencia cancelada (por
+ * ejemplo, porque venció) todavía puede pasar a «Pagado» si la plata llegó tarde.
+ */
+export const nextStatuses = (o) =>
+  o.status === "cancelado" && o.payment_method === "transferencia" ? ["pagado"] : ORDER_STATUSES[o.status].next;
+
+/**
+ * Cancela los pedidos por transferencia que siguen sin pagar pasado el plazo
+ * del panel. Corre con la tarea diaria y cada vez que se abre la lista de
+ * pedidos o un pedido, así el plazo se cumple aunque la tarea sea diaria.
+ * Devuelve los ids cancelados (para mandarles el aviso).
+ */
+export async function expireTransferOrders(db, transfer) {
+  const hours = transfer?.expiresHours;
+  if (!hours) return [];
+  const rows = await db.query(
+    `select id from orders where status = 'pendiente_pago' and payment_method = 'transferencia'
+        and created_at < now() - make_interval(hours => $1::int) order by created_at limit 50`,
+    [hours]
+  );
+  const done = [];
+  for (const { id } of rows) {
+    try {
+      await changeStatus(db, id, "cancelado", { actor: "vencimiento", note: `No llegó la transferencia en ${hours} h` });
+      done.push(id);
+    } catch (err) {
+      console.error(`Vencimiento del pedido ${id}:`, err);
+    }
+  }
+  return done;
+}
 export async function changeStatus(db, id, to, { actor, note = null }) {
   return db.tx(async (q) => {
-    const [o] = await q.query("select id, status from orders where id = $1 for update", [id]);
+    const [o] = await q.query("select id, status, payment_method from orders where id = $1 for update", [id]);
     if (!o) throw new HttpError(404, "Ese pedido no existe.");
     if (!ORDER_STATUSES[to]) throw new HttpError(422, "Estado desconocido.");
     if (o.status === to) return o;
-    if (!ORDER_STATUSES[o.status].next.includes(to)) {
+    if (!nextStatuses(o).includes(to)) {
       const msg =
         to === "cancelado"
           ? "Un pedido solo se puede cancelar antes de pasar a producción."
           : `No se puede pasar de «${ORDER_STATUSES[o.status].label}» a «${ORDER_STATUSES[to].label}».`;
       throw new HttpError(409, msg);
     }
-    await q.query("update orders set status = $2, updated_at = now() where id = $1", [id, to]);
+    // Una transferencia marcada como pagada a mano queda con el pago aprobado.
+    await q.query(
+      `update orders set status = $2, updated_at = now(),
+         payment_status = case when $2 = 'pagado' and payment_method = 'transferencia' then 'aprobado' else payment_status end
+       where id = $1`,
+      [id, to]
+    );
     await q.query("insert into order_events (order_id, kind, from_status, to_status, note, actor) values ($1,'estado',$2,$3,$4,$5)", [
       id, o.status, to, note ? String(note).slice(0, 300) : null, actor,
     ]);

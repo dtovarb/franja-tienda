@@ -8,9 +8,11 @@
  * 3. El servidor recalcula todo, verifica los archivos y crea el pedido.
  * 4. Si el cobro está activo, la clienta paga en Mercado Pago y vuelve a
  *    pedido.html; si no, queda registrado y la tienda coordina el pago.
+ *    Si elige transferencia (cuando la tienda la ofrece, con descuento), va
+ *    a pedido.html, donde ve el monto y los datos para transferir.
  */
 import { icon, toast } from "../core/ui.js";
-import { SERVER, api, putToTarget, ApiError } from "../core/api.js";
+import { SERVER, CATALOG, api, putToTarget, ApiError } from "../core/api.js";
 import { getCart, clearCart, cartTotals } from "../core/cart.js";
 import { getDesign, deleteDesign, collectAssetIds } from "../core/designs.js";
 import { getAssets, sha256Hex } from "../core/asset-store.js";
@@ -18,6 +20,7 @@ import { getProduct, getColor } from "../data/catalog.js";
 import { formatPrice, escapeHtml, debounce } from "../core/format.js";
 import { readJSON, writeJSON } from "../core/storage.js";
 import { forgetCoupon, cartCouponDiscount } from "../core/coupon-state.js";
+import { transferDiscount } from "../core/transfer.js";
 
 export const PROVINCES = [
   "Córdoba", "Buenos Aires", "Ciudad Autónoma de Buenos Aires", "Catamarca", "Chaco", "Chubut", "Corrientes", "Entre Ríos", "Formosa",
@@ -30,7 +33,10 @@ const MINE_KEY = "pedidos.mios.v1";
 let quote = null;
 let optionId = null;
 let coupon = null; // { code, percent } aplicado en el carrito
+let method = "mercadopago"; // o "transferencia"
+const transfer = () => CATALOG?.transfer || null; // { percent, stacksWithCoupons } si la tienda la ofrece
 const discountNow = () => (coupon ? cartCouponDiscount(coupon).discount : 0);
+const transferOffNow = () => (method === "transferencia" ? transferDiscount(transfer(), cartTotals().subtotal - discountNow(), { hasCoupon: !!coupon }) : 0);
 const chosenOption = () => quote?.options.find((o) => o.id === optionId) || null;
 
 export function renderCheckout(root, { onBack, coupon: applied = null }) {
@@ -38,6 +44,15 @@ export function renderCheckout(root, { onBack, coupon: applied = null }) {
   const saved = readJSON(FORM_KEY, {});
   const t = cartTotals();
   const pays = !!SERVER?.services?.payments;
+  const tr = transfer();
+  if (!tr) method = "mercadopago";
+  // Con un código que no se suma, la transferencia no tiene descuento: se avisa.
+  const trNoDiscount = tr && coupon && !tr.stacksWithCoupons;
+  const payOption = (value, title, detail) => `
+    <label class="ship-option">
+      <input type="radio" name="paymentMethod" value="${value}" ${method === value ? "checked" : ""}>
+      <span><b>${title}</b><br><span class="hint">${detail}</span></span>
+    </label>`;
   const field = (name, label, attrs = "", hint = "") => `
     <div class="field">
       <label for="co-${name}">${label}</label>
@@ -77,25 +92,41 @@ export function renderCheckout(root, { onBack, coupon: applied = null }) {
             <textarea class="input" id="co-notes" name="notes" rows="2" maxlength="300">${escapeHtml(saved.notes || "")}</textarea>
           </div>
         </fieldset>
+        ${
+          tr
+            ? `<fieldset class="checkout__group">
+          <legend class="h3">Cómo pagás</legend>
+          <div class="ship-options" data-pay-options>
+            ${payOption(
+              "mercadopago",
+              pays ? "Mercado Pago" : "Coordinar con la tienda",
+              pays ? "Débito, crédito o dinero en Mercado Pago." : "Te escribimos para coordinar el pago."
+            )}
+            ${payOption(
+              "transferencia",
+              `Transferencia bancaria${tr.percent && !trNoDiscount ? ` · ${tr.percent}% off` : ""}`,
+              trNoDiscount
+                ? "El descuento por transferencia no se suma con códigos de descuento."
+                : `${tr.percent ? `${tr.percent}% de descuento en las prendas (el envío no). ` : ""}Al confirmar te mostramos el alias y el CBU para transferir.`
+            )}
+          </div>
+        </fieldset>`
+            : ""
+        }
       </div>
       <aside class="summary-box" aria-label="Resumen del pedido">
         <h2 class="h3">Tu pedido</h2>
         <div class="row"><span>Prendas</span><span>${t.count}</span></div>
         <div class="row"><span>Subtotal</span><span>${formatPrice(t.subtotal)}</span></div>
         ${coupon ? `<div class="row row--discount"><span>Descuento ${coupon.percent}% · ${escapeHtml(coupon.code)}</span><span>−${formatPrice(discountNow())}</span></div>` : ""}
+        <div class="row row--discount" data-transfer-row hidden><span>Transferencia ${tr?.percent || 0}% off</span><span data-transfer-off></span></div>
         <div class="row"><span>Envío</span><span data-ship>Ingresá tu código postal</span></div>
         <div class="row row--total"><span>Total</span><span class="price" style="font-size:1.5rem" data-total>${formatPrice(t.subtotal - discountNow())}</span></div>
         <div class="notice notice--danger form-errors" role="alert" data-co-errors></div>
         <p class="checkout__progress" data-progress aria-live="polite" hidden></p>
-        <button class="btn btn--primary btn--lg btn--block" type="submit" data-co-submit>
-          ${pays ? "Pagar con Mercado Pago" : "Confirmar pedido"} ${icon("arrowRight")}
-        </button>
+        <button class="btn btn--primary btn--lg btn--block" type="submit" data-co-submit></button>
         <button class="btn btn--ghost btn--block" type="button" data-co-back>${icon("back")}Volver al carrito</button>
-        <p class="hint">${
-          pays
-            ? "Pagás en Mercado Pago con débito, crédito o transferencia. El plazo de 5 a 7 días hábiles, con el envío incluido, corre desde que se acredita el pago."
-            : "El cobro online todavía no está activo: registramos tu pedido y te escribimos para coordinar el pago."
-        } Podés cancelarlo mientras no haya pasado a producción.</p>
+        <p class="hint"><span data-pay-hint></span> Podés cancelarlo mientras no haya pasado a producción.</p>
       </aside>
     </form>`;
 
@@ -123,6 +154,11 @@ export function renderCheckout(root, { onBack, coupon: applied = null }) {
     }
     paintTotals(form);
   }, 350);
+  form.querySelector("[data-pay-options]")?.addEventListener("change", (e) => {
+    if (e.target.name !== "paymentMethod") return;
+    method = e.target.value;
+    paintTotals(form);
+  });
   form.querySelector("[data-quote]").addEventListener("change", (e) => {
     if (e.target.name !== "shippingOption") return;
     optionId = e.target.value;
@@ -139,14 +175,28 @@ export function renderCheckout(root, { onBack, coupon: applied = null }) {
     const errEl = form.querySelector("[data-co-errors]");
     if (errEl.textContent && !form.querySelector("[data-co-submit]").disabled) errEl.textContent = "";
   });
+  paintTotals(form);
   form.elements.namedItem("name").focus();
 }
 
 function paintTotals(form) {
   const t = cartTotals();
   const o = chosenOption();
+  const off = transferOffNow();
+  const pays = !!SERVER?.services?.payments;
+  const byTransfer = method === "transferencia";
   form.querySelector("[data-ship]").textContent = o ? (o.price ? formatPrice(o.price) : "Gratis") : "Ingresá tu código postal";
-  form.querySelector("[data-total]").textContent = formatPrice(t.subtotal - discountNow() + (o?.price || 0));
+  form.querySelector("[data-transfer-row]")?.toggleAttribute("hidden", !off);
+  const offEl = form.querySelector("[data-transfer-off]");
+  if (offEl) offEl.textContent = `−${formatPrice(off)}`;
+  form.querySelector("[data-total]").textContent = formatPrice(t.subtotal - discountNow() - off + (o?.price || 0));
+  const btn = form.querySelector("[data-co-submit]");
+  if (!btn.disabled) btn.innerHTML = `${byTransfer ? "Confirmar y ver los datos para transferir" : pays ? "Pagar con Mercado Pago" : "Confirmar pedido"} ${icon("arrowRight")}`;
+  form.querySelector("[data-pay-hint]").textContent = byTransfer
+    ? `Transferís desde tu banco o billetera${transfer()?.expiresHours ? ` dentro de las ${transfer().expiresHours} h` : ""} y nos mandás el comprobante; cuando la vemos te avisamos por mail. El plazo de 5 a 7 días hábiles, con el envío incluido, corre desde ahí.`
+    : pays
+      ? "Pagás en Mercado Pago con débito, crédito o dinero en cuenta. El plazo de 5 a 7 días hábiles, con el envío incluido, corre desde que se acredita el pago."
+      : "El cobro online todavía no está activo: registramos tu pedido y te escribimos para coordinar el pago.";
 }
 
 function readForm(form) {
@@ -275,6 +325,7 @@ async function submit(form) {
         shipping: { optionId, street: v.street, number: v.number, apartment: v.apartment, city: v.city, province: v.province, postalCode: v.postalCode, notes: v.notes },
         items: prepared.map((p) => p.payload),
         couponCode: coupon?.code || undefined,
+        paymentMethod: method === "transferencia" ? "transferencia" : undefined,
       },
     });
     sessionStorage.removeItem("nevrado.checkout.key");
