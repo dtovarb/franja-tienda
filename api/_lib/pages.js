@@ -56,7 +56,7 @@ export async function designPage(db, { slug, productId, origin }) {
   const title = `${design.name} · ${product.name} · nevrado`;
   const desc = `${design.description ? `${design.description.trim().replace(/\.?$/, ".")} ` : ""}${product.name} desde ${money(price)}. Diseño propio estampado en nuestro taller de Córdoba. Envíos a todo el país.`;
   const photo = design.modelPhoto?.url || (isRaster(design.source?.url) ? design.source.url : null);
-  const image = photo ? new URL(photo, origin).href : `${origin}/assets/img/og-nevrado.png`;
+  const image = photo ? new URL(photo, origin).href : `${origin}/assets/img/og-nevrado-v2.png`;
   const anyStock = product.sizes?.some((s) => s.stock !== "out");
 
   const ld = {
