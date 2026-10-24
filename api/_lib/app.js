@@ -11,11 +11,11 @@ import { createMercadoPago } from "./mercadopago.js";
 import { createCarriers } from "./carriers.js";
 import { createMailer, sendOrderMails, sendPaymentReminders } from "./mails.js";
 import { HttpError, json, errorResponse, readJson, readBytes } from "./http.js";
-import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZoneSettings, saveZoneSettings, withoutDisabledZones, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadPopup, savePopup, loadCoupons, saveCoupons, couponUses, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
+import { loadColors, loadProducts, loadStoreDesigns, updateProduct, createProduct, saveStoreDesign, deleteStoreDesign, loadZoneSettings, saveZoneSettings, withoutDisabledZones, loadDesignCollections, saveDesignCollection, deleteDesignCollection, loadAnnouncement, saveAnnouncement, loadPopup, savePopup, loadCoupons, saveCoupons, couponUses, loadTransfer, saveTransfer, loadHomeImages, saveHomeImages, loadSiteSettings } from "./catalog.js";
 import { loadSiteTexts, saveSiteTexts, loadMarquee, saveMarquee, loadGarmentPhotos, saveGarmentPhoto } from "./catalog.js";
 import { quoteShipping, listRates, replaceRates, loadShippingSettings, saveShippingSettings } from "./shipping.js";
 import { checkDeclared, inspectBytes, storageKeyFor } from "./files.js";
-import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkToken, orderToken, ORDER_STATUSES } from "./orders.js";
+import { createOrder, getOrder, publicOrder, changeStatus, applyPayment, checkToken, orderToken, ORDER_STATUSES, nextStatuses, expireTransferOrders } from "./orders.js";
 import { defaultSizesFor } from "../../assets/js/data/catalog.js";
 import { GARMENTS } from "../../assets/js/data/garments.js";
 import { createRegret } from "./regret.js";
@@ -98,11 +98,11 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       t.push(Date.now());
       const designCollections = await loadDesignCollections(db).catch((err) => (console.error("catálogo: colecciones", err), []));
       t.push(Date.now());
-      const { announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos, popup } = await loadSiteSettings(db).catch((err) => (console.error("catálogo: sitio", err), { announcement: null, homeImages: null, freeShipping: false, siteTexts: null, marquee: null, garmentPhotos: {}, popup: null }));
+      const { announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos, popup, transfer } = await loadSiteSettings(db).catch((err) => (console.error("catálogo: sitio", err), { announcement: null, homeImages: null, freeShipping: false, siteTexts: null, marquee: null, garmentPhotos: {}, popup: null, transfer: null }));
       t.push(Date.now());
       if (t[6] - t[0] > 2000) console.warn(`catálogo lento: colores ${t[1] - t[0]} ms, productos ${t[2] - t[1]} ms, diseños ${t[3] - t[2]} ms, recargos ${t[4] - t[3]} ms, colecciones ${t[5] - t[4]} ms, sitio ${t[6] - t[5]} ms`);
       // Los productos ocultos van igual: los carritos que ya los tienen siguen funcionando.
-      return json({ colors, products: withoutDisabledZones(products, disabledZones), storeDesigns, zonePrices, disabledZones, designCollections, announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos, popup }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
+      return json({ colors, products: withoutDisabledZones(products, disabledZones), storeDesigns, zonePrices, disabledZones, designCollections, announcement, homeImages, freeShipping, siteTexts, marquee, garmentPhotos, popup, transfer }, 200, { "cache-control": "public, max-age=0, s-maxage=30, stale-while-revalidate=300" });
     }],
 
     // Tarea diaria (vercel.json → crons): recordatorio a quien no terminó de pagar.
@@ -111,11 +111,12 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const ok = config.cronSecret ? auth === `Bearer ${config.cronSecret}` : /vercel-cron/i.test(req.headers.get("user-agent") || "");
       if (!ok) throw new HttpError(401, "No autorizado.");
       const c = await ctx();
-      if (!c.mp) return json({ skipped: "sin cobro online" });
+      const expired = await expireOverdue(c, req);
+      if (!c.mp) return json({ skipped: "sin cobro online", expired: expired.length });
       // El aviso de Vercel puede llegar por la dirección interna del proyecto: los
       // links del mail van siempre al dominio de la tienda.
       const sent = await sendPaymentReminders({ db: c.db, mailer: c.mailer, config }, config.publicUrl || "https://www.nevrado.com", { getOrder });
-      return json({ sent });
+      return json({ sent, expired: expired.length });
     }],
 
     // Ficha de un diseño con su título, foto y precio en el <head> (vercel.json
@@ -190,9 +191,12 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const body = await readJson(req);
       const secret = config.sessionSecret;
       const { order, token, replay } = await createOrder({ db: c.db, storage: c.storage, secret, carriers: c.carriers }, body);
-      const payment = await startPayment(c, req, order, token);
+      // Por transferencia no hay preferencia de Mercado Pago: la clienta ve los datos en su pedido.
+      const byTransfer = order.payment_method === "transferencia";
+      const payment = byTransfer ? { provider: "transferencia", checkoutUrl: null } : await startPayment(c, req, order, token);
       await mails(c, req, order.id);
-      return json({ order: publicOrder(order), token, payment, replay }, replay ? 200 : 201);
+      const transfer = byTransfer ? await loadTransfer(c.db) : null;
+      return json({ order: publicOrder(order, { transfer }), token, payment, replay }, replay ? 200 : 201);
     }],
 
     ["POST", "/api/arrepentimiento", async (req) => {
@@ -205,9 +209,14 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
     ["GET", /^\/api\/orders\/([0-9a-f-]{36})$/, async (req, url, [id]) => {
       const { db } = await ctx();
       if (!checkToken(config.sessionSecret, id, url.searchParams.get("t"))) throw new HttpError(404, "No encontramos ese pedido.");
-      const order = await getOrder(db, id);
+      let order = await getOrder(db, id);
       if (!order) throw new HttpError(404, "No encontramos ese pedido.");
-      return json({ order: publicOrder(order) });
+      let transfer = null;
+      if (order.payment_method === "transferencia") {
+        if (order.status === "pendiente_pago" && (await expireOverdue(await ctx(), req)).includes(id)) order = await getOrder(db, id);
+        transfer = await loadTransfer(db);
+      }
+      return json({ order: publicOrder(order, { transfer }) });
     }],
 
     ["POST", /^\/api\/orders\/([0-9a-f-]{36})\/pay$/, async (req, url, [id]) => {
@@ -218,6 +227,8 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const order = await getOrder(c.db, id);
       if (!order) throw new HttpError(404, "No encontramos ese pedido.");
       if (order.status !== "pendiente_pago") throw new HttpError(409, "Este pedido ya no está esperando el pago.");
+      // El total ya tiene el descuento por transferencia: no se cobra igual en Mercado Pago.
+      if (order.payment_method === "transferencia") throw new HttpError(409, "Este pedido se paga por transferencia: los datos están en la página del pedido.");
       return json({ payment: await startPayment(c, req, order, token) });
     }],
 
@@ -259,11 +270,13 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
 
     /* ------------------------------ Panel ------------------------------ */
     ["GET", "/api/admin/orders", async (req, url) => {
-      const { db, auth } = await ctx();
+      const c = await ctx();
+      const { db, auth } = c;
       await auth.require(req);
+      await expireOverdue(c, req);
       const status = url.searchParams.get("status");
       const rows = await db.query(
-        `select o.id, o.number, o.status, o.payment_status, o.customer, o.shipping, o.total, o.created_at,
+        `select o.id, o.number, o.status, o.payment_status, o.payment_method, o.customer, o.shipping, o.total, o.created_at,
                 (select coalesce(sum(qty),0)::int from order_items i where i.order_id = o.id) as units
            from orders o ${status && ORDER_STATUSES[status] ? "where o.status = $1" : ""}
           order by o.created_at desc limit 200`,
@@ -290,6 +303,7 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
         );
       }
       o.customerLink = `${baseUrl(req)}/pedido.html?id=${o.id}&t=${orderToken(config.sessionSecret, o.id)}`;
+      o.next = nextStatuses(o);
       return json({ order: o, statuses: ORDER_STATUSES });
     }],
 
@@ -404,6 +418,18 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       await auth.require(req);
       const body = await readJson(req, 32 * 1024);
       return json({ coupons: await saveCoupons(db, body.coupons), uses: await couponUses(db) });
+    }],
+
+    ["GET", "/api/admin/transfer", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      return json({ transfer: await loadTransfer(db) });
+    }],
+    ["PUT", "/api/admin/transfer", async (req) => {
+      const { db, auth } = await ctx();
+      await auth.require(req);
+      const body = await readJson(req, 4096);
+      return json({ transfer: await saveTransfer(db, body.transfer) });
     }],
 
     ["GET", "/api/admin/popup", async (req) => {
@@ -570,6 +596,18 @@ export function createApp(overrides = {}, { fetchImpl = fetch } = {}) {
       const qty = Math.min(50, Math.max(1, Number(it?.qty) || 1));
       return p ? [{ type: p.type, qty }] : [];
     });
+  }
+
+  /** Cancela las transferencias vencidas y le avisa a cada clienta. Nunca frena la ruta que lo llama. */
+  async function expireOverdue(c, req) {
+    try {
+      const ids = await expireTransferOrders(c.db, await loadTransfer(c.db));
+      for (const id of ids) await mails(c, req, id);
+      return ids;
+    } catch (err) {
+      console.error("vencimiento de transferencias", err);
+      return [];
+    }
   }
 
   /** Crea la preferencia de pago, si Mercado Pago está configurado. */

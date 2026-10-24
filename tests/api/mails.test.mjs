@@ -56,7 +56,7 @@ const call = (app, method, p, { body, headers = {} } = {}) =>
     })
   );
 
-async function order(app) {
+async function order(app, extra = {}) {
   const files = [];
   for (const [role, extra] of [["original", { name: "foto.png" }], ["preview", { face: "front" }], ["print", { face: "front", dpi: 300 }]]) {
     const bytes = Buffer.concat([png, Buffer.from(role)]);
@@ -72,6 +72,7 @@ async function order(app) {
       customer: { name: "Flor <b>Prueba</b>", email: "flor@example.com", phone: "3515551234" },
       shipping: { street: "Colón", number: "50", city: "Córdoba", province: "Córdoba", postalCode: "5000", notes: "Timbre 2" },
       items: [{ productId: "remera-clasica", colorId: "rosa-palo", sizeId: "M", qty: 2, design, files }],
+      ...extra,
     },
   });
   const body = await r.json();
@@ -154,6 +155,59 @@ test("sin cobro online: «pedido recibido» al crear, y comprobante si la dueña
   assert.match(sent[2].subject, /Tu compra en nevrado/);
   // El aviso a la dueña ya salió con el pedido: no se repite.
   assert.equal(sent.filter((m) => m.to[0] === "duena@nevrado.test").length, 1);
+});
+
+test("por transferencia: datos para transferir al crear, comprobante al marcarlo pagado y sin recordatorio", async () => {
+  sent = [];
+  const app = makeApp(path.join(tmp, "transferencia"), { MP_ACCESS_TOKEN: "TEST", MP_WEBHOOK_SECRET: "firma-mp", MP_API_URL: "https://mp.test" });
+  const { db } = await app.init();
+  const { saveTransfer } = await import("../../api/_lib/catalog.js");
+  await saveTransfer(db, { enabled: true, percent: 10, alias: "nevrado.tienda", cbu: "0000003100012345678901", holder: "Daniela Tovar", bank: "Mercado Pago" });
+  const { order: o } = await order(app, { paymentMethod: "transferencia" });
+  assert.equal(o.paymentMethod, "transferencia");
+  assert.deepEqual(sent.map((m) => m.to[0]), ["flor@example.com", "duena@nevrado.test"]);
+  const [mail, owner] = sent;
+  assert.equal(mail.subject, `Tu pedido #${o.number}: datos para transferir · nevrado`);
+  assert.equal(mail.key, `nevrado-${o.id}-pedido_transferencia`);
+  for (const s of ["nevrado.tienda", "0000003100012345678901", "Daniela Tovar", "Mercado Pago", "351 819-9773"]) {
+    assert.ok(mail.text.includes(s), s);
+    assert.ok(mail.html.includes(s), s);
+  }
+  assert.match(mail.text, /Descuento por transferencia \(10%\)/);
+  assert.ok(!mail.text.includes("comprobante de compra; no es una factura"));
+  assert.match(owner.subject, /espera transferencia/);
+
+  // El recordatorio de Mercado Pago no va a los pedidos por transferencia.
+  await db.query("update orders set created_at = now() - interval '30 hours' where id = $1", [o.id]);
+  const { sendPaymentReminders } = await import("../../api/_lib/mails.js");
+  const { getOrder, changeStatus } = await import("../../api/_lib/orders.js");
+  const c = await app.init();
+  const config = { ownerEmails: ["duena@nevrado.test"], sessionSecret: "secreto-de-prueba" };
+  assert.deepEqual(await sendPaymentReminders({ db, mailer: c.mailer, config }, "https://www.nevrado.com", { getOrder }), []);
+
+  // La dueña lo marca pagado: comprobante con «Pagado por transferencia» y pago aprobado.
+  await changeStatus(db, o.id, "pagado", { actor: "duena@nevrado.test" });
+  const { sendOrderMails } = await import("../../api/_lib/mails.js");
+  await sendOrderMails({ db, mailer: c.mailer, config }, await getOrder(db, o.id), "https://www.nevrado.com");
+  assert.equal(sent.length, 3);
+  assert.match(sent[2].subject, /Tu compra en nevrado/);
+  assert.match(sent[2].text, /Pagado por transferencia/);
+  assert.ok(!sent[2].text.includes("nevrado.tienda"), "el comprobante no repite los datos bancarios");
+  assert.equal((await getOrder(db, o.id)).payment_status, "aprobado");
+  assert.match(sent[2].text, /recibimos tu transferencia/);
+
+  // Otro que no transfiere: a las 72 h se cancela solo y le avisa, una vez.
+  const { order: o2, token: t2 } = await order(app, { paymentMethod: "transferencia" });
+  assert.match(sent.at(-2).text, /72 horas/);
+  await db.query("update orders set created_at = now() - interval '80 hours' where id = $1", [o2.id]);
+  const before = sent.length;
+  const seen = await (await call(app, "GET", `/api/orders/${o2.id}?t=${t2}`)).json();
+  assert.equal(seen.order.status, "cancelado");
+  assert.equal(sent.length, before + 1);
+  assert.equal(sent.at(-1).subject, `Cancelamos tu pedido #${o2.number} · nevrado`);
+  assert.deepEqual(sent.at(-1).to, ["flor@example.com"]);
+  await call(app, "GET", `/api/orders/${o2.id}?t=${t2}`);
+  assert.equal(sent.length, before + 1);
 });
 
 test("si Resend falla, el pedido sigue y el próximo aviso lo reintenta", async () => {

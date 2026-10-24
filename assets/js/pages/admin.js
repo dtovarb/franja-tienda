@@ -259,7 +259,7 @@ const findProduct = (id) => state.products.find((p) => p.id === id);
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const TABS = SERVER ? ["disenos", "productos", "pedidos", "sitio", "envios"] : ["disenos", "productos", "pedidos", "sitio"];
+const TABS = SERVER ? ["disenos", "productos", "pedidos", "sitio", "envios", "cobros"] : ["disenos", "productos", "pedidos", "sitio"];
 
 /* ======================= Pestañas ======================= */
 function selectTab(name, { focus = false } = {}) {

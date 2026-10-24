@@ -13,6 +13,7 @@ import { DEFAULT_MARQUEE, normalizeMarquee, normalizeSiteTexts } from "../../ass
 import { normalizeGarmentPhotos } from "../../assets/js/core/garment-photos.js";
 import { emptyPopup, normalizePopup } from "../../assets/js/core/popup.js";
 import { normalizeCoupons } from "../../assets/js/core/coupons.js";
+import { normalizeTransfer, emptyTransfer, publicTransfer } from "../../assets/js/core/transfer.js";
 
 export async function loadColors(q) {
   const rows = await q.query("select id, name, hex from garment_colors order by sort, id");
@@ -407,6 +408,18 @@ export async function saveCoupons(q, body) {
   return saveSetting(q, "coupons", value);
 }
 
+/** Pago por transferencia: porcentaje y datos bancarios (ver core/transfer.js). */
+export async function loadTransfer(q) {
+  const [row] = await q.query("select value from site_settings where key = 'transfer'");
+  return row ? normalizeTransfer(row.value).value : emptyTransfer();
+}
+
+export async function saveTransfer(q, body) {
+  const { value, errors } = normalizeTransfer(body);
+  if (errors.length) throw new HttpError(422, errors.join(" "));
+  return saveSetting(q, "transfer", value);
+}
+
 /** Cuántos pedidos pagados (o más adelante) usaron cada código. */
 export async function couponUses(q) {
   const rows = await q.query("select coupon_code, count(*)::int as n from orders where coupon_code is not null and status not in ('pendiente_pago', 'cancelado') group by coupon_code");
@@ -418,7 +431,7 @@ export async function couponUses(q) {
  * (cada consulta de más se nota al arrancar en frío).
  */
 export async function loadSiteSettings(q) {
-  const rows = await q.query("select key, value from site_settings where key in ('announcement', 'home_images', 'shipping', 'site_texts', 'marquee', 'garment_photos', 'popup')");
+  const rows = await q.query("select key, value from site_settings where key in ('announcement', 'home_images', 'shipping', 'site_texts', 'marquee', 'garment_photos', 'popup', 'transfer')");
   const get = (k) => rows.find((r) => r.key === k)?.value;
   return {
     announcement: get("announcement") ? normalizeAnnouncement(get("announcement")).value : { ...EMPTY_ANNOUNCEMENT },
@@ -428,5 +441,6 @@ export async function loadSiteSettings(q) {
     marquee: get("marquee") ? normalizeMarquee(get("marquee")).value : structuredClone(DEFAULT_MARQUEE),
     garmentPhotos: normalizeGarmentPhotos(get("garment_photos")),
     popup: get("popup") ? normalizePopup(get("popup")).value : emptyPopup(),
+    transfer: get("transfer") ? publicTransfer(normalizeTransfer(get("transfer")).value) : null,
   };
 }

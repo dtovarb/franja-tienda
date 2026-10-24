@@ -1,6 +1,7 @@
 /**
  * Partes del panel que solo existen con servidor: login, pedidos reales
- * (con sus archivos en el almacenamiento privado) y tarifas de envío.
+ * (con sus archivos en el almacenamiento privado), tarifas de envío y
+ * cobros (transferencia con descuento).
  */
 import { icon, toast, confirmDialog } from "../core/ui.js";
 import { SERVER, api, ApiError } from "../core/api.js";
@@ -9,6 +10,7 @@ const SHIPPING_LIVE = (SERVER?.services?.shipping || []).length > 0;
 import { getColor } from "../data/catalog.js";
 import { faceLabel } from "../data/garments.js";
 import { formatPrice, escapeHtml } from "../core/format.js";
+import { MAX_TRANSFER_PERCENT, MAX_EXPIRES_HOURS } from "../core/transfer.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const ROLE = { original: "Original", preview: "Vista previa", print: "Impresión" };
@@ -20,6 +22,11 @@ const PAYMENT = {
   devuelto: "Pago devuelto",
   sin_configurar: "Cobro a coordinar",
 };
+/** Estado del pago para la lista y el detalle (las transferencias se confirman a mano). */
+const paymentLabel = (o) =>
+  o.payment_method === "transferencia"
+    ? o.status === "pendiente_pago" ? "Espera transferencia" : o.status === "cancelado" ? "Transferencia" : "Transferencia recibida"
+    : PAYMENT[o.payment_status] || "";
 const date = (d) => new Date(d).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
 
 /* ======================= Login ======================= */
@@ -29,14 +36,16 @@ export async function gate(start) {
   const warning = $(".admin-warning");
   const tabs = $(".admin-tabs");
   const panels = [...document.querySelectorAll("[data-panel]")];
-  // Pestaña de envíos (solo con servidor).
+  // Pestañas de envíos y cobros (solo con servidor).
   tabs.insertAdjacentHTML(
     "beforeend",
-    `<button role="tab" id="tab-envios" aria-controls="panel-envios" data-tab="envios">Envíos</button>`
+    `<button role="tab" id="tab-envios" aria-controls="panel-envios" data-tab="envios">Envíos</button>
+     <button role="tab" id="tab-cobros" aria-controls="panel-cobros" data-tab="cobros">Cobros</button>`
   );
   panels.at(-1).insertAdjacentHTML(
     "afterend",
-    `<section class="admin-panel" role="tabpanel" id="panel-envios" aria-labelledby="tab-envios" data-panel="envios" hidden></section>`
+    `<section class="admin-panel" role="tabpanel" id="panel-envios" aria-labelledby="tab-envios" data-panel="envios" hidden></section>
+     <section class="admin-panel" role="tabpanel" id="panel-cobros" aria-labelledby="tab-cobros" data-panel="cobros" hidden></section>`
   );
 
   const showApp = (user) => {
@@ -95,6 +104,7 @@ let filter = "";
 export function renderServerPanels({ ordersPanel }) {
   renderOrders(ordersPanel);
   renderShipping($("[data-panel=envios]"));
+  renderPayments($("[data-panel=cobros]"));
   if (!ordersPanel.dataset.bound) {
     ordersPanel.dataset.bound = "1";
     bindOrders(ordersPanel);
@@ -109,7 +119,7 @@ async function renderOrders(panel) {
     <div class="admin-head">
       <div>
         <h2 class="h3">Pedidos</h2>
-        <p class="muted">Un pedido pasa a «Pagado» solo cuando Mercado Pago confirma el pago (o si lo marcás a mano). Se puede cancelar solo antes de producción.</p>
+        <p class="muted">Un pedido pasa a «Pagado» solo cuando Mercado Pago confirma el pago (o si lo marcás a mano). Los que dicen «Espera transferencia» los pasás vos a «Pagado» cuando te llega la plata: a la clienta le llega un mail en el momento. Se puede cancelar solo antes de producción.</p>
       </div>
       <label class="admin-order__status">Ver
         <select class="input" data-order-filter>
@@ -132,7 +142,7 @@ async function renderOrders(panel) {
               </span>
               <span class="admin-product__state">
                 <span class="tag ${o.status === "cancelado" ? "tag--demo" : "tag--magenta"}">${escapeHtml(statuses[o.status].label)}</span>
-                <span class="hint">${PAYMENT[o.payment_status] || ""} · ${formatPrice(o.total)}</span>
+                <span class="hint">${paymentLabel(o)} · ${formatPrice(o.total)}</span>
               </span>
             </summary>
             <div data-order-detail="${o.id}"><p class="muted">Cargando…</p></div>
@@ -208,7 +218,7 @@ async function loadDetail(host) {
   }
   const c = order.customer;
   const s = order.shipping;
-  const next = statuses[order.status].next;
+  const next = order.next || statuses[order.status].next;
   host.innerHTML = `
     <div class="admin-form order-admin">
       <div class="admin-grid">
@@ -244,8 +254,8 @@ async function loadDetail(host) {
       <div class="admin-grid">
         <div>
           <p class="eyebrow muted">Importes</p>
-          <p>Subtotal ${formatPrice(order.subtotal)}${order.discount ? ` · descuento −${formatPrice(order.discount)} (código ${escapeHtml(order.coupon_code)}, ${order.coupon_percent}%)` : ""} · envío ${order.shipping_cost ? formatPrice(order.shipping_cost) : "gratis"} · <b>total ${formatPrice(order.total)}</b><br>
-          <span class="hint">${PAYMENT[order.payment_status]}${order.mp_payment_id ? ` · Mercado Pago n.º ${escapeHtml(order.mp_payment_id)}` : ""}</span></p>
+          <p>Subtotal ${formatPrice(order.subtotal)}${order.discount ? ` · descuento −${formatPrice(order.discount)} (código ${escapeHtml(order.coupon_code)}, ${order.coupon_percent}%)` : ""}${order.transfer_discount ? ` · transferencia −${formatPrice(order.transfer_discount)} (${order.transfer_percent}%)` : ""} · envío ${order.shipping_cost ? formatPrice(order.shipping_cost) : "gratis"} · <b>total ${formatPrice(order.total)}</b><br>
+          <span class="hint">${paymentLabel(order)}${order.payment_method === "transferencia" && order.status === "pendiente_pago" ? ` · cuando veas ${formatPrice(order.total)} en tu cuenta, pasalo a «Pagado»` : ""}${order.mp_payment_id ? ` · Mercado Pago n.º ${escapeHtml(order.mp_payment_id)}` : ""}</span></p>
           <p><button class="btn btn--sm btn--ghost" type="button" data-copy="${escapeHtml(order.customerLink)}">${icon("copy")}Copiar el enlace de la clienta</button></p>
         </div>
         ${
@@ -351,3 +361,61 @@ const rateRow = (r) => `
     <td><label class="check check--cell"><input type="checkbox" name="free" ${r.free ? "checked" : ""} aria-label="Envío gratis en ${escapeHtml(r.name || "esta zona")}"><span aria-hidden="true">Gratis</span></label></td>
     <td><button class="icon-btn" type="button" data-remove-rate aria-label="Quitar la zona">${icon("trash")}</button></td>
   </tr>`;
+
+/* ======================= Cobros ======================= */
+async function renderPayments(panel) {
+  const { transfer: t } = await api("admin/transfer");
+  const field = (name, label, attrs = "", hint = "") => `
+    <div class="field">
+      <label for="tr-${name}">${label}</label>
+      <input class="input" id="tr-${name}" name="${name}" value="${escapeHtml(t[name] ?? "")}" ${attrs}>
+      ${hint ? `<p class="hint">${hint}</p>` : ""}
+    </div>`;
+  panel.innerHTML = `
+    <form class="admin-form" data-transfer-form novalidate>
+      <h2 class="h3">Pago por transferencia</h2>
+      <p class="muted">La clienta elige «Transferencia» al finalizar la compra, ve el total con el descuento y estos datos (en la página del pedido y en el mail), y te manda el comprobante. El pedido queda «Esperando el pago» hasta que vos lo pases a «Pagado» en Pedidos. No paga comisión de Mercado Pago.</p>
+      <label class="check">
+        <input type="checkbox" name="enabled" ${t.enabled ? "checked" : ""}>
+        <span>Ofrecer pago por transferencia</span>
+      </label>
+      ${field("percent", "Descuento por pagar con transferencia (%)", `type="number" min="0" max="${MAX_TRANSFER_PERCENT}" step="1" inputmode="numeric"`, "Se descuenta de las prendas, no del envío. Con 0 se ofrece sin descuento.")}
+      <label class="check">
+        <input type="checkbox" name="stacksWithCoupons" ${t.stacksWithCoupons ? "checked" : ""}>
+        <span>Se suma con los códigos de descuento</span>
+      </label>
+      <p class="hint">Prendido: el descuento por transferencia se calcula sobre el precio ya con el código. Apagado: si la clienta usa un código, la transferencia va sin descuento.</p>
+      ${field("expiresHours", "Plazo para transferir (horas)", `type="number" min="0" max="${MAX_EXPIRES_HOURS}" step="1" inputmode="numeric"`, "Pasado este plazo sin pago, el pedido se cancela solo y a la clienta le llega un mail. Con 0 no vence. Si la plata llega tarde, igual lo podés pasar a «Pagado».")}
+      ${field("alias", "Alias", 'maxlength="20" autocomplete="off" spellcheck="false"')}
+      ${field("cbu", "CBU o CVU", 'maxlength="26" inputmode="numeric" autocomplete="off"', "22 números. Alcanza con el alias o con el CBU/CVU; si cargás los dos, se muestran los dos.")}
+      ${field("holder", "Titular de la cuenta", 'maxlength="80"', "Como aparece cuando transfieren, para que la clienta confirme que es tu cuenta.")}
+      ${field("cuit", "CUIT o CUIL (opcional)", 'maxlength="13" inputmode="numeric"')}
+      ${field("bank", "Banco o billetera (opcional)", 'maxlength="60"', "Por ejemplo: Banco Nación, Mercado Pago, Ualá.")}
+      <div class="notice notice--danger form-errors" role="alert" data-transfer-errors></div>
+      <div class="admin-form__actions"><button class="btn btn--primary" type="submit">Guardar</button></div>
+    </form>`;
+  const form = $("[data-transfer-form]", panel);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const el = form.elements;
+    const transfer = {
+      enabled: el.enabled.checked,
+      percent: Number(el.percent.value || 0),
+      stacksWithCoupons: el.stacksWithCoupons.checked,
+      expiresHours: el.expiresHours.value === "" ? "" : Number(el.expiresHours.value),
+      alias: el.alias.value,
+      cbu: el.cbu.value,
+      holder: el.holder.value,
+      cuit: el.cuit.value,
+      bank: el.bank.value,
+    };
+    $("[data-transfer-errors]", form).textContent = "";
+    try {
+      const { transfer: saved } = await api("admin/transfer", { method: "PUT", body: { transfer } });
+      toast(saved.enabled ? `Guardado. La tienda ofrece transferencia con ${saved.percent}% off en menos de un minuto.` : "Guardado. La transferencia no se ofrece.", "success");
+      renderPayments(panel);
+    } catch (err) {
+      $("[data-transfer-errors]", form).textContent = err instanceof ApiError ? err.message : "No se pudo guardar.";
+    }
+  });
+}
